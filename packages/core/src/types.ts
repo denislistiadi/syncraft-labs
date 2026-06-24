@@ -33,7 +33,16 @@ export interface SyncStoreConfig<T> {
    * Optional initial state used when no persisted data exists.
    * If not provided, `get()` returns `undefined` until data is set.
    */
-  readonly initialState?: T;
+  readonly initialState?: T | undefined;
+
+  /**
+   * Maximum number of outbox entries allowed before `set()` throws.
+   * Prevents unbounded outbox growth when the app is offline for
+   * extended periods without syncing.
+   *
+   * @default 1000
+   */
+  readonly maxOutboxSize?: number | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -98,12 +107,19 @@ export type Unsubscribe = () => void;
  * A function that receives an Immer draft and mutates it in place.
  * The draft is a proxy — mutations are captured and applied immutably.
  *
+ * Two usage patterns are supported:
+ *
+ * **Mutate the draft** (most common):
  * @example
  * store.set((draft) => {
  *   draft.todos.push({ id: "1", text: "Buy milk", done: false });
  * });
+ *
+ * **Replace the entire state** (used by fetcher/refetch):
+ * @example
+ * store.set(() => freshDataFromServer);
  */
-export type DraftUpdater<T> = (draft: T) => void;
+export type DraftUpdater<T> = (draft: T) => void | T;
 
 // ─────────────────────────────────────────────────────────────
 // SyncStore Interface
