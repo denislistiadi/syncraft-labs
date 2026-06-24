@@ -159,6 +159,21 @@ export async function readOutbox<T>(
 }
 
 /**
+ * Count the number of pending outbox entries without loading them.
+ *
+ * Uses IndexedDB's native `count()` which is O(1) — it reads from
+ * internal metadata rather than iterating over entries.
+ *
+ * Used by `set()` to enforce the `maxOutboxSize` limit.
+ *
+ * @param db - The opened database handle.
+ * @returns The number of entries in the outbox.
+ */
+export async function countOutbox(db: SyncDB): Promise<number> {
+  return db.count(OUTBOX_STORE);
+}
+
+/**
  * Remove synced entries from the outbox by their IDs.
  *
  * Uses a transaction to delete multiple entries atomically.
