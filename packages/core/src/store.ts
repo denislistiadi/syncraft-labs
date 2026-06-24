@@ -41,6 +41,7 @@ import type {
 } from "./types.js";
 import {
   closeDB,
+  countOutbox,
   openSyncDB,
   pushOutbox,
   readOutbox,
@@ -120,6 +121,9 @@ export function createSyncStore<T extends object>(
   config: SyncStoreConfig<T>,
 ): SyncStore<T> {
   const { storageKey, initialState } = config;
+
+  /** Default outbox cap — prevents unbounded growth when offline. */
+  const maxOutboxSize = config.maxOutboxSize ?? 1000;
 
   // ── Internal State ──────────────────────────────────────────
 
@@ -264,33 +268,55 @@ export function createSyncStore<T extends object>(
 
       // Determine the base state for the mutation.
       // If we have memory state, use it. Otherwise use initialState.
-      // If neither exists, we can't produce a draft — throw early.
       const baseState = memoryState ?? initialState;
 
-      if (baseState === undefined) {
-        throw new Error(
-          `[Syncraft] Cannot call set() on store "${storageKey}" — no state exists. ` +
-            `Either provide an initialState in the config, call hydrate() first, ` +
-            `or ensure the store has been populated via a fetcher.`,
-        );
-      }
+      let nextState: T;
+      let patches: Patch[];
+      let inversePatches: Patch[];
 
-      // ── Immer: Produce next state with patches ──────────────
-      //
-      // `produceWithPatches` returns a tuple:
-      //   [nextState, patches, inversePatches]
-      //
-      // - patches:        What changed (for the server / CRDT)
-      // - inversePatches: How to undo it (for rollback on server rejection)
-      //
-      const [nextState, patches, inversePatches] = produceWithPatches(
-        baseState,
-        updater,
-      ) as [T, Patch[], Patch[]];
+      if (baseState === undefined) {
+        // If no base state exists, the updater MUST return a complete replacement state.
+        try {
+          const result = updater(undefined as unknown as T);
+          if (result === undefined) {
+            throw new Error("No replacement state returned");
+          }
+          nextState = result;
+        } catch {
+          throw new Error(
+            `[Syncraft] Cannot call set() on store "${storageKey}" — no state exists. ` +
+              `Either provide an initialState in the config, call hydrate() first, ` +
+              `or ensure the store has been populated via a fetcher.`,
+          );
+        }
+        patches = [{ op: "replace", path: [], value: nextState }];
+        inversePatches = [{ op: "replace", path: [], value: undefined }];
+      } else {
+        // ── Immer: Produce next state with patches ──────────────
+        const [producedState, producedPatches, producedInverse] = produceWithPatches(
+          baseState,
+          updater,
+        ) as [T, Patch[], Patch[]];
+        nextState = producedState;
+        patches = producedPatches;
+        inversePatches = producedInverse;
+      }
 
       // Skip no-op updates (Immer returns the same reference if nothing changed)
       if (nextState === baseState) {
         return;
+      }
+
+      // ── Outbox Size Limit ─────────────────────────────────────
+      //
+      // Check BEFORE the optimistic update so the UI never shows
+      // state that can't be persisted. Uses IDB's O(1) count().
+      const outboxSize = await countOutbox(currentDB);
+      if (outboxSize >= maxOutboxSize) {
+        throw new Error(
+          `[Syncraft] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
+            `Sync pending changes before making more mutations.`,
+        );
       }
 
       // ── Optimistic Update with Pessimistic Rollback ─────────
@@ -337,7 +363,13 @@ export function createSyncStore<T extends object>(
         // durable (would be lost on page refresh).
 
         memoryState = previousState;
-        notifyListeners(previousState);
+        if (previousState !== undefined) {
+          notifyListeners(previousState);
+        } else {
+          listeners.forEach((listener) => {
+            listener(undefined as unknown as T);
+          });
+        }
 
         // Log with Syncraft prefix for easy filtering in DevTools
         console.error(
