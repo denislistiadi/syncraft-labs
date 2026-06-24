@@ -1,5 +1,11 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalPassThroughEnv": [
+    "SystemRoot",
+    "windir",
+    "ComSpec",
+    "PATHEXT"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
