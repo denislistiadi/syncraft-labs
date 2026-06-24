@@ -35,7 +35,13 @@
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@syncraft/core": ["./packages/core/src/index.ts"],
+      "@syncraft/react": ["./packages/react/src/index.ts"],
+      "@syncraft/vue": ["./packages/vue/src/index.ts"]
+    }
   },
   "exclude": ["node_modules", "dist", "coverage"]
 }
