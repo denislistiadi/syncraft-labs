@@ -1,45 +1,7 @@
 @import "tailwindcss";
 
-/* ── Base Styles ─────────────────────────────────────────── */
-
-:root {
-  --color-surface: #0f172a;
-  --color-surface-raised: #1e293b;
-  --color-surface-overlay: #334155;
-  --color-border: #475569;
-  --color-text: #f1f5f9;
-  --color-text-muted: #94a3b8;
-  --color-accent: #818cf8;
-  --color-accent-hover: #6366f1;
-  --color-danger: #f87171;
-  --color-success: #34d399;
-  --color-warning: #fbbf24;
-}
-
 body {
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-  color: var(--color-text);
-  min-height: 100vh;
-  margin: 0;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
-}
-
-/* ── Skeleton Animation ──────────────────────────────────── */
-
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-
-.skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--color-surface-raised) 25%,
-    var(--color-surface-overlay) 50%,
-    var(--color-surface-raised) 75%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: 0.5rem;
+  -moz-osx-font-smoothing: grayscale;
 }
