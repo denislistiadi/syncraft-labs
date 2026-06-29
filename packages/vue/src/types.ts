@@ -1,11 +1,11 @@
 /**
- * @module @syncraft/vue/types
+ * @module @syncraft-labs/vue/types
  *
  * Type definitions for the Vue `useSync` composable.
  */
 
 import type { Ref, ShallowRef } from "vue";
-import type { OutboxEntry, DraftUpdater } from "@syncraft/core";
+import type { OutboxEntry, DraftUpdater } from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Composable Options

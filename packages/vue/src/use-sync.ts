@@ -1,7 +1,7 @@
 /**
- * @module @syncraft/vue/use-sync
+ * @module @syncraft-labs/vue/use-sync
  *
- * The `useSync` composable — the primary entry point for Syncraft in Vue.
+ * The `useSync` composable — the primary entry point for Syncraft Labs in Vue.
  *
  * Same architecture as the React hook, but using Vue 3 Composition API:
  * - `shallowRef()` for state (avoids deep reactivity on Immer-managed objects)
@@ -11,7 +11,7 @@
  */
 
 import { shallowRef, ref, onMounted, onUnmounted, type ShallowRef } from "vue";
-import { createSyncStore, type SyncStore } from "@syncraft/core";
+import { createSyncStore, type SyncStore } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -86,7 +86,7 @@ const DEFAULT_SYNC_INTERVAL = 5000;
  * @example
  * ```vue
  * <script setup lang="ts">
- * import { useSync } from "@syncraft/vue";
+ * import { useSync } from "@syncraft-labs/vue";
  *
  * const { data, update, isHydrating } = useSync<TodoState>("todos", {
  *   initialState: { todos: [] },
@@ -167,7 +167,7 @@ export function useSync<T extends object>(
       );
 
       console.warn(
-        `[Syncraft] Sync failed (attempt ${retryCount}), retrying in ${delay}ms`,
+        `[Syncraft Labs] Sync failed (attempt ${retryCount}), retrying in ${delay}ms`,
         syncErr,
       );
 
@@ -219,14 +219,14 @@ export function useSync<T extends object>(
         } catch (fetchErr) {
           if (cancelled) return;
           error.value = fetchErr as Error;
-          console.error("[Syncraft] Initial fetch failed:", fetchErr);
+          console.error("[Syncraft Labs] Initial fetch failed:", fetchErr);
         }
       }
     } catch (hydrateErr) {
       if (cancelled) return;
       error.value = hydrateErr as Error;
       isHydrating.value = false;
-      console.error("[Syncraft] Hydration failed:", hydrateErr);
+      console.error("[Syncraft Labs] Hydration failed:", hydrateErr);
     }
 
     // Start background sync loop
@@ -257,7 +257,7 @@ export function useSync<T extends object>(
   const update = (updater: (draft: T) => void | T) => {
     if (store.isHydrating) {
       console.warn(
-        "[Syncraft] Cannot update while hydrating. Wait for hydration to complete.",
+        "[Syncraft Labs] Cannot update while hydrating. Wait for hydration to complete.",
       );
       return;
     }
@@ -269,7 +269,7 @@ export function useSync<T extends object>(
 
   const refetch = async () => {
     if (!options.fetcher) {
-      console.warn("[Syncraft] refetch() called but no fetcher provided.");
+      console.warn("[Syncraft Labs] refetch() called but no fetcher provided.");
       return;
     }
 
@@ -282,7 +282,7 @@ export function useSync<T extends object>(
     } catch (fetchErr) {
       const typedError = fetchErr as Error;
       error.value = typedError;
-      console.error("[Syncraft] Refetch failed:", typedError);
+      console.error("[Syncraft Labs] Refetch failed:", typedError);
       throw typedError;
     } finally {
       isSyncing.value = false;
