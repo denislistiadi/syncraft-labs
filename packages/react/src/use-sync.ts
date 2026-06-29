@@ -1,7 +1,7 @@
 /**
- * @module @syncraft/react/use-sync
+ * @module @syncraft-labs/react/use-sync
  *
- * The `useSync` hook — the primary entry point for Syncraft in React.
+ * The `useSync` hook — the primary entry point for Syncraft Labs in React.
  *
  * Architecture:
  *
@@ -32,7 +32,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { createSyncStore, type SyncStore } from "@syncraft/core";
+import { createSyncStore, type SyncStore } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -209,14 +209,14 @@ export function useSync<T extends object>(
           } catch (fetchErr) {
             if (cancelled) return;
             setError(fetchErr as Error);
-            console.error("[Syncraft] Initial fetch failed:", fetchErr);
+            console.error("[Syncraft Labs] Initial fetch failed:", fetchErr);
           }
         }
       } catch (hydrateErr) {
         if (cancelled) return;
         setError(hydrateErr as Error);
         setIsHydrating(false);
-        console.error("[Syncraft] Hydration failed:", hydrateErr);
+        console.error("[Syncraft Labs] Hydration failed:", hydrateErr);
       }
     };
 
@@ -297,7 +297,7 @@ export function useSync<T extends object>(
         );
 
         console.warn(
-          `[Syncraft] Sync failed (attempt ${retryCount}), retrying in ${delay}ms`,
+          `[Syncraft Labs] Sync failed (attempt ${retryCount}), retrying in ${delay}ms`,
           syncErr,
         );
 
@@ -347,7 +347,7 @@ export function useSync<T extends object>(
     (updater: (draft: T) => void | T) => {
       if (store.isHydrating) {
         console.warn(
-          "[Syncraft] Cannot update while hydrating. Wait for hydration to complete.",
+          "[Syncraft Labs] Cannot update while hydrating. Wait for hydration to complete.",
         );
         return;
       }
@@ -365,7 +365,7 @@ export function useSync<T extends object>(
     const fetcher = optionsRef.current.fetcher;
 
     if (!fetcher) {
-      console.warn("[Syncraft] refetch() called but no fetcher provided.");
+      console.warn("[Syncraft Labs] refetch() called but no fetcher provided.");
       return;
     }
 
@@ -379,7 +379,7 @@ export function useSync<T extends object>(
     } catch (fetchErr) {
       const typedError = fetchErr as Error;
       setError(typedError);
-      console.error("[Syncraft] Refetch failed:", typedError);
+      console.error("[Syncraft Labs] Refetch failed:", typedError);
       throw typedError;
     } finally {
       setIsSyncing(false);
