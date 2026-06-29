@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createSyncStore } from "@syncraft/core";
+import { createSyncStore } from "@syncraft-labs/core";
 import { useSync, _resetRegistry } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
