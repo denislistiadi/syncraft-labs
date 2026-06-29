@@ -1,7 +1,7 @@
 {
-  "name": "@syncraft/vue",
+  "name": "@syncraft-labs/vue",
   "version": "0.1.0",
-  "description": "Vue composables for Syncraft — local-first state synchronization.",
+  "description": "Vue composables for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@syncraft/core": "^0.1.0"
+    "@syncraft-labs/core": "^0.1.0"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"
@@ -45,12 +45,27 @@
     "vue": "^3.5.0"
   },
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denislistiadi/syncraft-labs.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/denislistiadi/syncraft-labs/issues"
+  },
+  "homepage": "https://github.com/denislistiadi/syncraft-labs/tree/main/packages/vue#readme",
+  "author": "Denis Listiadi",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
-    "syncraft",
+    "syncraft-labs",
     "vue",
     "composable",
     "local-first",
     "offline",
-    "sync"
+    "sync",
+    "shallowRef",
+    "composition-api"
   ]
 }
