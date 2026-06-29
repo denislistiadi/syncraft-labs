@@ -1,11 +1,11 @@
-import type { OutboxEntry } from "@syncraft/core";
+import type { OutboxEntry } from "@syncraft-labs/core";
 import type { TodoState } from "./types";
 
 export const fetcher = async (): Promise<TodoState> => {
   await new Promise((resolve) => setTimeout(resolve, 800));
   return {
     todos: [
-      { id: "seed-1", text: "Integrate Syncraft core", done: true },
+      { id: "seed-1", text: "Integrate Syncraft Labs core", done: true },
       { id: "seed-2", text: "Review pull requests", done: true },
       { id: "seed-3", text: "Update documentation", done: false },
     ],

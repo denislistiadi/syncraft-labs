@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSync } from "@syncraft/react";
+import { useSync } from "@syncraft-labs/react";
 import type { TodoState } from "./types";
 import { fetcher, pusher } from "./api";
 import { StatusBadge } from "./components/StatusBadge";
@@ -200,7 +200,7 @@ export function App() {
             {!isHydrating && data && data.todos.length > 0 && (
               <div className="px-4 py-3 bg-zinc-50 dark:bg-zinc-900/50 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 flex justify-between items-center">
                 <span>{data.todos.filter(t => t.done).length} of {data.todos.length} completed</span>
-                <span className="hidden sm:inline">Powered by Syncraft</span>
+                <span className="hidden sm:inline">Powered by Syncraft Labs</span>
               </div>
             )}
           </main>
