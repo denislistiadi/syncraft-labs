@@ -1,7 +1,7 @@
 /**
- * @module @syncraft/core/types
+ * @module @syncraft-labs/core/types
  *
- * Core type definitions for Syncraft.
+ * Core type definitions for Syncraft Labs.
  * All types are generic over `T` — the shape of the user's state.
  *
  * Design note: We use Immer's `Patch` type to capture granular diffs

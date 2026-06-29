@@ -1,12 +1,12 @@
 /**
- * @module @syncraft/core
+ * @module @syncraft-labs/core
  *
- * Public API surface for the Syncraft core library.
+ * Public API surface for the Syncraft Labs core library.
  *
  * @example
  * ```ts
- * import { createSyncStore } from "@syncraft/core";
- * import type { SyncStore, OutboxEntry } from "@syncraft/core";
+ * import { createSyncStore } from "@syncraft-labs/core";
+ * import type { SyncStore, OutboxEntry } from "@syncraft-labs/core";
  *
  * const store = createSyncStore<MyState>({
  *   storageKey: "my-app-state",
