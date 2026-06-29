@@ -1,11 +1,11 @@
 /**
- * @module @syncraft/react
+ * @module @syncraft-labs/react
  *
- * Public API for the Syncraft React integration.
+ * Public API for the Syncraft Labs React integration.
  *
  * @example
  * ```tsx
- * import { useSync } from "@syncraft/react";
+ * import { useSync } from "@syncraft-labs/react";
  *
  * function TodoList() {
  *   const { data, update, isHydrating } = useSync<TodoState>("todos", {

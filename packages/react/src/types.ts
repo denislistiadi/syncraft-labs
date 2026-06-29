@@ -1,10 +1,10 @@
 /**
- * @module @syncraft/react/types
+ * @module @syncraft-labs/react/types
  *
  * Type definitions for the React `useSync` hook.
  */
 
-import type { OutboxEntry, DraftUpdater } from "@syncraft/core";
+import type { OutboxEntry, DraftUpdater } from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Hook Options
