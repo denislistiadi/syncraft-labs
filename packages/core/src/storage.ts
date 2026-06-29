@@ -1,5 +1,5 @@
 /**
- * @module @syncraft/core/storage
+ * @module @syncraft-labs/core/storage
  *
  * IndexedDB persistence layer using the `idb` library.
  *
@@ -7,7 +7,7 @@
  * Each `storageKey` maps to its own IndexedDB database with two object stores:
  *
  *   ┌─────────────────────────────────────────┐
- *   │  Database: "syncraft_{storageKey}"       │
+ *   │  Database: "syncraft-labs_{storageKey}"       │
  *   │                                          │
  *   │  ┌──────────────┐  ┌─────────────────┐  │
  *   │  │  state        │  │  outbox          │  │
@@ -31,8 +31,8 @@ import type { OutboxEntry } from "./types.js";
 // Constants
 // ─────────────────────────────────────────────────────────────
 
-/** Prefix for all Syncraft databases to avoid collisions. */
-const DB_PREFIX = "syncraft_";
+/** Prefix for all Syncraft Labs databases to avoid collisions. */
+const DB_PREFIX = "syncraft-labs_";
 
 /** Current database schema version. Bump this when adding stores/indexes. */
 const DB_VERSION = 1;

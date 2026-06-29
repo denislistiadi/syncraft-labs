@@ -1,7 +1,7 @@
 /**
- * @module @syncraft/core/store
+ * @module @syncraft-labs/core/store
  *
- * The heart of Syncraft: the `createSyncStore` factory.
+ * The heart of Syncraft Labs: the `createSyncStore` factory.
  *
  * Data flow for a `set()` call:
  *
@@ -57,7 +57,7 @@ import type { IDBPDatabase } from "idb";
 
 /**
  * Immer patches are opt-in for bundle size reasons.
- * We enable them here since patch generation is core to Syncraft's
+ * We enable them here since patch generation is core to Syncraft Labs's
  * outbox strategy. This is safe to call multiple times.
  */
 enablePatches();
@@ -86,7 +86,7 @@ function generateId(): string {
 /**
  * Create a new SyncStore instance.
  *
- * This is the primary entry point for @syncraft/core.
+ * This is the primary entry point for @syncraft-labs/core.
  * Each store manages one slice of state identified by `storageKey`.
  *
  * @template T - The shape of the state. Must be an object (Immer requirement).
@@ -110,7 +110,7 @@ function generateId(): string {
  *
  * // Mutate with Immer drafts — optimistic, instant
  * await store.set((draft) => {
- *   draft.todos.push({ id: "1", text: "Ship Syncraft", done: false });
+ *   draft.todos.push({ id: "1", text: "Ship Syncraft Labs", done: false });
  * });
  * ```
  *
@@ -183,7 +183,7 @@ export function createSyncStore<T extends object>(
   function assertNotDestroyed(): void {
     if (isDestroyed) {
       throw new Error(
-        `[Syncraft] Store "${storageKey}" has been destroyed. ` +
+        `[Syncraft Labs] Store "${storageKey}" has been destroyed. ` +
           `Create a new store instance if you need to continue using this key.`,
       );
     }
@@ -196,7 +196,7 @@ export function createSyncStore<T extends object>(
   function assertDB(): IDBPDatabase<unknown> {
     if (db === null) {
       throw new Error(
-        `[Syncraft] Store "${storageKey}" database is not initialized. ` +
+        `[Syncraft Labs] Store "${storageKey}" database is not initialized. ` +
           `Call hydrate() before performing operations.`,
       );
     }
@@ -252,7 +252,7 @@ export function createSyncStore<T extends object>(
         if (!isProd) {
           hasWarnedPreHydration = true;
           console.warn(
-            `[Syncraft] getSnapshot() called on store "${storageKey}" before hydrate() completed. ` +
+            `[Syncraft Labs] getSnapshot() called on store "${storageKey}" before hydrate() completed. ` +
               `This usually means the store hasn't finished loading from IndexedDB yet. ` +
               `Did you forget to await store.hydrate() or use the isHydrating state in your UI?`,
           );
@@ -284,7 +284,7 @@ export function createSyncStore<T extends object>(
           nextState = result;
         } catch {
           throw new Error(
-            `[Syncraft] Cannot call set() on store "${storageKey}" — no state exists. ` +
+            `[Syncraft Labs] Cannot call set() on store "${storageKey}" — no state exists. ` +
               `Either provide an initialState in the config, call hydrate() first, ` +
               `or ensure the store has been populated via a fetcher.`,
           );
@@ -314,7 +314,7 @@ export function createSyncStore<T extends object>(
       const outboxSize = await countOutbox(currentDB);
       if (outboxSize >= maxOutboxSize) {
         throw new Error(
-          `[Syncraft] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
+          `[Syncraft Labs] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
             `Sync pending changes before making more mutations.`,
         );
       }
@@ -371,9 +371,9 @@ export function createSyncStore<T extends object>(
           });
         }
 
-        // Log with Syncraft prefix for easy filtering in DevTools
+        // Log with Syncraft Labs prefix for easy filtering in DevTools
         console.error(
-          `[Syncraft] Persistence failed for store "${storageKey}". ` +
+          `[Syncraft Labs] Persistence failed for store "${storageKey}". ` +
             `Optimistic update has been rolled back.`,
           error,
         );
