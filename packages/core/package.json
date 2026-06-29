@@ -1,5 +1,5 @@
 {
-  "name": "@syncraft/core",
+  "name": "@syncraft-labs/core",
   "version": "0.1.0",
   "description": "Local-first state synchronization engine — core library.",
   "license": "MIT",
@@ -41,12 +41,27 @@
     "vitest": "^3.2.0"
   },
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denislistiadi/syncraft-labs.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/denislistiadi/syncraft-labs/issues"
+  },
+  "homepage": "https://github.com/denislistiadi/syncraft-labs/tree/main/packages/core#readme",
+  "author": "Denis Listiadi",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "sync",
     "local-first",
     "offline",
     "indexeddb",
     "optimistic-ui",
-    "state"
+    "state",
+    "immer",
+    "persistence"
   ]
 }
