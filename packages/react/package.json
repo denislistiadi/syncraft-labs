@@ -1,7 +1,7 @@
 {
-  "name": "@syncraft/react",
+  "name": "@syncraft-labs/react",
   "version": "0.1.0",
-  "description": "React hooks for Syncraft — local-first state synchronization.",
+  "description": "React hooks for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -30,7 +30,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@syncraft/core": "^0.1.0"
+    "@syncraft-labs/core": "^0.1.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
@@ -47,12 +47,27 @@
     "vitest": "^3.2.0"
   },
   "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/denislistiadi/syncraft-labs.git",
+    "directory": "packages/react"
+  },
+  "bugs": {
+    "url": "https://github.com/denislistiadi/syncraft-labs/issues"
+  },
+  "homepage": "https://github.com/denislistiadi/syncraft-labs/tree/main/packages/react#readme",
+  "author": "Denis Listiadi",
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
-    "syncraft",
+    "syncraft-labs",
     "react",
     "hooks",
     "local-first",
     "offline",
-    "sync"
+    "sync",
+    "useSyncExternalStore",
+    "optimistic-ui"
   ]
 }
