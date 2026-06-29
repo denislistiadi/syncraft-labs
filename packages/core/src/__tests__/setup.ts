@@ -1,5 +1,5 @@
 /**
- * Vitest setup file for @syncraft/core tests.
+ * Vitest setup file for @syncraft-labs/core tests.
  *
  * Injects `fake-indexeddb` into the global scope so that the `idb` library
  * (which uses the global `indexedDB` API) works in Node.js.

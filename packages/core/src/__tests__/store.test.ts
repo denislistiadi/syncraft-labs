@@ -1,5 +1,5 @@
 /**
- * @module @syncraft/core/__tests__/store.test
+ * @module @syncraft-labs/core/__tests__/store.test
  *
  * Unit tests for the core SyncStore.
  *
@@ -490,9 +490,9 @@ describe("createSyncStore", () => {
       expect(state?.todos).toHaveLength(1);
       expect(state?.todos[0]?.text).toBe("Baseline");
 
-      // console.error should have been called with Syncraft prefix
+      // console.error should have been called with Syncraft Labs prefix
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[Syncraft] Persistence failed"),
+        expect.stringContaining("[Syncraft Labs] Persistence failed"),
         expect.any(Error),
       );
 
@@ -586,7 +586,7 @@ describe("createSyncStore", () => {
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
       expect(warnSpy).toHaveBeenCalledWith(
-        expect.stringContaining("[Syncraft] getSnapshot() called on store"),
+        expect.stringContaining("[Syncraft Labs] getSnapshot() called on store"),
       );
       expect(warnSpy).toHaveBeenCalledWith(
         expect.stringContaining("before hydrate() completed"),
