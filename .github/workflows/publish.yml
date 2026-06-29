@@ -1,0 +1,60 @@
+name: Publish to npm
+
+on:
+  release:
+    types: [created]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Build & Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+          cache: "npm"
+
+      - run: npm ci
+
+      # ── Build ────────────────────────────────────────────────
+      - name: Build all packages
+        run: npm run build
+
+      # ── Test ─────────────────────────────────────────────────
+      - name: Run tests
+        run: npm run test
+
+      # ── Verify ───────────────────────────────────────────────
+      - name: Verify package contents
+        run: |
+          echo "=== @syncraft-labs/core ==="
+          cd packages/core && npm pack --dry-run
+          echo ""
+          echo "=== @syncraft-labs/react ==="
+          cd ../react && npm pack --dry-run
+          echo ""
+          echo "=== @syncraft-labs/vue ==="
+          cd ../vue && npm pack --dry-run
+
+      # ── Publish (order matters: core first) ──────────────────
+      - name: Publish @syncraft-labs/core
+        run: cd packages/core && npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @syncraft-labs/react
+        run: cd packages/react && npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @syncraft-labs/vue
+        run: cd packages/vue && npm publish --access public --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
