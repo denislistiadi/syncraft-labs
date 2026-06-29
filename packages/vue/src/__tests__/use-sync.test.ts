@@ -7,7 +7,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent, type ShallowRef, type Ref } from "vue";
-import { createSyncStore } from "@syncraft/core";
+import { createSyncStore } from "@syncraft-labs/core";
 import { useSync, _resetRegistry } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
