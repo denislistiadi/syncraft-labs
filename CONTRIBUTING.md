@@ -1,12 +1,12 @@
 # Contributing to Syncraft Labs
 
-Terima kasih sudah tertarik berkontribusi ke Syncraft Labs! 🎉
+Contributing guide for Syncraft Labs.
 
 ## Development Setup
 
 ### Prerequisites
 
-- **Node.js** ≥ 18.0.0
+- **Node.js** ≥ 20.0.0
 - **npm** ≥ 10.0.0
 
 ### Getting Started

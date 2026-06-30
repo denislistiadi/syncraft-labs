@@ -57,8 +57,8 @@ function toggleTodo(id: string) {
   <p v-if="isHydrating">Loading from cache…</p>
 
   <div v-else>
-    <p v-if="isOffline">📴 You're offline — changes saved locally</p>
-    <p v-if="error">⚠️ {{ error.message }}</p>
+    <p v-if="isOffline">You're offline — changes saved locally</p>
+    <p v-if="error">Error: {{ error.message }}</p>
 
     <button @click="addTodo">Add Todo</button>
 

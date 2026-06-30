@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⚡ Syncraft Labs
+# Syncraft Labs
 
 **Local-First State Synchronization Engine for React & Vue**
 
@@ -33,17 +33,17 @@ User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Out
 
 | Feature | Description |
 |---------|-------------|
-| ⚡ **Instant writes** | Optimistic updates via Immer — UI never waits for persistence |
-| 💾 **IndexedDB persistence** | State survives page refresh, tab close, and browser restart |
-| 📤 **Outbox sync** | Mutations queued as patches, drained by a background `pusher` |
-| 🔄 **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
-| 📶 **Offline-ready** | Works offline, syncs automatically when back online |
-| ↩️ **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
-| 🧊 **Immer drafts** | Mutate state like plain JS — Immer handles immutability |
-| 📦 **Tiny footprint** | Tree-shakeable, no unnecessary dependencies |
-| 🔒 **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc |
-| ⚛️ **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
-| 💚 **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
+| **Instant writes** | Optimistic updates via Immer — UI never waits for persistence |
+| **IndexedDB persistence** | State survives page refresh, tab close, and browser restart |
+| **Outbox sync** | Mutations queued as patches, drained by a background `pusher` |
+| **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
+| **Offline-ready** | Works offline, syncs automatically when back online |
+| **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
+| **Immer drafts** | Mutate state like plain JS — Immer handles immutability |
+| **Tiny footprint** | Tree-shakeable, no unnecessary dependencies |
+| **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc |
+| **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
+| **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
 
 ## Quick Start
 
@@ -85,7 +85,7 @@ function TodoApp() {
 
   return (
     <div>
-      {isOffline && <span>📴 Offline — changes will sync later</span>}
+      {isOffline && <span>Offline — changes will sync later</span>}
       <button onClick={addTodo}>Add Todo</button>
       <ul>
         {data?.todos.map((t) => (
@@ -135,7 +135,7 @@ function addTodo() {
 <template>
   <p v-if="isHydrating">Loading…</p>
   <div v-else>
-    <span v-if="isOffline">📴 Offline — changes will sync later</span>
+    <span v-if="isOffline">Offline — changes will sync later</span>
     <button @click="addTodo">Add Todo</button>
     <ul>
       <li v-for="t in data?.todos" :key="t.id">{{ t.text }}</li>
