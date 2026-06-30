@@ -27,7 +27,8 @@
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest watch",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "idb": "^8.0.0",
