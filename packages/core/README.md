@@ -128,7 +128,7 @@ store.set(draft => { draft.count++ })
         ├──▶ Write to IndexedDB (durable)
         └──▶ Append OutboxEntry to IndexedDB (for eventual sync)
 
-        ⚠️ If IndexedDB write fails:
+        If IndexedDB write fails:
         └──▶ Rollback memory + re-notify subscribers
 ```
 

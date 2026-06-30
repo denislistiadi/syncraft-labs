@@ -39,8 +39,8 @@ function TodoApp() {
 
   return (
     <div>
-      {isOffline && <p>📴 You're offline — changes saved locally</p>}
-      {error && <p>⚠️ {error.message}</p>}
+      {isOffline && <p>You're offline — changes saved locally</p>}
+      {error && <p>Error: {error.message}</p>}
 
       <button
         onClick={() =>
