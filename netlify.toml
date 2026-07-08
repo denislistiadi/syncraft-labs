@@ -1,0 +1,3 @@
+[build]
+  command = "npm run build --filter=@syncraft-labs/docs"
+  publish = "apps/docs/build"
