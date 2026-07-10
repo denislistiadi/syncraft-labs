@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] - 2026-07-11
+
+### Changed
+- Refactored documentation structure to simplify content to Intro, React, and Vue guides.
+- Merged the standalone Vite playground application directly into the Docusaurus documentation as a custom page (`/playground`).
+- Migrated playground styles from Tailwind CSS to CSS Modules for better compatibility with Docusaurus.
+- Updated documentation navigation, sidebar, and footer to reflect the new structure.
+
+### Removed
+- Removed standalone `apps/playground` workspace.
+- Removed unused Docusaurus template components (`HomepageFeatures`, `markdown-page.mdx`).
+- Removed `core.md`, `contributing.md`, and `publishing.md` from the documentation sidebar (content is preserved in `intro.md` or root repository files).
+
 ## [0.1.0] - 2026-06-29
 
 ### Added

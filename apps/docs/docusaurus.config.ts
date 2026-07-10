@@ -21,6 +21,10 @@ const config: Config = {
     locales: ['en'],
   },
 
+  stylesheets: [
+    'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap',
+  ],
+
   presets: [
     [
       'classic',
@@ -30,7 +34,7 @@ const config: Config = {
           editUrl:
             'https://github.com/denislistiadi/syncraft-labs/tree/main/apps/docs/',
         },
-        blog: false, // Disable the blog for now
+        blog: false,
         theme: {
           customCss: './src/css/custom.css',
         },
@@ -54,7 +58,12 @@ const config: Config = {
           type: 'docSidebar',
           sidebarId: 'docsSidebar',
           position: 'left',
-          label: 'Documentation',
+          label: 'Docs',
+        },
+        {
+          to: '/playground',
+          label: 'Playground',
+          position: 'left',
         },
         {
           href: 'https://github.com/denislistiadi/syncraft-labs',
@@ -84,6 +93,15 @@ const config: Config = {
           ],
         },
         {
+          title: 'Try It',
+          items: [
+            {
+              label: 'Playground',
+              to: '/playground',
+            },
+          ],
+        },
+        {
           title: 'More',
           items: [
             {
@@ -107,3 +125,4 @@ const config: Config = {
 };
 
 export default config;
+
