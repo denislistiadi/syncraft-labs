@@ -1,6 +1,6 @@
 {
   "name": "@syncraft-labs/react",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "React hooks for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
