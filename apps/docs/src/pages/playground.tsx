@@ -38,7 +38,7 @@ const pusher = async (): Promise<void> => {
 
 function PlaygroundInner() {
   // Dynamically require to avoid SSR issues with IndexedDB
-  const { useSync } = require('@syncraft-labs/react');
+  const { useSync } = require('@syncraft-labs/react') as typeof import('@syncraft-labs/react');
 
   const {
     data,
