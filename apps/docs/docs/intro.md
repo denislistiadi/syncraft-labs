@@ -258,7 +258,7 @@ store.destroy();
 
 | Package | Description | Size |
 |---------|-------------|------|
-| [`@syncraft-labs/core`](./packages/core) | Framework-agnostic engine + IndexedDB layer | [![core size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/core?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/core) |
+| [`@syncraft-labs/core`](https://www.npmjs.com/package/@syncraft-labs/core) | Framework-agnostic engine + IndexedDB layer | [![core size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/core?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/core) |
 | [`@syncraft-labs/react`](./packages/react) | React hooks (`useSync`) | [![react size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/react?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/react) |
 | [`@syncraft-labs/vue`](./packages/vue) | Vue 3 composables (`useSync`) | [![vue size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/vue?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/vue) |
 
@@ -275,10 +275,7 @@ Syncraft Labs requires **IndexedDB** support, which is available in all modern b
 | iOS Safari | 10+ |
 | Chrome Android | 25+ |
 
-## Contributing
-
-See [CONTRIBUTING.md](./contributing.md) for development setup, code style, and PR guidelines.
-
 ## License
 
 [MIT](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE) © Denis Listiadi
+
