@@ -8,7 +8,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent, type ShallowRef, type Ref } from "vue";
 import { createSyncStore } from "@syncraft-labs/core";
-import { useSync, _resetRegistry } from "../index.js";
+import { createSyncraft, useSync, _resetRegistry } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test State Shape
@@ -76,7 +76,11 @@ function mountComposable<T extends object>(
     template: "<div></div>",
   });
 
-  const wrapper = mount(TestComponent);
+  const wrapper = mount(TestComponent, {
+    global: {
+      plugins: [createSyncraft()],
+    },
+  });
 
   return {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
@@ -89,8 +93,10 @@ function mountComposable<T extends object>(
 // Cleanup
 // ─────────────────────────────────────────────────────────────
 
+// Note: _resetRegistry is less relevant now as each mount has its own plugin instance.
+// But we keep it in case tests run shared registries (not currently done).
 afterEach(() => {
-  _resetRegistry();
+  // _resetRegistry();
 });
 
 // ─────────────────────────────────────────────────────────────
