@@ -4,7 +4,7 @@
  * Uses @testing-library/react's renderHook + fake-indexeddb
  * to test the full hydration → update → sync lifecycle.
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { createSyncStore } from "@syncraft-labs/core";
 import { useSync, _resetRegistry, SyncraftProvider } from "../index.js";
