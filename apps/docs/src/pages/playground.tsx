@@ -38,17 +38,16 @@ const pusher = async (): Promise<void> => {
 
 function PlaygroundInner() {
   // Dynamically require to avoid SSR issues with IndexedDB
-  const { useSync } = require('@syncraft-labs/react') as typeof import('@syncraft-labs/react');
+  const { useSyncSuspense } = require('@syncraft-labs/react') as typeof import('@syncraft-labs/react');
 
   const {
     data,
     update,
     refetch,
-    isHydrating,
     isSyncing,
     isOffline,
     error,
-  } = useSync<TodoState>('playground-app-state-v3', {
+  } = useSyncSuspense<TodoState>('playground-app-state-v4', {
     fetcher,
     pusher,
     syncInterval: 3000,
@@ -132,8 +131,7 @@ function PlaygroundInner() {
         {/* Main Card */}
         <main className={styles.card}>
           {/* Input Section */}
-          {!isHydrating && (
-            <div className={styles.inputSection}>
+          <div className={styles.inputSection}>
               <div className={styles.inputRow}>
                 <input
                   type="text"
@@ -154,7 +152,6 @@ function PlaygroundInner() {
                 </button>
               </div>
             </div>
-          )}
 
           {/* Error Banner */}
           {error && (
@@ -179,20 +176,8 @@ function PlaygroundInner() {
             </div>
           )}
 
-          {/* Loading Skeleton */}
-          {isHydrating && (
-            <div className={styles.skeleton}>
-              {[1, 2, 3].map((i: number) => (
-                <div key={i} className={styles.skeletonRow}>
-                  <div className={styles.skeletonCheckbox} />
-                  <div className={styles.skeletonText} />
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* Task List */}
-          {!isHydrating && data && (
+          {data && (
             <div className={styles.taskList}>
               {data.todos.length === 0 ? (
                 <div className={styles.emptyState}>
@@ -275,7 +260,7 @@ function PlaygroundInner() {
           )}
 
           {/* Footer Stats */}
-          {!isHydrating && data && data.todos.length > 0 && (
+          {data && data.todos.length > 0 && (
             <div className={styles.cardFooter}>
               <span>
                 {data.todos.filter((t: Todo) => t.done).length} of{' '}
@@ -294,7 +279,7 @@ function PlaygroundInner() {
         <DevTools
           data={data}
           isSyncing={isSyncing}
-          isHydrating={isHydrating}
+          isHydrating={false}
           isOffline={isOffline}
         />
       </div>
@@ -440,7 +425,16 @@ function PlaygroundBrowserOnly() {
 
   return (
     <BrowserOnly fallback={<PlaygroundFallback />}>
-      {() => <PlaygroundInner />}
+      {() => {
+        const { SyncraftProvider } = require('@syncraft-labs/react') as typeof import('@syncraft-labs/react');
+        return (
+          <SyncraftProvider>
+            <React.Suspense fallback={<PlaygroundFallback />}>
+              <PlaygroundInner />
+            </React.Suspense>
+          </SyncraftProvider>
+        );
+      }}
     </BrowserOnly>
   );
 }
