@@ -34,38 +34,23 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createSyncStore, type SyncStore } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
-
-// ─────────────────────────────────────────────────────────────
-// Singleton Store Registry
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Module-level registry of stores, keyed by `storageKey`.
- *
- * If two components call `useSync("todos")`, they share the same
- * SyncStore instance. This is critical for:
- * - Consistent state across the component tree
- * - Single IndexedDB connection per key
- * - Shared outbox queue
- *
- * Stores are never auto-destroyed — they persist for the lifetime
- * of the application. Use `destroyStore(key)` for manual cleanup.
- */
-const storeRegistry = new Map<string, SyncStore<never>>();
+import { useStoreRegistry, type StoreRegistry } from "./provider.js";
 
 /**
  * Get an existing store from the registry, or create a new one.
  *
  * @template T - The state shape.
+ * @param registry - The store registry from Context.
  * @param key - The storage key for IndexedDB.
  * @param options - Hook options (only `initialState` is used for store creation).
  * @returns The singleton store for this key.
  */
 function getOrCreateStore<T extends object>(
+  registry: StoreRegistry,
   key: string,
   options: UseSyncOptions<T>,
 ): SyncStore<T> {
-  const existing = storeRegistry.get(key);
+  const existing = registry.get(key);
   if (existing) {
     return existing as unknown as SyncStore<T>;
   }
@@ -75,7 +60,7 @@ function getOrCreateStore<T extends object>(
     initialState: options.initialState,
   });
 
-  storeRegistry.set(key, store as unknown as SyncStore<never>);
+  registry.set(key, store as unknown as SyncStore<never>);
   return store;
 }
 
@@ -83,13 +68,14 @@ function getOrCreateStore<T extends object>(
  * Destroy a store and remove it from the registry.
  * Closes the IndexedDB connection and clears all listeners.
  *
+ * @param registry - The store registry from Context.
  * @param key - The storage key of the store to destroy.
  */
-export function destroyStore(key: string): void {
-  const store = storeRegistry.get(key);
+export function destroyStore(registry: StoreRegistry, key: string): void {
+  const store = registry.get(key);
   if (store) {
     store.destroy();
-    storeRegistry.delete(key);
+    registry.delete(key);
   }
 }
 
@@ -97,11 +83,11 @@ export function destroyStore(key: string): void {
  * Reset the entire registry. **For testing only.**
  * Destroys all stores and clears the Map.
  */
-export function _resetRegistry(): void {
-  for (const store of storeRegistry.values()) {
+export function _resetRegistry(registry: StoreRegistry): void {
+  for (const store of registry.values()) {
     store.destroy();
   }
-  storeRegistry.clear();
+  registry.clear();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -150,13 +136,15 @@ export function useSync<T extends object>(
   key: string,
   options: UseSyncOptions<T>,
 ): UseSyncReturn<T> {
+  const registry = useStoreRegistry();
+
   // ── 1. Get or create singleton store ──────────────────────
 
   // Use a ref to ensure the store is created once and never changes
   // even if the component re-renders with different options.
   const storeRef = useRef<SyncStore<T> | null>(null);
   if (storeRef.current === null) {
-    storeRef.current = getOrCreateStore(key, options);
+    storeRef.current = getOrCreateStore(registry, key, options);
   }
   const store = storeRef.current;
 
@@ -389,8 +377,8 @@ export function useSync<T extends object>(
   // ── 10. destroyStore() — manual cleanup ───────────────────
 
   const destroyStoreCallback = useCallback(() => {
-    destroyStore(key);
-  }, [key]);
+    destroyStore(registry, key);
+  }, [registry, key]);
 
   // ── Return ────────────────────────────────────────────────
 
@@ -403,5 +391,35 @@ export function useSync<T extends object>(
     isOffline,
     error,
     destroyStore: destroyStoreCallback,
+  };
+}
+
+export function useSyncSuspense<T extends object>(
+  key: string,
+  options: UseSyncOptions<T>,
+): Omit<UseSyncReturn<T>, "data" | "isHydrating"> & { data: T } {
+  const registry = useStoreRegistry();
+  const storeRef = useRef<SyncStore<T> | null>(null);
+  if (storeRef.current === null) {
+    storeRef.current = getOrCreateStore(registry, key, options);
+  }
+  const store = storeRef.current;
+
+  if (store.isHydrating) {
+    throw store.hydrate();
+  }
+
+  const result = useSync(key, options);
+
+  // If data is undefined and no initialState was provided,
+  // we could potentially throw a fetcher promise here for deeper Suspense integration.
+  // For now, we cast it to T as per Phase 1 simplicity.
+  if (result.data === undefined && options.fetcher) {
+    // Future: implement fetcher promise throwing here.
+  }
+
+  return {
+    ...result,
+    data: result.data as T,
   };
 }

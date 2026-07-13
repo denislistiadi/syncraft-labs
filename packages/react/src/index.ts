@@ -25,5 +25,7 @@
  * ```
  */
 
-export { useSync, destroyStore, _resetRegistry } from "./use-sync.js";
+export { useSync, useSyncSuspense, destroyStore, _resetRegistry } from "./use-sync.js";
+export { SyncraftProvider, useStoreRegistry } from "./provider.js";
+export type { SyncraftProviderProps } from "./provider.js";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
