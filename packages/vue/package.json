@@ -1,7 +1,7 @@
 {
   "name": "@syncraft-labs/vue",
-  "version": "0.1.1",
-  "description": "Vue composables for Syncraft Labs — local-first state synchronization.",
+  "version": "0.2.0",
+  "description": "Vue 3 composables for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,7 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@syncraft-labs/core": "^0.1.0"
+    "@syncraft-labs/core": "^0.2.0"
   },
   "peerDependencies": {
     "vue": ">=3.3.0"
@@ -54,7 +54,7 @@
   "bugs": {
     "url": "https://github.com/denislistiadi/syncraft-labs/issues"
   },
-  "homepage": "https://github.com/denislistiadi/syncraft-labs/tree/main/packages/vue#readme",
+  "homepage": "https://syncraft-labs.netlify.app",
   "author": "Denis Listiadi",
   "publishConfig": {
     "access": "public"

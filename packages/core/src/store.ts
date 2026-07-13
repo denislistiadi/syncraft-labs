@@ -164,6 +164,28 @@ export function createSyncStore<T extends object>(
    */
   let hasWarnedPreHydration = false;
 
+  /**
+   * Promise to track ongoing hydration to prevent concurrent executions.
+   */
+  let hydrationPromise: Promise<T | undefined> | null = null;
+
+  /**
+   * BroadcastChannel for cross-tab synchronization.
+   * Only initialized if the browser supports it.
+   */
+  let channel: BroadcastChannel | null = null;
+  if (typeof BroadcastChannel !== "undefined") {
+    channel = new BroadcastChannel(`syncraft-${storageKey}`);
+    channel.onmessage = (event) => {
+      if (event.data?.type === "SYNCRAFT_STATE_UPDATE") {
+        memoryState = event.data.snapshot;
+        if (memoryState !== undefined) {
+          notifyListeners(memoryState);
+        }
+      }
+    };
+  }
+
   // ── Helper Functions ────────────────────────────────────────
 
   /**
@@ -340,6 +362,11 @@ export function createSyncStore<T extends object>(
       // The UI updates instantly — that's the "optimistic" in optimistic UI.
       notifyListeners(nextState);
 
+      // ── 2b. Broadcast to other tabs ───────────────────────────
+      if (channel) {
+        channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: nextState });
+      }
+
       // ── 3. Persist to IndexedDB with rollback on failure ────
       try {
         await writeState(currentDB, nextState);
@@ -410,35 +437,39 @@ export function createSyncStore<T extends object>(
     async hydrate(): Promise<T | undefined> {
       assertNotDestroyed();
 
-      // Prevent double-hydration
       if (isHydrated && db !== null) {
         return memoryState;
       }
 
-      // Open the IndexedDB connection
-      db = await openSyncDB(storageKey);
-
-      // Read persisted state
-      const persisted = await readState<T>(db);
-
-      if (persisted !== undefined) {
-        // We have persisted data — use it as the source of truth
-        memoryState = persisted;
-      } else if (initialState !== undefined) {
-        // No persisted data, but we have an initial state — persist it
-        memoryState = initialState;
-        await writeState(db, initialState);
-      }
-      // else: no persisted data, no initial state → memoryState stays undefined
-
-      isHydrated = true;
-
-      // Notify listeners so the UI can render the hydrated state
-      if (memoryState !== undefined) {
-        notifyListeners(memoryState);
+      if (hydrationPromise !== null) {
+        return hydrationPromise;
       }
 
-      return memoryState;
+      hydrationPromise = (async () => {
+        db = await openSyncDB(storageKey);
+        const persisted = await readState<T>(db);
+
+        if (persisted !== undefined) {
+          memoryState = persisted;
+        } else if (initialState !== undefined) {
+          memoryState = initialState;
+          await writeState(db, initialState);
+        }
+
+        isHydrated = true;
+
+        if (memoryState !== undefined) {
+          notifyListeners(memoryState);
+        }
+
+        return memoryState;
+      })();
+
+      try {
+        return await hydrationPromise;
+      } finally {
+        hydrationPromise = null;
+      }
     },
 
     get isHydrating(): boolean {
@@ -466,6 +497,12 @@ export function createSyncStore<T extends object>(
       memoryState = undefined;
       isHydrated = false;
       isDestroyed = true;
+
+      // Close BroadcastChannel
+      if (channel) {
+        channel.close();
+        channel = null;
+      }
     },
   };
 

@@ -4,10 +4,10 @@
  * Uses @testing-library/react's renderHook + fake-indexeddb
  * to test the full hydration → update → sync lifecycle.
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import { createSyncStore } from "@syncraft-labs/core";
-import { useSync, _resetRegistry } from "../index.js";
+import { useSync, _resetRegistry, SyncraftProvider } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test State Shape
@@ -30,9 +30,8 @@ function uniqueKey(): string {
 // Cleanup
 // ─────────────────────────────────────────────────────────────
 
-afterEach(() => {
-  _resetRegistry();
-});
+// (Note: `_resetRegistry` is now more complex to test globally since it's scoped to a Context. 
+// We will test isolation by using fresh Providers or unique keys.)
 
 // ─────────────────────────────────────────────────────────────
 // Tests
@@ -56,8 +55,9 @@ describe("useSync", () => {
       directStore.destroy();
 
       // Now use the hook — should read persisted data from IDB
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
+        { wrapper: SyncraftProvider }
       );
 
       // Initially hydrating
@@ -76,8 +76,9 @@ describe("useSync", () => {
     it("should use initialState when IndexedDB is empty", async () => {
       const key = uniqueKey();
 
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
+        { wrapper: SyncraftProvider }
       );
 
       await waitFor(() => {
@@ -98,8 +99,9 @@ describe("useSync", () => {
         items: ["from-server"],
       } satisfies TestState);
 
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { fetcher }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { fetcher }),
+        { wrapper: SyncraftProvider }
       );
 
       // Wait for hydration + fetch
@@ -127,8 +129,9 @@ describe("useSync", () => {
         items: ["from-server"],
       } satisfies TestState);
 
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { fetcher }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { fetcher }),
+        { wrapper: SyncraftProvider }
       );
 
       await waitFor(() => {
@@ -145,8 +148,9 @@ describe("useSync", () => {
     it("should update state optimistically via Immer draft", async () => {
       const key = uniqueKey();
 
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
+        { wrapper: SyncraftProvider }
       );
 
       // Wait for hydration
@@ -176,8 +180,9 @@ describe("useSync", () => {
       // Create store with very low outbox limit so we can trigger the limit error
       // Note: we can't easily trigger this through the hook since it uses
       // the default maxOutboxSize. Instead, test the error capture mechanism.
-      const { result } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
+        { wrapper: SyncraftProvider }
       );
 
       await waitFor(() => {
@@ -193,35 +198,37 @@ describe("useSync", () => {
     it("should share the same store instance across hooks with the same key", async () => {
       const key = uniqueKey();
 
-      // Render two hooks with the same key
-      const { result: result1 } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
-      );
-      const { result: result2 } = renderHook(() =>
-        useSync<TestState>(key, { initialState: INITIAL_STATE }),
+      // Render two hooks within the same Provider tree
+      const { result } = renderHook(
+        () => {
+          const res1 = useSync<TestState>(key, { initialState: INITIAL_STATE });
+          const res2 = useSync<TestState>(key, { initialState: INITIAL_STATE });
+          return { res1, res2 };
+        },
+        { wrapper: SyncraftProvider }
       );
 
       // Wait for both to hydrate
       await waitFor(() => {
-        expect(result1.current.isHydrating).toBe(false);
+        expect(result.current.res1.isHydrating).toBe(false);
       });
       await waitFor(() => {
-        expect(result2.current.isHydrating).toBe(false);
+        expect(result.current.res2.isHydrating).toBe(false);
       });
 
       // Update via first hook
       act(() => {
-        result1.current.update((draft: TestState) => {
+        result.current.res1.update((draft: TestState) => {
           draft.count = 123;
         });
       });
 
       // Both hooks should see the update
       await waitFor(() => {
-        expect(result1.current.data?.count).toBe(123);
+        expect(result.current.res1.data?.count).toBe(123);
       });
       await waitFor(() => {
-        expect(result2.current.data?.count).toBe(123);
+        expect(result.current.res2.data?.count).toBe(123);
       });
     });
   });

@@ -39,6 +39,9 @@ User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Out
 | **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
 | **Offline-ready** | Works offline, syncs automatically when back online |
 | **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
+| **Cross-Tab Sync** | State automatically synchronizes across browser tabs via BroadcastChannel |
+| **React Suspense** | Dedicated `useSyncSuspense` hook for seamless integration with React Suspense |
+| **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests (no data leaks) |
 | **Immer drafts** | Mutate state like plain JS — Immer handles immutability |
 | **Tiny footprint** | Tree-shakeable, no unnecessary dependencies |
 | **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc |
@@ -54,7 +57,7 @@ npm install @syncraft-labs/core @syncraft-labs/react
 ```
 
 ```tsx
-import { useSync } from "@syncraft-labs/react";
+import { SyncraftProvider, useSync } from "@syncraft-labs/react";
 
 interface TodoState {
   todos: Array<{ id: string; text: string; done: boolean }>;
@@ -95,6 +98,48 @@ function TodoApp() {
     </div>
   );
 }
+
+export function App() {
+  return (
+    // Wrap your app to isolate state for SSR safety
+    <SyncraftProvider>
+      <TodoApp />
+    </SyncraftProvider>
+  );
+}
+```
+
+#### React Suspense
+
+If you are using React Suspense, you can use `useSyncSuspense`. It throws a promise during hydration and ensures `data` is returned without the need for manual `isHydrating` checks:
+
+```tsx
+import { Suspense } from "react";
+import { SyncraftProvider, useSyncSuspense } from "@syncraft-labs/react";
+
+function TodoList() {
+  const { data, update } = useSyncSuspense<TodoState>("todos", {
+    initialState: { todos: [] }
+  });
+
+  return (
+    <ul>
+      {data.todos.map((t) => (
+        <li key={t.id}>{t.text}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function App() {
+  return (
+    <SyncraftProvider>
+      <Suspense fallback={<p>Loading…</p>}>
+        <TodoList />
+      </Suspense>
+    </SyncraftProvider>
+  );
+}
 ```
 
 ### Vue
@@ -103,7 +148,19 @@ function TodoApp() {
 npm install @syncraft-labs/core @syncraft-labs/vue
 ```
 
+```ts
+// main.ts - Install the plugin for SSR safety
+import { createApp } from 'vue'
+import { createSyncraft } from '@syncraft-labs/vue'
+import App from './App.vue'
+
+const app = createApp(App)
+app.use(createSyncraft())
+app.mount('#app')
+```
+
 ```vue
+<!-- App.vue -->
 <script setup lang="ts">
 import { useSync } from "@syncraft-labs/vue";
 
@@ -240,7 +297,9 @@ store.destroy();
 
 | Export | Type | Description |
 |--------|------|-------------|
+| `<SyncraftProvider>` | Component | MUST wrap your app to provide isolated state (SSR safe) |
 | `useSync<T>(key, options)` | Hook | Primary React integration |
+| `useSyncSuspense<T>(key, options)` | Hook | React Suspense integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
 | `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |
 | `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`, `destroyStore` |
@@ -249,6 +308,7 @@ store.destroy();
 
 | Export | Type | Description |
 |--------|------|-------------|
+| `createSyncraft()` | Plugin | MUST be installed via `app.use()` to provide isolated state (SSR safe) |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
 | `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |

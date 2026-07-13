@@ -10,9 +10,10 @@
  * - Module-level singleton registry (shared with React pattern)
  */
 
-import { shallowRef, ref, onMounted, onUnmounted, type ShallowRef } from "vue";
+import { shallowRef, ref, onMounted, onUnmounted, inject, type ShallowRef } from "vue";
 import { createSyncStore, type SyncStore } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
+import { SyncraftRegistryKey, type StoreRegistry } from "./plugin.js";
 
 // ─────────────────────────────────────────────────────────────
 // Singleton Store Registry
@@ -22,13 +23,12 @@ import type { UseSyncOptions, UseSyncReturn } from "./types.js";
  * Module-level registry — same pattern as React.
  * Two components calling `useSync("todos")` share the same store.
  */
-const storeRegistry = new Map<string, SyncStore<never>>();
-
 function getOrCreateStore<T extends object>(
+  registry: StoreRegistry,
   key: string,
   options: UseSyncOptions<T>,
 ): SyncStore<T> {
-  const existing = storeRegistry.get(key);
+  const existing = registry.get(key);
   if (existing) {
     return existing as unknown as SyncStore<T>;
   }
@@ -38,29 +38,29 @@ function getOrCreateStore<T extends object>(
     initialState: options.initialState,
   });
 
-  storeRegistry.set(key, store as unknown as SyncStore<never>);
+  registry.set(key, store as unknown as SyncStore<never>);
   return store;
 }
 
 /**
  * Destroy a store and remove it from the registry.
  */
-export function destroyStore(key: string): void {
-  const store = storeRegistry.get(key);
+export function destroyStore(registry: StoreRegistry, key: string): void {
+  const store = registry.get(key);
   if (store) {
     store.destroy();
-    storeRegistry.delete(key);
+    registry.delete(key);
   }
 }
 
 /**
  * Reset the entire registry. **For testing only.**
  */
-export function _resetRegistry(): void {
-  for (const store of storeRegistry.values()) {
+export function _resetRegistry(registry: StoreRegistry): void {
+  for (const store of registry.values()) {
     store.destroy();
   }
-  storeRegistry.clear();
+  registry.clear();
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -98,9 +98,17 @@ export function useSync<T extends object>(
   key: string,
   options: UseSyncOptions<T>,
 ): UseSyncReturn<T> {
+  const registry = inject(SyncraftRegistryKey);
+  if (!registry) {
+    throw new Error(
+      "[Syncraft Labs] useSync must be used within a Vue app that has installed the Syncraft plugin. " +
+      "Use app.use(createSyncraft()) in your main entry file."
+    );
+  }
+
   // ── 1. Get or create singleton store ──────────────────────
 
-  const store = getOrCreateStore(key, options);
+  const store = getOrCreateStore(registry, key, options);
 
   // ── 2. Reactive state ─────────────────────────────────────
 
@@ -290,7 +298,7 @@ export function useSync<T extends object>(
   };
 
   const destroyStoreCallback = () => {
-    destroyStore(key);
+    destroyStore(registry, key);
   };
 
   // ── Return ────────────────────────────────────────────────
