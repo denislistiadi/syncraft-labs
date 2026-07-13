@@ -1,6 +1,6 @@
 {
   "name": "@syncraft-labs/core",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local-first state synchronization engine — core library.",
   "license": "MIT",
   "type": "module",
@@ -50,7 +50,7 @@
   "bugs": {
     "url": "https://github.com/denislistiadi/syncraft-labs/issues"
   },
-  "homepage": "https://github.com/denislistiadi/syncraft-labs/tree/main/packages/core#readme",
+  "homepage": "https://syncraft-labs.netlify.app",
   "author": "Denis Listiadi",
   "publishConfig": {
     "access": "public"

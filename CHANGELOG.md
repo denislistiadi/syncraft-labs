@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-13
+
+### Added
+- **React**: Added `<SyncraftProvider>` and `useStoreRegistry()` hooks to enforce a Context-based Store Registry. This guarantees isolated state across requests and completely prevents state/data leaks in Server-Side Rendering (SSR) environments like Next.js and Remix.
+- **Vue**: Added `createSyncraft()` plugin to provide a reactive store registry at the application level via `app.provide` and `inject`. This makes the library fully compatible with Nuxt.js and other Vue SSR architectures.
+- **Docs**: Added `useSyncSuspense` usage guide and Provider configurations in documentation.
+
+### Changed
+- **BREAKING (React)**: `useSync` and `useSyncSuspense` now throw an error if used outside a `<SyncraftProvider>`. You must wrap your application root with `<SyncraftProvider>`.
+- **BREAKING (Vue)**: `useSync` now throws an error if the Vue app has not installed the Syncraft plugin. You must run `app.use(createSyncraft())` in your main entry file.
+- **Internal**: Refactored the core singleton logic to no longer rely on a global module-level `Map`. The registry is now safely bound to the component tree context.
+
+### Fixed
+- Fatal data leakage bug where state from one user could bleed into another user's request during Server-Side Rendering (SSR).
+
 ## [0.1.1] - 2026-07-11
 
 ### Changed
