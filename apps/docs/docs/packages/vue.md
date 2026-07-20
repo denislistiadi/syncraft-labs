@@ -1,3 +1,15 @@
+---
+title: Vue
+description: Vue 3 composables for Syncraft Labs. Add local-first state synchronization, offline persistence, and optimistic updates to your Vue apps using useSync.
+keywords:
+  - syncraft vue
+  - vue local-first
+  - useSync composable
+  - vue offline state
+  - vue optimistic updates
+sidebar_position: 2
+---
+
 # @syncraft-labs/vue
 
 > Vue 3 composables for Syncraft Labs — local-first state synchronization.

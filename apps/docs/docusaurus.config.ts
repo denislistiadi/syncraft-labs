@@ -7,7 +7,7 @@ const config: Config = {
   tagline: 'Local-First State Synchronization Engine for React & Vue',
   favicon: 'img/favicon.ico',
 
-  url: 'https://docs.syncraft-labs.com',
+  url: 'https://syncraft-labs.web.id',
   baseUrl: '/',
 
   organizationName: 'denislistiadi',
@@ -80,7 +80,7 @@ const config: Config = {
           items: [
             {
               label: 'Introduction',
-              to: '/docs/intro',
+              to: '/docs/',
             },
             {
               label: 'React',
@@ -121,6 +121,12 @@ const config: Config = {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
     },
+    metadata: [
+      {name: 'keywords', content: 'local-first, state management, react, vue, sync, indexeddb, offline-first'},
+      {name: 'description', content: 'Local-First State Synchronization Engine for React & Vue'},
+      {name: 'og:image', content: 'https://syncraft-labs.web.id/img/social-card.png'},
+      {name: 'twitter:card', content: 'summary_large_image'},
+    ],
   } satisfies Preset.ThemeConfig,
 };
 
