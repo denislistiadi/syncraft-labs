@@ -1,6 +1,6 @@
 {
   "name": "@syncraft-labs/core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Local-first state synchronization engine — core library.",
   "license": "MIT",
   "type": "module",
