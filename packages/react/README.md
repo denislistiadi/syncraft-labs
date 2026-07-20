@@ -1,24 +1,47 @@
-# @syncraft-labs/react
+# <p align="center">@syncraft-labs/react</p>
 
-> React hooks for Syncraft Labs — local-first state synchronization.
+**<p align="center">The official React bindings for Syncraft Labs — local-first state synchronization.</p>**
 
-[![npm version](https://img.shields.io/npm/v/@syncraft-labs/react?color=61dafb)](https://www.npmjs.com/package/@syncraft-labs/react)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+<p align="center">
+  <a href="https://www.npmjs.com/package/@syncraft-labs/react"><img src="https://img.shields.io/npm/v/@syncraft-labs/react?style=flat-square&color=61dafb" alt="npm version"></a>
+  <a href="https://bundlephobia.com/package/@syncraft-labs/react"><img src="https://img.shields.io/bundlephobia/minzip/@syncraft-labs/react?style=flat-square" alt="size"></a>
+  <a href="https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg?style=flat-square" alt="TypeScript"></a>
+</p>
 
-`@syncraft-labs/react` provides the `useSync` hook — a single hook that gives your React components instant writes, IndexedDB persistence, background sync, and offline support.
+---
 
-Built on `useSyncExternalStore` for tear-free concurrent rendering.
+## Purpose
 
-## Install
+`@syncraft-labs/react` provides the `useSync` hook — a single hook that gives your React components instant writes, IndexedDB persistence, background sync, and offline support. 
+
+Built natively on `useSyncExternalStore`, it guarantees tear-free concurrent rendering in React 18+ while maintaining a singleton architecture to prevent data leaks during Server-Side Rendering (SSR).
+
+## Installation
 
 ```bash
+# npm
 npm install @syncraft-labs/core @syncraft-labs/react
+
+# yarn
+yarn add @syncraft-labs/core @syncraft-labs/react
+
+# pnpm
+pnpm add @syncraft-labs/core @syncraft-labs/react
 ```
+*Peer dependencies: React ≥ 18.0.0*
 
-**Peer dependencies:** React ≥ 18.0.0
+## Documentation
 
-## Quick Start
+The Syncraft Labs documentation is available at **[syncraft-labs.web.id](https://syncraft-labs.web.id)**.
+
+- [Getting Started with React](https://syncraft-labs.web.id/docs/packages/react)
+- [SSR with Next.js](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt)
+- [Production Guides](https://syncraft-labs.web.id/docs/guides/production-checklist)
+
+## Basic Usage
+
+Wrap your application tree in `<SyncraftProvider>` (crucial for SSR safety), then consume state anywhere with `useSync`.
 
 ```tsx
 import { useSync } from "@syncraft-labs/react";
@@ -30,18 +53,18 @@ interface TodoState {
 function TodoApp() {
   const { data, update, isHydrating, isOffline, error } = useSync<TodoState>(
     "todos",
-    {
-      initialState: { todos: [] },
-    },
+    { initialState: { todos: [] } }
   );
 
+  // 1. Wait for IndexedDB hydration
   if (isHydrating) return <p>Loading from cache…</p>;
+
+  // 2. Handle network and errors gracefully
+  if (isOffline) console.log("Working offline!");
+  if (error) console.error("Mutation failed", error);
 
   return (
     <div>
-      {isOffline && <p>You're offline — changes saved locally</p>}
-      {error && <p>Error: {error.message}</p>}
-
       <button
         onClick={() =>
           update((draft) => {
@@ -58,21 +81,7 @@ function TodoApp() {
 
       <ul>
         {data?.todos.map((t) => (
-          <li key={t.id}>
-            <label>
-              <input
-                type="checkbox"
-                checked={t.done}
-                onChange={() =>
-                  update((draft) => {
-                    const todo = draft.todos.find((x) => x.id === t.id);
-                    if (todo) todo.done = !todo.done;
-                  })
-                }
-              />
-              {t.text}
-            </label>
-          </li>
+          <li key={t.id}>{t.text}</li>
         ))}
       </ul>
     </div>
@@ -80,16 +89,18 @@ function TodoApp() {
 }
 ```
 
-## With Remote Sync
+## Remote Sync (Background pushing)
+
+Inject your API calls into the `useSync` options. Syncraft will automatically queue mutations offline and push them using an exponential backoff strategy when the user is online.
 
 ```tsx
 const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
 
-  // Fetch initial data from server (called once if IndexedDB is empty)
+  // Fetch initial state (called once if DB is empty)
   fetcher: () => fetch("/api/todos").then((r) => r.json()),
 
-  // Push pending mutations in background (automatic, with exponential backoff)
+  // Push pending mutations to your backend
   pusher: async (entries) => {
     await fetch("/api/sync", {
       method: "POST",
@@ -98,76 +109,10 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
     });
   },
 
-  // Sync interval in ms (default: 5000)
+  // Polling interval in ms (default: 5000)
   syncInterval: 3000,
 });
-
-// Pull-to-refresh
-<button onClick={() => refetch()} disabled={isSyncing}>
-  {isSyncing ? "Syncing…" : "Refresh"}
-</button>
 ```
-
-## API
-
-### `useSync<T>(key, options): UseSyncReturn<T>`
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `key` | `string` | Unique IndexedDB storage key |
-| `options` | `UseSyncOptions<T>` | Configuration object |
-
-#### `UseSyncOptions<T>`
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
-| `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
-| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
-| `syncInterval` | `number` | `5000` | Background sync interval (ms) |
-
-#### `UseSyncReturn<T>`
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `T \| undefined` | Current state (`undefined` during hydration) |
-| `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with Immer draft (fire-and-forget) |
-| `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
-| `isHydrating` | `boolean` | `true` while loading from IndexedDB |
-| `isSyncing` | `boolean` | `true` while pusher/refetch is running |
-| `isOffline` | `boolean` | `true` when `navigator.onLine` is `false` |
-| `error` | `Error \| null` | Last error from set/pusher/refetch |
-| `destroyStore` | `() => void` | Destroy the singleton store for this key |
-
-### `destroyStore(key: string): void`
-
-Destroy a store and remove it from the singleton registry. Closes the IndexedDB connection and clears all listeners.
-
-## Key Behaviors
-
-### Singleton Stores
-
-Multiple components calling `useSync("todos")` share the **same store instance**. This ensures:
-- Consistent state across the component tree
-- Single IndexedDB connection per key
-- Shared outbox queue
-
-### Optimistic Updates
-
-`update()` modifies the UI **instantly**. The change persists to IndexedDB in the background. If persistence fails, the update is automatically rolled back.
-
-### Background Sync
-
-When `pusher` is provided, a background loop runs every `syncInterval` ms:
-1. Reads pending outbox entries
-2. Calls `pusher(entries)`
-3. Clears synced entries from outbox
-4. On failure: exponential backoff (1s → 2s → 4s → … → 60s max)
-5. On reconnect: immediate sync attempt
-
-### Network Tracking
-
-`isOffline` automatically tracks `navigator.onLine`. When the device comes back online, the sync loop is triggered immediately (no waiting for the next interval).
 
 ## License
 
