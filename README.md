@@ -322,6 +322,18 @@ store.destroy();
 | [`@syncraft-labs/react`](./packages/react) | React hooks (`useSync`) | [![react size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/react?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/react) |
 | [`@syncraft-labs/vue`](./packages/vue) | Vue 3 composables (`useSync`) | [![vue size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/vue?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/vue) |
 
+## Production Guides
+
+Ready for enterprise scale? Read our production guides at [syncraft-labs.web.id](https://syncraft-labs.web.id):
+
+- [Production Checklist](https://syncraft-labs.web.id/docs/guides/production-checklist) — Pre-deployment checks and storage limits.
+- [Multi-Store Architecture](https://syncraft-labs.web.id/docs/guides/multi-store-architecture) — Domain separation and singleton patterns.
+- [SSR (Next.js & Nuxt)](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt) — Hydration safety and data leak prevention.
+- [Error Handling](https://syncraft-labs.web.id/docs/guides/error-handling) — Rollback flows and exponential backoff.
+- [Sync Strategies](https://syncraft-labs.web.id/docs/guides/sync-strategies) — Designing pusher endpoints and conflict resolution.
+- [Testing](https://syncraft-labs.web.id/docs/guides/testing) — Fake-IndexedDB setup and registry resets.
+- [Cross-Tab Sync](https://syncraft-labs.web.id/docs/guides/cross-tab-sync) — BroadcastChannel mechanics and limitations.
+
 ## Browser Support
 
 Syncraft Labs requires **IndexedDB** support, which is available in all modern browsers:

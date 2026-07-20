@@ -1,3 +1,15 @@
+---
+title: React
+description: React hooks for Syncraft Labs. Add local-first state synchronization, offline persistence, and optimistic updates to your React 18+ apps using useSync.
+keywords:
+  - syncraft react
+  - react local-first
+  - useSync hook
+  - react offline state
+  - react optimistic updates
+sidebar_position: 1
+---
+
 # @syncraft-labs/react
 
 > React hooks for Syncraft Labs — local-first state synchronization.

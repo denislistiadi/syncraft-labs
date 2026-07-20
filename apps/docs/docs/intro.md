@@ -1,3 +1,17 @@
+---
+title: Introduction
+description: Syncraft Labs is a local-first state synchronization engine for React & Vue. Get instant writes, offline persistence, and background sync out of the box.
+keywords:
+  - syncraft labs
+  - local-first state
+  - state management
+  - offline-first
+  - react state
+  - vue state
+slug: /
+sidebar_position: 1
+---
+
 <div align="center">
 
 # Syncraft Labs
@@ -22,12 +36,18 @@ Syncraft Labs is a **local-first state management engine** that gives your app i
 
 Your users get **zero-latency updates** that survive page refreshes, network outages, and app restarts. When connectivity returns, pending changes sync automatically in the background.
 
-```
-User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Outbox (sync)
-                                    ↓                                       ↓
-                              UI re-renders                        Background pusher
-                              immediately                          syncs to server
-```
+## Why Syncraft Labs?
+
+Building modern web applications usually involves a lot of boilerplate for fetching, caching, mutating, and handling offline scenarios. Developers often have to string together a global state manager (like Redux or Pinia), an async state manager (like React Query or SWR), and local storage manually.
+
+**Syncraft Labs replaces all of that with a single abstraction.**
+
+Here is what you get out of the box:
+
+- **Snappy UI, Always:** We use an *Optimistic Update with Pessimistic Rollback* pattern. The UI updates instantly via in-memory state. No waiting for the network. No loading spinners for mutations.
+- **Offline Reliability:** Data is persisted directly into the browser's `IndexedDB`. If the user goes offline, or drops their connection on a train, they can keep using your app seamlessly.
+- **Eventual Consistency:** Mutations are queued locally as "patches" and sent to your backend gracefully when the connection is restored via an exponential backoff strategy.
+- **Multi-Tab Safety:** If your user has 5 tabs open, editing data in one tab instantly propagates to all other tabs via `BroadcastChannel` APIs without extra server roundtrips.
 
 ## Features
 
@@ -39,303 +59,14 @@ User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Out
 | **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
 | **Offline-ready** | Works offline, syncs automatically when back online |
 | **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
-| **Cross-Tab Sync** | State automatically synchronizes across browser tabs via BroadcastChannel |
-| **React Suspense** | Dedicated `useSyncSuspense` hook for seamless integration with React Suspense |
-| **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests (no data leaks) |
+| **Cross-Tab Sync** | State automatically synchronizes across browser tabs |
+| **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests |
 | **Immer drafts** | Mutate state like plain JS — Immer handles immutability |
 | **Tiny footprint** | Tree-shakeable, no unnecessary dependencies |
-| **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc |
-| **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
-| **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
 
-## Quick Start
+## Where to go next?
 
-### React
-
-```bash
-npm install @syncraft-labs/core @syncraft-labs/react
-```
-
-```tsx
-import { SyncraftProvider, useSync } from "@syncraft-labs/react";
-
-interface TodoState {
-  todos: Array<{ id: string; text: string; done: boolean }>;
-}
-
-function TodoApp() {
-  const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
-    initialState: { todos: [] },
-    fetcher: () => fetch("/api/todos").then((r) => r.json()),
-    pusher: (entries) =>
-      fetch("/api/sync", {
-        method: "POST",
-        body: JSON.stringify(entries),
-      }),
-  });
-
-  if (isHydrating) return <p>Loading…</p>;
-
-  const addTodo = () => {
-    update((draft) => {
-      draft.todos.push({
-        id: crypto.randomUUID(),
-        text: "New todo",
-        done: false,
-      });
-    });
-  };
-
-  return (
-    <div>
-      {isOffline && <span>Offline — changes will sync later</span>}
-      <button onClick={addTodo}>Add Todo</button>
-      <ul>
-        {data?.todos.map((t) => (
-          <li key={t.id}>{t.text}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-export function App() {
-  return (
-    // Wrap your app to isolate state for SSR safety
-    <SyncraftProvider>
-      <TodoApp />
-    </SyncraftProvider>
-  );
-}
-```
-
-#### React Suspense
-
-If you are using React Suspense, you can use `useSyncSuspense`. It throws a promise during hydration and ensures `data` is returned without the need for manual `isHydrating` checks:
-
-```tsx
-import { Suspense } from "react";
-import { SyncraftProvider, useSyncSuspense } from "@syncraft-labs/react";
-
-function TodoList() {
-  const { data, update } = useSyncSuspense<TodoState>("todos", {
-    initialState: { todos: [] }
-  });
-
-  return (
-    <ul>
-      {data.todos.map((t) => (
-        <li key={t.id}>{t.text}</li>
-      ))}
-    </ul>
-  );
-}
-
-export function App() {
-  return (
-    <SyncraftProvider>
-      <Suspense fallback={<p>Loading…</p>}>
-        <TodoList />
-      </Suspense>
-    </SyncraftProvider>
-  );
-}
-```
-
-### Vue
-
-```bash
-npm install @syncraft-labs/core @syncraft-labs/vue
-```
-
-```ts
-// main.ts - Install the plugin for SSR safety
-import { createApp } from 'vue'
-import { createSyncraft } from '@syncraft-labs/vue'
-import App from './App.vue'
-
-const app = createApp(App)
-app.use(createSyncraft())
-app.mount('#app')
-```
-
-```vue
-<!-- App.vue -->
-<script setup lang="ts">
-import { useSync } from "@syncraft-labs/vue";
-
-interface TodoState {
-  todos: Array<{ id: string; text: string; done: boolean }>;
-}
-
-const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
-  initialState: { todos: [] },
-  fetcher: () => fetch("/api/todos").then((r) => r.json()),
-  pusher: (entries) =>
-    fetch("/api/sync", {
-      method: "POST",
-      body: JSON.stringify(entries),
-    }),
-});
-
-function addTodo() {
-  update((draft) => {
-    draft.todos.push({
-      id: crypto.randomUUID(),
-      text: "New todo",
-      done: false,
-    });
-  });
-}
-</script>
-
-<template>
-  <p v-if="isHydrating">Loading…</p>
-  <div v-else>
-    <span v-if="isOffline">Offline — changes will sync later</span>
-    <button @click="addTodo">Add Todo</button>
-    <ul>
-      <li v-for="t in data?.todos" :key="t.id">{{ t.text }}</li>
-    </ul>
-  </div>
-</template>
-```
-
-### Core Only (Framework-agnostic)
-
-```bash
-npm install @syncraft-labs/core
-```
-
-```ts
-import { createSyncStore } from "@syncraft-labs/core";
-
-interface AppState {
-  count: number;
-}
-
-const store = createSyncStore<AppState>({
-  storageKey: "my-counter",
-  initialState: { count: 0 },
-});
-
-// Hydrate from IndexedDB
-await store.hydrate();
-
-// Read state (synchronous after hydration)
-console.log(store.getSnapshot()); // { count: 0 }
-
-// Mutate with Immer drafts
-await store.set((draft) => {
-  draft.count += 1;
-});
-
-// Subscribe to changes
-store.subscribe((state) => {
-  console.log("State changed:", state);
-});
-
-// Read outbox (pending mutations for sync)
-const pending = await store.getOutbox();
-
-// Clean up
-store.destroy();
-```
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  Component Layer (React / Vue)                              │
-│                                                             │
-│  useSync("todos", { fetcher, pusher })                      │
-│       │                                                     │
-│       ├──▶ useSyncExternalStore / shallowRef                │
-│       ├──▶ Auto-hydration (onMount)                         │
-│       ├──▶ Background sync loop (pusher)                    │
-│       └──▶ Network tracking (online/offline)                │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-┌─────────────────▼───────────────────────────────────────────┐
-│  Core Layer (@syncraft-labs/core)                                │
-│                                                             │
-│  createSyncStore<T>({ storageKey, initialState })           │
-│       │                                                     │
-│       ├──▶ In-memory cache (instant reads)                  │
-│       ├──▶ Immer produceWithPatches (immutable mutations)   │
-│       ├──▶ Subscriber notifications (sync, immediate)       │
-│       └──▶ Optimistic update + rollback on failure          │
-└─────────────────┬───────────────────────────────────────────┘
-                  │
-┌─────────────────▼───────────────────────────────────────────┐
-│  Storage Layer (IndexedDB via idb)                          │
-│                                                             │
-│  Database: "syncraft-labs_{key}"                                 │
-│  ┌──────────────────┐  ┌────────────────────────┐           │
-│  │  state store      │  │  outbox store           │           │
-│  │  key: "current"   │  │  key: entry.id (UUID)   │           │
-│  │  value: T         │  │  value: OutboxEntry<T>   │           │
-│  └──────────────────┘  └────────────────────────┘           │
-└─────────────────────────────────────────────────────────────┘
-```
-
-## API Reference
-
-### `@syncraft-labs/core`
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `createSyncStore<T>(config)` | Function | Create a new SyncStore instance |
-| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?` |
-| `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `destroy` |
-| `OutboxEntry<T>` | Type | Pending mutation: `id`, `timestamp`, `patches`, `inversePatches`, `snapshot` |
-| `DraftUpdater<T>` | Type | Immer draft function: `(draft: T) => void \| T` |
-| `SyncListener<T>` | Type | Subscriber callback: `(state: T) => void` |
-| `Unsubscribe` | Type | Cleanup function: `() => void` |
-
-### `@syncraft-labs/react`
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `<SyncraftProvider>` | Component | MUST wrap your app to provide isolated state (SSR safe) |
-| `useSync<T>(key, options)` | Hook | Primary React integration |
-| `useSyncSuspense<T>(key, options)` | Hook | React Suspense integration |
-| `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |
-| `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`, `destroyStore` |
-
-### `@syncraft-labs/vue`
-
-| Export | Type | Description |
-|--------|------|-------------|
-| `createSyncraft()` | Plugin | MUST be installed via `app.use()` to provide isolated state (SSR safe) |
-| `useSync<T>(key, options)` | Composable | Primary Vue 3 integration |
-| `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |
-| `UseSyncReturn<T>` | Type | Return: `data` (ShallowRef), `update`, `refetch`, `isHydrating` (Ref), `isSyncing` (Ref), `isOffline` (Ref), `error` (ShallowRef), `destroyStore` |
-
-## Packages
-
-| Package | Description | Size |
-|---------|-------------|------|
-| [`@syncraft-labs/core`](https://www.npmjs.com/package/@syncraft-labs/core) | Framework-agnostic engine + IndexedDB layer | [![core size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/core?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/core) |
-| [`@syncraft-labs/react`](./packages/react) | React hooks (`useSync`) | [![react size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/react?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/react) |
-| [`@syncraft-labs/vue`](./packages/vue) | Vue 3 composables (`useSync`) | [![vue size](https://img.shields.io/bundlephobia/minzip/@syncraft-labs/vue?label=gzip)](https://bundlephobia.com/package/@syncraft-labs/vue) |
-
-## Browser Support
-
-Syncraft Labs requires **IndexedDB** support, which is available in all modern browsers:
-
-| Browser | Version |
-|---------|---------|
-| Chrome | 24+ |
-| Firefox | 16+ |
-| Safari | 10+ |
-| Edge | 12+ |
-| iOS Safari | 10+ |
-| Chrome Android | 25+ |
-
-## License
-
-[MIT](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE) © Denis Listiadi
-
+- **[Getting Started](./getting-started.md)** — Installation instructions and quick start code snippets for React and Vue.
+- **[Core Concepts](./core-concepts.md)** — Learn about the mental model, data flow, and architecture of Syncraft Labs.
+- **[API Reference](./packages/core.md)** — Detailed API documentation for `@syncraft-labs/core`, `@syncraft-labs/react`, and `@syncraft-labs/vue`.
+- **[Production Guides](./guides/production-checklist.md)** — Pre-deployment checklists, SSR patterns, and multi-store architecture.

@@ -1,24 +1,47 @@
-# @syncraft-labs/vue
+# <p align="center">@syncraft-labs/vue</p>
 
-> Vue 3 composables for Syncraft Labs — local-first state synchronization.
+**<p align="center">The official Vue 3 bindings for Syncraft Labs — local-first state synchronization.</p>**
 
-[![npm version](https://img.shields.io/npm/v/@syncraft-labs/vue?color=42b883)](https://www.npmjs.com/package/@syncraft-labs/vue)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+<p align="center">
+  <a href="https://www.npmjs.com/package/@syncraft-labs/vue"><img src="https://img.shields.io/npm/v/@syncraft-labs/vue?style=flat-square&color=42b883" alt="npm version"></a>
+  <a href="https://bundlephobia.com/package/@syncraft-labs/vue"><img src="https://img.shields.io/bundlephobia/minzip/@syncraft-labs/vue?style=flat-square" alt="size"></a>
+  <a href="https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg?style=flat-square" alt="TypeScript"></a>
+</p>
 
-`@syncraft-labs/vue` provides the `useSync` composable — a single composable that gives your Vue 3 components instant writes, IndexedDB persistence, background sync, and offline support.
+---
 
-Built with `shallowRef` to avoid unnecessary deep reactivity on Immer-managed objects.
+## Purpose
 
-## Install
+`@syncraft-labs/vue` provides the `useSync` composable — a single composable that gives your Vue components instant writes, IndexedDB persistence, background sync, and offline support.
+
+Built with Vue 3's `shallowRef` to safely integrate with Immer-managed objects, preventing unnecessary deep reactivity proxying overhead while keeping your UI instantly synced.
+
+## Installation
 
 ```bash
+# npm
 npm install @syncraft-labs/core @syncraft-labs/vue
+
+# yarn
+yarn add @syncraft-labs/core @syncraft-labs/vue
+
+# pnpm
+pnpm add @syncraft-labs/core @syncraft-labs/vue
 ```
+*Peer dependencies: Vue ≥ 3.3.0*
 
-**Peer dependencies:** Vue ≥ 3.3.0
+## Documentation
 
-## Quick Start
+The Syncraft Labs documentation is available at **[syncraft-labs.web.id](https://syncraft-labs.web.id)**.
+
+- [Getting Started with Vue](https://syncraft-labs.web.id/docs/packages/vue)
+- [SSR with Nuxt 3](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt)
+- [Production Guides](https://syncraft-labs.web.id/docs/guides/production-checklist)
+
+## Basic Usage
+
+Mount the `createSyncraft()` plugin in your root application (crucial for Nuxt SSR isolation), then use the composable anywhere.
 
 ```vue
 <script setup lang="ts">
@@ -30,9 +53,7 @@ interface TodoState {
 
 const { data, update, isHydrating, isOffline, error } = useSync<TodoState>(
   "todos",
-  {
-    initialState: { todos: [] },
-  },
+  { initialState: { todos: [] } }
 );
 
 function addTodo() {
@@ -42,13 +63,6 @@ function addTodo() {
       text: "New todo",
       done: false,
     });
-  });
-}
-
-function toggleTodo(id: string) {
-  update((draft) => {
-    const todo = draft.todos.find((t) => t.id === id);
-    if (todo) todo.done = !todo.done;
   });
 }
 </script>
@@ -64,37 +78,28 @@ function toggleTodo(id: string) {
 
     <ul>
       <li v-for="t in data?.todos" :key="t.id">
-        <label>
-          <input
-            type="checkbox"
-            :checked="t.done"
-            @change="toggleTodo(t.id)"
-          />
-          {{ t.text }}
-        </label>
+        {{ t.text }}
       </li>
     </ul>
   </div>
 </template>
 ```
 
-## With Remote Sync
+## Remote Sync (Background pushing)
+
+Inject your API calls into the `useSync` options. Syncraft will automatically queue mutations offline and push them using an exponential backoff strategy when the user is online.
 
 ```vue
 <script setup lang="ts">
 import { useSync } from "@syncraft-labs/vue";
 
-interface TodoState {
-  todos: Array<{ id: string; text: string; done: boolean }>;
-}
-
 const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
 
-  // Fetch initial data from server (called once if IndexedDB is empty)
+  // Fetch initial data (called once if DB is empty)
   fetcher: () => fetch("/api/todos").then((r) => r.json()),
 
-  // Push pending mutations in background (automatic, with exponential backoff)
+  // Push pending mutations to your backend
   pusher: async (entries) => {
     await fetch("/api/sync", {
       method: "POST",
@@ -103,7 +108,7 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
     });
   },
 
-  // Sync interval in ms (default: 5000)
+  // Polling interval in ms (default: 5000)
   syncInterval: 3000,
 });
 </script>
@@ -114,77 +119,6 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
   </button>
 </template>
 ```
-
-## API
-
-### `useSync<T>(key, options): UseSyncReturn<T>`
-
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| `key` | `string` | Unique IndexedDB storage key |
-| `options` | `UseSyncOptions<T>` | Configuration object |
-
-#### `UseSyncOptions<T>`
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
-| `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
-| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
-| `syncInterval` | `number` | `5000` | Background sync interval (ms) |
-
-#### `UseSyncReturn<T>`
-
-All reactive values are wrapped in Vue refs:
-
-| Property | Type | Description |
-|----------|------|-------------|
-| `data` | `ShallowRef<T \| undefined>` | Current state (`undefined` during hydration) |
-| `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with Immer draft (fire-and-forget) |
-| `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
-| `isHydrating` | `Ref<boolean>` | `true` while loading from IndexedDB |
-| `isSyncing` | `Ref<boolean>` | `true` while pusher/refetch is running |
-| `isOffline` | `Ref<boolean>` | `true` when `navigator.onLine` is `false` |
-| `error` | `ShallowRef<Error \| null>` | Last error from set/pusher/refetch |
-| `destroyStore` | `() => void` | Destroy the singleton store for this key |
-
-### `destroyStore(key: string): void`
-
-Destroy a store and remove it from the singleton registry. Closes the IndexedDB connection and clears all listeners.
-
-## Key Behaviors
-
-### Singleton Stores
-
-Multiple components calling `useSync("todos")` share the **same store instance**. This ensures:
-- Consistent state across the component tree
-- Single IndexedDB connection per key
-- Shared outbox queue
-
-### Why `shallowRef`?
-
-Syncraft Labs uses `shallowRef` instead of `ref` for `data` because:
-- Immer already manages immutability — each `update()` produces a new object reference
-- `shallowRef` triggers Vue reactivity on reference change (which Immer guarantees)
-- Deep reactivity (`ref`) would add unnecessary overhead proxying the entire state tree
-
-### Optimistic Updates
-
-`update()` modifies the UI **instantly**. The change persists to IndexedDB in the background. If persistence fails, the update is automatically rolled back.
-
-### Background Sync
-
-When `pusher` is provided, a background loop runs every `syncInterval` ms:
-1. Reads pending outbox entries
-2. Calls `pusher(entries)`
-3. Clears synced entries from outbox
-4. On failure: exponential backoff (1s → 2s → 4s → … → 60s max)
-5. On reconnect: immediate sync attempt
-
-### Lifecycle
-
-- **`onMounted`**: Hydrates from IndexedDB, starts sync loop, attaches network listeners
-- **`onUnmounted`**: Unsubscribes, clears timers, removes network listeners
 
 ## License
 

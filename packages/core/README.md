@@ -1,18 +1,40 @@
-# @syncraft-labs/core
+# <p align="center">@syncraft-labs/core</p>
 
-> Local-first state synchronization engine — framework-agnostic core library.
+**<p align="center">The framework-agnostic engine for local-first state synchronization.</p>**
 
-[![npm version](https://img.shields.io/npm/v/@syncraft-labs/core?color=brightgreen)](https://www.npmjs.com/package/@syncraft-labs/core)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+<p align="center">
+  <a href="https://www.npmjs.com/package/@syncraft-labs/core"><img src="https://img.shields.io/npm/v/@syncraft-labs/core?style=flat-square&color=brightgreen" alt="npm version"></a>
+  <a href="https://bundlephobia.com/package/@syncraft-labs/core"><img src="https://img.shields.io/bundlephobia/minzip/@syncraft-labs/core?style=flat-square" alt="size"></a>
+  <a href="https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
+  <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg?style=flat-square" alt="TypeScript"></a>
+</p>
+
+---
+
+## Purpose
 
 `@syncraft-labs/core` is the engine behind Syncraft Labs. It provides a type-safe, framework-agnostic store that combines **in-memory caching** for instant reads, **IndexedDB** for offline persistence, and an **outbox queue** for eventual synchronization.
 
-## Install
+Whether you're building a web app or a PWA, Syncraft guarantees that your UI is never blocked by the network, while seamlessly resolving data when the user comes back online.
+
+## Installation
 
 ```bash
+# npm
 npm install @syncraft-labs/core
+
+# yarn
+yarn add @syncraft-labs/core
+
+# pnpm
+pnpm add @syncraft-labs/core
 ```
+
+## Documentation
+
+The Syncraft Labs documentation is available at **[syncraft-labs.web.id](https://syncraft-labs.web.id)**.
+
+For production and enterprise setups, check out our [Production Guides](https://syncraft-labs.web.id/docs/guides/production-checklist).
 
 ## Quick Start
 
@@ -23,25 +45,23 @@ interface AppState {
   count: number;
 }
 
+// 1. Create a store for your domain
 const store = createSyncStore<AppState>({
   storageKey: "my-counter",
   initialState: { count: 0 },
 });
 
-// 1. Hydrate from IndexedDB
+// 2. Hydrate from IndexedDB
 await store.hydrate();
 
-// 2. Read state (synchronous after hydration)
-const state = store.getSnapshot(); // { count: 0 }
-
-// 3. Mutate with Immer drafts — instant + durable
+// 3. Mutate with Immer drafts — optimistic & durable
 await store.set((draft) => {
   draft.count += 1;
 });
 
 // 4. Subscribe to changes
 const unsubscribe = store.subscribe((newState) => {
-  console.log("State:", newState.count);
+  console.log("State updated:", newState.count);
 });
 
 // 5. Clean up when done
@@ -49,113 +69,23 @@ unsubscribe();
 store.destroy();
 ```
 
-## API
+## Core Concepts
 
-### `createSyncStore<T>(config): SyncStore<T>`
+### Optimistic Updates & Rollback
+When you call `store.set()`, the memory updates instantly, ensuring a snappy UI. The state is then persisted to IndexedDB asynchronously. If persistence fails (e.g., due to storage quotas), the memory state automatically rolls back to prevent inconsistencies.
 
-Create a new store instance. Each store manages one slice of state identified by `storageKey`.
+### Cross-Tab Synchronization
+Stores with the same `storageKey` automatically synchronize state across multiple browser tabs using `BroadcastChannel`. Changes in one tab reflect instantly in another, without hitting the server.
 
-#### Config: `SyncStoreConfig<T>`
-
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `storageKey` | `string` | *required* | Unique key for IndexedDB database name |
-| `initialState` | `T` | `undefined` | Default state when no persisted data exists |
-| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before `set()` throws |
-
-#### Returns: `SyncStore<T>`
-
-| Method | Signature | Description |
-|--------|-----------|-------------|
-| `get()` | `() => Promise<T \| undefined>` | Async read — memory → IndexedDB fallback |
-| `getSnapshot()` | `() => T \| undefined` | Synchronous read from memory (fast path) |
-| `set(updater)` | `(updater: DraftUpdater<T>) => Promise<void>` | Mutate via Immer draft. Optimistic + durable |
-| `subscribe(listener)` | `(listener: SyncListener<T>) => Unsubscribe` | Listen to state changes |
-| `hydrate()` | `() => Promise<T \| undefined>` | Load from IndexedDB (call once on init) |
-| `getOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations |
-| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove synced entries by ID |
-| `destroy()` | `() => void` | Close IndexedDB connection, clear listeners |
-| `isHydrating` | `boolean` (getter) | `true` until `hydrate()` completes |
-
-### Types
-
-#### `DraftUpdater<T>`
-
-```ts
-type DraftUpdater<T> = (draft: T) => void | T;
-```
-
-Two patterns:
-- **Mutate the draft** (most common): `(draft) => { draft.count += 1; }`
-- **Replace entirely**: `() => freshDataFromServer`
-
-#### `OutboxEntry<T>`
-
-```ts
-interface OutboxEntry<T> {
-  readonly id: string;           // UUID v4
-  readonly timestamp: number;    // Unix ms
-  readonly patches: Patch[];     // Immer patches (what changed)
-  readonly inversePatches: Patch[]; // Undo patches (for rollback)
-  readonly snapshot: T;          // Full state after mutation
-}
-```
-
-#### `SyncListener<T>`
-
-```ts
-type SyncListener<T> = (state: T) => void;
-```
-
-#### `Unsubscribe`
-
-```ts
-type Unsubscribe = () => void;
-```
-
-## Data Flow
-
-```
-store.set(draft => { draft.count++ })
-        │
-        ▼
-┌─────────────────────────────┐
-│  Immer produceWithPatches   │  → nextState, patches, inversePatches
-└─────────────────────────────┘
-        │
-        ├──▶ Update in-memory cache (instant, optimistic)
-        ├──▶ Notify all subscribers (triggers UI re-render)
-        ├──▶ Write to IndexedDB (durable)
-        └──▶ Append OutboxEntry to IndexedDB (for eventual sync)
-
-        If IndexedDB write fails:
-        └──▶ Rollback memory + re-notify subscribers
-```
-
-## Storage Schema
-
-Each `storageKey` maps to its own IndexedDB database:
-
-```
-Database: "syncraft-labs_{storageKey}"
-├── state store      (key: "current", value: T)
-└── outbox store     (key: entry.id, value: OutboxEntry<T>)
-```
-
-## Optimistic Updates & Rollback
-
-When you call `store.set()`:
-
-1. **Memory updates instantly** — the UI sees the change immediately
-2. **IndexedDB writes async** — persists for durability
-3. **If persistence fails** — memory is rolled back to the previous state, subscribers are re-notified
-
-This ensures the UI is never stuck showing data that isn't actually persisted.
+### The Outbox Queue
+Every mutation creates an `OutboxEntry` detailing the exact Immer patches used. This queue is safely stored in IndexedDB and can be synced to your backend using a custom `pusher` strategy.
 
 ## Framework Integrations
 
-- **React**: [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) — `useSync` hook with `useSyncExternalStore`
-- **Vue**: [`@syncraft-labs/vue`](https://www.npmjs.com/package/@syncraft-labs/vue) — `useSync` composable with `shallowRef`
+While you can use `@syncraft-labs/core` with vanilla JavaScript, we provide official bindings for popular frameworks:
+
+- [**React**](https://syncraft-labs.web.id/docs/packages/react): [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) — `useSync` hook built on `useSyncExternalStore`.
+- [**Vue 3**](https://syncraft-labs.web.id/docs/packages/vue): [`@syncraft-labs/vue`](https://www.npmjs.com/package/@syncraft-labs/vue) — `useSync` composable built with `shallowRef`.
 
 ## License
 
