@@ -30,7 +30,7 @@
  * 3. All subsequent `getSnapshot()` calls return from memory
  */
 
-import { enablePatches, produceWithPatches, type Patch } from "immer";
+import { produceWithPatches, type Patch } from "./produce.js";
 import type {
   DraftUpdater,
   OutboxEntry,
@@ -50,17 +50,6 @@ import {
   clearOutbox as clearOutboxStorage,
 } from "./storage.js";
 import type { IDBPDatabase } from "idb";
-
-// ─────────────────────────────────────────────────────────────
-// Enable Immer Patches (must be called once, globally)
-// ─────────────────────────────────────────────────────────────
-
-/**
- * Immer patches are opt-in for bundle size reasons.
- * We enable them here since patch generation is core to Syncraft Labs's
- * outbox strategy. This is safe to call multiple times.
- */
-enablePatches();
 
 // ─────────────────────────────────────────────────────────────
 // UUID Generation
@@ -117,7 +106,7 @@ function generateId(): string {
  * @param config - Store configuration.
  * @returns A fully initialized SyncStore instance.
  */
-export function createSyncStore<T extends object>(
+export function createSyncStore<T extends Record<string, unknown>>(
   config: SyncStoreConfig<T>,
 ): SyncStore<T> {
   const { storageKey, initialState } = config;

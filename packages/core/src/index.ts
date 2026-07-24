@@ -30,3 +30,5 @@ export type {
   DraftUpdater,
   OutboxEntry,
 } from "./types.js";
+
+export type { Patch } from "./produce.js";

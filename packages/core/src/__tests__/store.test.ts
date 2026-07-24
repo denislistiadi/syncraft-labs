@@ -17,14 +17,14 @@ import * as storage from "../storage.js";
 // Test State Shape
 // ─────────────────────────────────────────────────────────────
 
-interface TodoState {
+type TodoState = {
   todos: Array<{
     id: string;
     text: string;
     done: boolean;
   }>;
   lastUpdated: number;
-}
+};
 
 const INITIAL_STATE: TodoState = {
   todos: [],
