@@ -23,7 +23,7 @@ import { SyncraftRegistryKey, type StoreRegistry } from "./plugin.js";
  * Module-level registry — same pattern as React.
  * Two components calling `useSync("todos")` share the same store.
  */
-function getOrCreateStore<T extends object>(
+function getOrCreateStore<T extends Record<string, unknown>>(
   registry: StoreRegistry,
   key: string,
   options: UseSyncOptions<T>,
@@ -94,7 +94,7 @@ const DEFAULT_SYNC_INTERVAL = 5000;
  * </script>
  * ```
  */
-export function useSync<T extends object>(
+export function useSync<T extends Record<string, unknown>>(
   key: string,
   options: UseSyncOptions<T>,
 ): UseSyncReturn<T> {
