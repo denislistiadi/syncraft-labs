@@ -1,6 +1,6 @@
 {
   "name": "@syncraft-labs/react",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "React hooks for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
@@ -31,7 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@syncraft-labs/core": "^0.2.0"
+    "@syncraft-labs/core": "0.3.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
@@ -56,7 +56,7 @@
   "bugs": {
     "url": "https://github.com/denislistiadi/syncraft-labs/issues"
   },
-  "homepage": "https://syncraft-labs.netlify.app",
+  "homepage": "https://syncraft-labs.web.id",
   "author": "Denis Listiadi",
   "publishConfig": {
     "access": "public"
