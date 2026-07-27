@@ -4,15 +4,15 @@ import styles from './playground.module.css';
 
 // ── Types ──────────────────────────────────────────────────────
 
-interface Todo {
+type Todo = {
   id: string;
   text: string;
   done: boolean;
-}
+};
 
-interface TodoState {
+type TodoState = {
   todos: Todo[];
-}
+};
 
 // ── Mock API (simulates server latency) ────────────────────────
 

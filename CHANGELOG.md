@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-07-20
+
+### Changed
+- **Core**: Replaced `immer` dependency with a custom, lightweight proxy-based implementation to reduce bundle size and improve enterprise integration.
+- **Types**: Changed the generic state constraint in `createSyncStore` and hooks from `T extends object` to `T extends Record<string, unknown> | any[]` (enforced via types vs interfaces for stricter plain-object adherence) to prevent runtime persistence failures with non-serializable objects like `Map` or `Set` in IndexedDB.
+
 ## [0.2.1] - 2026-07-20
 
 ### Changed

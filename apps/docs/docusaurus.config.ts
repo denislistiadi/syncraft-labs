@@ -120,6 +120,7 @@ const config: Config = {
     prism: {
       theme: prismThemes.github,
       darkTheme: prismThemes.dracula,
+      additionalLanguages: ['markup', 'markup-templating'],
     },
     metadata: [
       {name: 'keywords', content: 'local-first, state management, react, vue, sync, indexeddb, offline-first'},
