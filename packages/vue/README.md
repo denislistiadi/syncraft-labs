@@ -13,9 +13,9 @@
 
 ## Purpose
 
-`@syncraft-labs/vue` provides the `useSync` composable — a single composable that gives your Vue components instant writes, IndexedDB persistence, background sync, and offline support.
+`@syncraft-labs/vue` provides the `useSync` composable for Vue 3. It gives your Vue components instant optimistic writes, durable IndexedDB persistence, automatic background outbox sync, and cross-tab synchronization.
 
-Built with Vue 3's `shallowRef` to safely integrate with Immer-managed objects, preventing unnecessary deep reactivity proxying overhead while keeping your UI instantly synced.
+Built with Vue 3's `shallowRef` to safely integrate with proxy draft objects, preventing unnecessary deep reactivity proxying overhead while keeping your UI instantly synced. It relies on `createSyncraft()` plugin registration via `provide`/`inject` for complete store isolation in Nuxt 3 and SSR environments.
 
 ## Installation
 
@@ -41,9 +41,21 @@ The Syncraft Labs documentation is available at **[syncraft-labs.web.id](https:/
 
 ## Basic Usage
 
-Mount the `createSyncraft()` plugin in your root application (crucial for Nuxt SSR isolation), then use the composable anywhere.
+Mount the `createSyncraft()` plugin in your root application (crucial for Nuxt 3 SSR request isolation), then consume state anywhere using `useSync`.
+
+```ts
+// main.ts - Install plugin for app-level store isolation
+import { createApp } from "vue";
+import { createSyncraft } from "@syncraft-labs/vue";
+import App from "./App.vue";
+
+const app = createApp(App);
+app.use(createSyncraft());
+app.mount("#app");
+```
 
 ```vue
+<!-- App.vue -->
 <script setup lang="ts">
 import { useSync } from "@syncraft-labs/vue";
 
@@ -85,9 +97,9 @@ function addTodo() {
 </template>
 ```
 
-## Remote Sync (Background pushing)
+## Remote Sync (Background Pushing)
 
-Inject your API calls into the `useSync` options. Syncraft will automatically queue mutations offline and push them using an exponential backoff strategy when the user is online.
+Inject your API calls into the `useSync` options. Syncraft automatically queues mutations offline and drains the outbox using exponential backoff when connectivity is available.
 
 ```vue
 <script setup lang="ts">
@@ -120,6 +132,17 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 </template>
 ```
 
+## API Reference
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `createSyncraft()` | Plugin | Vue plugin guaranteeing app-level store registry isolation across SSR requests |
+| `useSync<T>(key, options)` | Composable | Primary Vue 3 composable returning reactive `shallowRef` state and updater |
+| `destroyStore(key)` | Function | Destroys an active store instance by storage key |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`) |
+| `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
+
 ## License
 
 [MIT](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE) © Denis Listiadi
+
