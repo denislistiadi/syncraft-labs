@@ -29,3 +29,7 @@ Thumbs.db
 # Logs
 *.log
 npm-debug.log*
+
+# Private publishing documentation
+PUBLISHING.md
+
