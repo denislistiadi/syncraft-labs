@@ -564,7 +564,8 @@
 
 .devToolsBody {
   padding: 1rem;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
   font-size: 0.8125rem;
   font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, 'Liberation Mono',
     'Courier New', monospace;
@@ -575,8 +576,9 @@
 
 .devToolsBody pre {
   color: #d4d4d8;
-  white-space: pre;
-  word-break: normal;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
   margin: 0;
   background: transparent;
   border: none;
