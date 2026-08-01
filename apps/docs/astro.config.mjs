@@ -10,7 +10,7 @@ export default defineConfig({
       title: 'Syncraft Labs',
       description: 'Local-First State Synchronization Engine for React & Vue',
       logo: {
-        src: './src/assets/logo.svg',
+        src: './src/assets/logo.png',
       },
       social: {
         github: 'https://github.com/denislistiadi/syncraft-labs',
