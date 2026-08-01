@@ -55,13 +55,18 @@
     "access": "public"
   },
   "keywords": [
+    "syncraft-labs",
     "sync",
     "local-first",
     "offline",
     "indexeddb",
     "optimistic-ui",
     "state",
-    "immer",
-    "persistence"
+    "persistence",
+    "outbox",
+    "patches",
+    "crdt",
+    "hydration",
+    "typescript"
   ]
 }

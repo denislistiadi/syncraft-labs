@@ -67,6 +67,10 @@
     "offline",
     "sync",
     "shallowRef",
-    "composition-api"
+    "composition-api",
+    "plugin",
+    "state-management",
+    "indexeddb",
+    "typescript"
   ]
 }

@@ -69,6 +69,11 @@
     "offline",
     "sync",
     "useSyncExternalStore",
-    "optimistic-ui"
+    "optimistic-ui",
+    "suspense",
+    "provider",
+    "state-management",
+    "indexeddb",
+    "typescript"
   ]
 }
