@@ -575,8 +575,8 @@
 
 .devToolsBody pre {
   color: #d4d4d8;
-  white-space: pre-wrap;
-  word-break: break-all;
+  white-space: pre;
+  word-break: normal;
   margin: 0;
   background: transparent;
   border: none;

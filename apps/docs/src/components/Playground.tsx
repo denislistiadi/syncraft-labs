@@ -91,7 +91,7 @@ function PlaygroundInner() {
         {/* Header */}
         <header className={styles.header}>
           <div>
-            <h1 className={styles.headerTitle}>Tasks</h1>
+            <h2 className={styles.headerTitle}>Tasks</h2>
             <p className={styles.headerSubtitle}>
               Manage your local-first tasks efficiently.
             </p>
@@ -415,7 +415,7 @@ function PlaygroundFallback() {
       <div className={styles.mainColumn}>
         <header className={styles.header}>
           <div>
-            <h1 className={styles.headerTitle}>Tasks</h1>
+            <h2 className={styles.headerTitle}>Tasks</h2>
             <p className={styles.headerSubtitle}>
               Loading playground…
             </p>
