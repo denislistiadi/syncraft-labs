@@ -23,7 +23,7 @@ Syncraft Labs is a **local-first state management engine** that gives your app i
 Your users get **zero-latency updates** that survive page refreshes, network outages, and app restarts. When connectivity returns, pending changes sync automatically in the background.
 
 ```
-User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Outbox (sync)
+User Action → Proxy Draft → Memory (instant) → IndexedDB (durable) → Outbox (sync)
                                     ↓                                       ↓
                               UI re-renders                        Background pusher
                               immediately                          syncs to server
@@ -33,7 +33,7 @@ User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Out
 
 | Feature | Description |
 |---------|-------------|
-| **Instant writes** | Optimistic updates via Immer — UI never waits for persistence |
+| **Instant writes** | Optimistic updates via Proxy drafts — UI never waits for persistence |
 | **IndexedDB persistence** | State survives page refresh, tab close, and browser restart |
 | **Outbox sync** | Mutations queued as patches, drained by a background `pusher` |
 | **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
@@ -42,9 +42,9 @@ User Action → Immer Draft → Memory (instant) → IndexedDB (durable) → Out
 | **Cross-Tab Sync** | State automatically synchronizes across browser tabs via BroadcastChannel |
 | **React Suspense** | Dedicated `useSyncSuspense` hook for seamless integration with React Suspense |
 | **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests (no data leaks) |
-| **Immer drafts** | Mutate state like plain JS — Immer handles immutability |
-| **Tiny footprint** | Tree-shakeable, no unnecessary dependencies |
-| **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc |
+| **Proxy drafts** | Mutate state like plain JS — zero-dependency proxy engine handles immutability |
+| **Tiny footprint** | Tree-shakeable, zero-dependency engine for draft mutations |
+| **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc (`T extends Record<string, unknown> \| any[]`) |
 | **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
 | **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
 
@@ -225,7 +225,7 @@ await store.hydrate();
 // Read state (synchronous after hydration)
 console.log(store.getSnapshot()); // { count: 0 }
 
-// Mutate with Immer drafts
+// Mutate with proxy drafts
 await store.set((draft) => {
   draft.count += 1;
 });
@@ -257,12 +257,12 @@ store.destroy();
 └─────────────────┬───────────────────────────────────────────┘
                   │
 ┌─────────────────▼───────────────────────────────────────────┐
-│  Core Layer (@syncraft-labs/core)                                │
+│  Core Layer (@syncraft-labs/core)                           │
 │                                                             │
 │  createSyncStore<T>({ storageKey, initialState })           │
 │       │                                                     │
 │       ├──▶ In-memory cache (instant reads)                  │
-│       ├──▶ Immer produceWithPatches (immutable mutations)   │
+│       ├──▶ Proxy produceWithPatches (immutable mutations)   │
 │       ├──▶ Subscriber notifications (sync, immediate)       │
 │       └──▶ Optimistic update + rollback on failure          │
 └─────────────────┬───────────────────────────────────────────┘
@@ -270,7 +270,7 @@ store.destroy();
 ┌─────────────────▼───────────────────────────────────────────┐
 │  Storage Layer (IndexedDB via idb)                          │
 │                                                             │
-│  Database: "syncraft-labs_{key}"                                 │
+│  Database: "syncraft-labs_{key}"                            │
 │  ┌──────────────────┐  ┌────────────────────────┐           │
 │  │  state store      │  │  outbox store           │           │
 │  │  key: "current"   │  │  key: entry.id (UUID)   │           │
@@ -289,7 +289,7 @@ store.destroy();
 | `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?` |
 | `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `destroy` |
 | `OutboxEntry<T>` | Type | Pending mutation: `id`, `timestamp`, `patches`, `inversePatches`, `snapshot` |
-| `DraftUpdater<T>` | Type | Immer draft function: `(draft: T) => void \| T` |
+| `DraftUpdater<T>` | Type | Proxy draft function: `(draft: T) => void \| T` |
 | `SyncListener<T>` | Type | Subscriber callback: `(state: T) => void` |
 | `Unsubscribe` | Type | Cleanup function: `() => void` |
 

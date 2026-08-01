@@ -13,10 +13,10 @@ import { useSync, _resetRegistry, SyncraftProvider } from "../index.js";
 // Test State Shape
 // ─────────────────────────────────────────────────────────────
 
-interface TestState {
+type TestState = {
   count: number;
   items: string[];
-}
+};
 
 const INITIAL_STATE: TestState = { count: 0, items: [] };
 

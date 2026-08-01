@@ -14,10 +14,10 @@ import { createSyncraft, useSync, _resetRegistry } from "../index.js";
 // Test State Shape
 // ─────────────────────────────────────────────────────────────
 
-interface TestState {
+type TestState = {
   count: number;
   items: string[];
-}
+};
 
 const INITIAL_STATE: TestState = { count: 0, items: [] };
 
@@ -62,7 +62,7 @@ interface ComposableResult<T> {
   destroyStore: () => void;
 }
 
-function mountComposable<T extends object>(
+function mountComposable<T extends Record<string, unknown>>(
   key: string,
   options: Parameters<typeof useSync<T>>[1],
 ) {

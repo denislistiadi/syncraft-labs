@@ -13,9 +13,9 @@
 
 ## Purpose
 
-`@syncraft-labs/core` is the engine behind Syncraft Labs. It provides a type-safe, framework-agnostic store that combines **in-memory caching** for instant reads, **IndexedDB** for offline persistence, and an **outbox queue** for eventual synchronization.
+`@syncraft-labs/core` is the zero-dependency state engine behind Syncraft Labs. It provides a type-safe, framework-agnostic store that combines **in-memory caching** for instant reads, **IndexedDB** for durable persistence, a **custom proxy draft engine** for zero-overhead immutable updates, and an **outbox queue** for eventual background synchronization.
 
-Whether you're building a web app or a PWA, Syncraft guarantees that your UI is never blocked by the network, while seamlessly resolving data when the user comes back online.
+Whether you're building a web app or a PWA, Syncraft guarantees that your UI is never blocked by network latency while seamlessly synchronizing data when connectivity is restored.
 
 ## Installation
 
@@ -54,7 +54,7 @@ const store = createSyncStore<AppState>({
 // 2. Hydrate from IndexedDB
 await store.hydrate();
 
-// 3. Mutate with Immer drafts — optimistic & durable
+// 3. Mutate with proxy drafts — optimistic & durable
 await store.set((draft) => {
   draft.count += 1;
 });
@@ -71,22 +71,37 @@ store.destroy();
 
 ## Core Concepts
 
+### Zero-Dependency Proxy Draft Engine
+State updates use a custom, lightweight proxy-based engine (`produceWithPatches`). It captures mutations made directly on the `draft` object and generates JSON-compatible patches and inverse patches without relying on third-party libraries.
+
 ### Optimistic Updates & Rollback
-When you call `store.set()`, the memory updates instantly, ensuring a snappy UI. The state is then persisted to IndexedDB asynchronously. If persistence fails (e.g., due to storage quotas), the memory state automatically rolls back to prevent inconsistencies.
+When you call `store.set()`, the memory state updates instantly, ensuring a zero-latency UI. The state is then persisted to IndexedDB asynchronously. If persistence fails (e.g., due to storage quotas), the memory state automatically rolls back to the previous snapshot and subscribers are notified.
 
 ### Cross-Tab Synchronization
 Stores with the same `storageKey` automatically synchronize state across multiple browser tabs using `BroadcastChannel`. Changes in one tab reflect instantly in another, without hitting the server.
 
 ### The Outbox Queue
-Every mutation creates an `OutboxEntry` detailing the exact Immer patches used. This queue is safely stored in IndexedDB and can be synced to your backend using a custom `pusher` strategy.
+Every mutation appends an `OutboxEntry` containing the state snapshot, patches, and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
+
+## API Reference
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`) |
+| `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `destroy`) |
+| `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`, `snapshot`) |
+| `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
+| `Patch` | Interface | RFC 6902 compatible JSON patch object (`op`, `path`, `value?`) |
 
 ## Framework Integrations
 
-While you can use `@syncraft-labs/core` with vanilla JavaScript, we provide official bindings for popular frameworks:
+While you can use `@syncraft-labs/core` directly in vanilla JavaScript, we provide official bindings for popular frameworks:
 
-- [**React**](https://syncraft-labs.web.id/docs/packages/react): [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) — `useSync` hook built on `useSyncExternalStore`.
+- [**React**](https://syncraft-labs.web.id/docs/packages/react): [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) — `useSync` and `useSyncSuspense` hooks built on `useSyncExternalStore`.
 - [**Vue 3**](https://syncraft-labs.web.id/docs/packages/vue): [`@syncraft-labs/vue`](https://www.npmjs.com/package/@syncraft-labs/vue) — `useSync` composable built with `shallowRef`.
 
 ## License
 
 [MIT](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE) © Denis Listiadi
+

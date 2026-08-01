@@ -13,9 +13,9 @@
 
 ## Purpose
 
-`@syncraft-labs/react` provides the `useSync` hook — a single hook that gives your React components instant writes, IndexedDB persistence, background sync, and offline support. 
+`@syncraft-labs/react` provides the `useSync` and `useSyncSuspense` hooks for React. It gives your React components instant optimistic writes, durable IndexedDB persistence, automatic background outbox sync, and cross-tab synchronization.
 
-Built natively on `useSyncExternalStore`, it guarantees tear-free concurrent rendering in React 18+ while maintaining a singleton architecture to prevent data leaks during Server-Side Rendering (SSR).
+Built natively on `useSyncExternalStore`, it guarantees tear-free concurrent rendering in React 18+ while enforcing context-based store isolation via `<SyncraftProvider>` to eliminate data leaks in Server-Side Rendering (SSR) environments like Next.js and Remix.
 
 ## Installation
 
@@ -36,15 +36,15 @@ pnpm add @syncraft-labs/core @syncraft-labs/react
 The Syncraft Labs documentation is available at **[syncraft-labs.web.id](https://syncraft-labs.web.id)**.
 
 - [Getting Started with React](https://syncraft-labs.web.id/docs/packages/react)
-- [SSR with Next.js](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt)
+- [SSR with Next.js & Remix](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt)
 - [Production Guides](https://syncraft-labs.web.id/docs/guides/production-checklist)
 
 ## Basic Usage
 
-Wrap your application tree in `<SyncraftProvider>` (crucial for SSR safety), then consume state anywhere with `useSync`.
+Wrap your application tree in `<SyncraftProvider>` (crucial for SSR safety and request isolation), then consume state anywhere with `useSync`.
 
 ```tsx
-import { useSync } from "@syncraft-labs/react";
+import { SyncraftProvider, useSync } from "@syncraft-labs/react";
 
 interface TodoState {
   todos: Array<{ id: string; text: string; done: boolean }>;
@@ -87,11 +87,52 @@ function TodoApp() {
     </div>
   );
 }
+
+export function App() {
+  return (
+    <SyncraftProvider>
+      <TodoApp />
+    </SyncraftProvider>
+  );
+}
 ```
 
-## Remote Sync (Background pushing)
+## React Suspense (`useSyncSuspense`)
 
-Inject your API calls into the `useSync` options. Syncraft will automatically queue mutations offline and push them using an exponential backoff strategy when the user is online.
+For seamless integration with React Suspense boundaries, use `useSyncSuspense`. It throws a promise during cold-start IndexedDB hydration so components can rely on direct `data` access:
+
+```tsx
+import { Suspense } from "react";
+import { SyncraftProvider, useSyncSuspense } from "@syncraft-labs/react";
+
+function TodoList() {
+  const { data, update } = useSyncSuspense<TodoState>("todos", {
+    initialState: { todos: [] },
+  });
+
+  return (
+    <ul>
+      {data.todos.map((t) => (
+        <li key={t.id}>{t.text}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function App() {
+  return (
+    <SyncraftProvider>
+      <Suspense fallback={<p>Loading from cache…</p>}>
+        <TodoList />
+      </Suspense>
+    </SyncraftProvider>
+  );
+}
+```
+
+## Remote Sync (Background Pushing)
+
+Inject your API calls into the `useSync` options. Syncraft automatically queues mutations offline and drains the outbox using exponential backoff when connectivity is available.
 
 ```tsx
 const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
@@ -114,6 +155,18 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 });
 ```
 
+## API Reference
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `<SyncraftProvider>` | Component | App root wrapper guaranteeing store isolation across SSR requests |
+| `useSync<T>(key, options)` | Hook | Primary React integration hook returning reactive state and updater |
+| `useSyncSuspense<T>(key, options)` | Hook | Suspense-compatible hook throwing promises during hydration |
+| `destroyStore(key)` | Function | Destroys an active store instance by storage key |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`) |
+| `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
+
 ## License
 
 [MIT](https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE) © Denis Listiadi
+

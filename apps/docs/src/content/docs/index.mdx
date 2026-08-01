@@ -1,0 +1,69 @@
+---
+title: Local-First State Synchronization Engine for React & Vue
+description: Syncraft Labs is a local-first state synchronization engine for React & Vue. Get instant writes, offline persistence, and background sync out of the box.
+template: splash
+hero:
+  tagline: Write instantly. Persist automatically. Sync eventually.
+  image:
+    file: ../../assets/logo.png
+  actions:
+    - text: Get Started
+      link: /getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: View on GitHub
+      link: https://github.com/denislistiadi/syncraft-labs
+      icon: external
+head:
+  - tag: meta
+    attrs:
+      name: keywords
+      content: syncraft labs, local-first state, state management, offline-first, react state, vue state, indexeddb sync
+---
+
+**Local-First State Synchronization Engine for React & Vue**
+
+*Write instantly. Persist automatically. Sync eventually.*
+
+---
+
+## What is Syncraft Labs?
+
+Syncraft Labs is a **local-first state management engine** that gives your app instant writes, offline persistence, and background synchronization — all with a simple hook/composable API.
+
+Your users get **zero-latency updates** that survive page refreshes, network outages, and app restarts. When connectivity returns, pending changes sync automatically in the background.
+
+## Why Syncraft Labs?
+
+Building modern web applications usually involves a lot of boilerplate for fetching, caching, mutating, and handling offline scenarios. Developers often have to string together a global state manager (like Redux or Pinia), an async state manager (like React Query or SWR), and local storage manually.
+
+**Syncraft Labs replaces all of that with a single abstraction.**
+
+Here is what you get out of the box:
+
+- **Snappy UI, Always:** We use an *Optimistic Update with Rollback* pattern. The UI updates instantly via in-memory state. No waiting for the network. No loading spinners for mutations.
+- **Offline Reliability:** Data is persisted directly into the browser's `IndexedDB`. If the user goes offline, or drops their connection on a train, they can keep using your app seamlessly.
+- **Eventual Consistency:** Mutations are queued locally as "patches" and sent to your backend gracefully when the connection is restored via an exponential backoff strategy.
+- **Multi-Tab Safety:** If your user has 5 tabs open, editing data in one tab instantly propagates to all other tabs via `BroadcastChannel` APIs without extra server roundtrips.
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **Instant writes** | Optimistic updates via proxy drafts — UI never waits for persistence |
+| **IndexedDB persistence** | State survives page refresh, tab close, and browser restart |
+| **Outbox sync** | Mutations queued as patches, drained by a background `pusher` |
+| **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
+| **Offline-ready** | Works offline, syncs automatically when back online |
+| **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
+| **Cross-Tab Sync** | State automatically synchronizes across browser tabs |
+| **SSR-Ready (Next.js/Nuxt)** | Provider & Plugin patterns guarantee isolated state per request |
+| **Proxy drafts** | Mutate state like plain JS objects — captured immutably under the hood |
+| **Tiny footprint** | Zero heavy third-party dependencies, fully tree-shakeable |
+
+## Navigation
+
+- **[Getting Started](/getting-started)** — Installation instructions and quick start code snippets for React and Vue.
+- **[Core Concepts](/core-concepts)** — Learn about the mental model, data flow, and architecture of Syncraft Labs.
+- **[API Reference](/packages/core)** — Detailed API documentation for `@syncraft-labs/core`, `@syncraft-labs/react`, and `@syncraft-labs/vue`.
+- **[Production Guides](/guides/production-checklist)** — Pre-deployment checklists, SSR patterns, and multi-store architecture.

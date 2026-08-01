@@ -45,7 +45,7 @@ import { useStoreRegistry, type StoreRegistry } from "./provider.js";
  * @param options - Hook options (only `initialState` is used for store creation).
  * @returns The singleton store for this key.
  */
-function getOrCreateStore<T extends object>(
+function getOrCreateStore<T extends Record<string, unknown>>(
   registry: StoreRegistry,
   key: string,
   options: UseSyncOptions<T>,
@@ -132,7 +132,7 @@ const DEFAULT_SYNC_INTERVAL = 5000;
  * });
  * ```
  */
-export function useSync<T extends object>(
+export function useSync<T extends Record<string, unknown>>(
   key: string,
   options: UseSyncOptions<T>,
 ): UseSyncReturn<T> {
@@ -394,7 +394,7 @@ export function useSync<T extends object>(
   };
 }
 
-export function useSyncSuspense<T extends object>(
+export function useSyncSuspense<T extends Record<string, unknown>>(
   key: string,
   options: UseSyncOptions<T>,
 ): Omit<UseSyncReturn<T>, "data" | "isHydrating"> & { data: T } {

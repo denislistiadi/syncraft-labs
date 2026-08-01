@@ -9,7 +9,7 @@
  * CRDT-based conflict resolution in Phase 2.
  */
 
-import type { Patch } from "immer";
+import type { Patch } from "./produce.js";
 
 // ─────────────────────────────────────────────────────────────
 // Store Configuration

@@ -16,7 +16,7 @@ import type { OutboxEntry, DraftUpdater } from "@syncraft-labs/core";
  *
  * @template T - The shape of the state being synchronized.
  */
-export interface UseSyncOptions<T extends object> {
+export interface UseSyncOptions<T extends Record<string, unknown>> {
   /** Initial state when IndexedDB is empty. */
   readonly initialState?: T;
 

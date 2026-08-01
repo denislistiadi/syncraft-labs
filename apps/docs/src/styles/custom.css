@@ -1,0 +1,29 @@
+:root {
+  --sl-color-accent-low: #11361c;
+  --sl-color-accent: #2e8555;
+  --sl-color-accent-high: #76e39d;
+  --sl-color-white: #ffffff;
+  --sl-color-gray-1: #eceef2;
+  --sl-color-gray-2: #c0c4ce;
+  --sl-color-gray-3: #888d96;
+  --sl-color-gray-4: #545861;
+  --sl-color-gray-5: #35383f;
+  --sl-color-gray-6: #24272f;
+  --sl-color-black: #17191e;
+}
+
+[data-theme='dark'] {
+  --sl-color-accent-low: #0a3d20;
+  --sl-color-accent: #3ecc5f;
+  --sl-color-accent-high: #96f0ab;
+}
+
+/* Custom badge styles */
+.badge-green {
+  background-color: rgba(62, 204, 95, 0.15);
+  color: #3ecc5f;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-weight: 500;
+}
