@@ -47,6 +47,9 @@ import {
   readOutbox,
   readState,
   writeState,
+  readCollectionState,
+  writeCollectionState,
+  writeCollectionEntities,
   clearOutbox as clearOutboxStorage,
 } from "./storage.js";
 import type { IDBPDatabase } from "idb";
@@ -110,6 +113,14 @@ export function createSyncStore<T extends Record<string, unknown>>(
   config: SyncStoreConfig<T>,
 ): SyncStore<T> {
   const { storageKey, initialState } = config;
+  const storageMode = config.storageMode ?? "document";
+  const idField = config.idField;
+
+  if (storageMode === "collection" && !idField) {
+    throw new Error(
+      `[Syncraft Labs] idField is required when storageMode is "collection" for store "${storageKey}".`,
+    );
+  }
 
   /** Default outbox cap — prevents unbounded growth when offline. */
   const maxOutboxSize = config.maxOutboxSize ?? 1000;
@@ -227,7 +238,10 @@ export function createSyncStore<T extends Record<string, unknown>>(
 
       // Cold path: read from IndexedDB (only happens before/during hydration)
       if (db !== null) {
-        const persisted = await readState<T>(db);
+        const persisted =
+          storageMode === "collection"
+            ? await readCollectionState<T>(db)
+            : await readState<T>(db);
         if (persisted !== undefined) {
           memoryState = persisted;
           return persisted;
@@ -358,7 +372,49 @@ export function createSyncStore<T extends Record<string, unknown>>(
 
       // ── 3. Persist to IndexedDB with rollback on failure ────
       try {
-        await writeState(currentDB, nextState);
+        if (storageMode === "collection") {
+          let isFullRewrite = false;
+          const updatedEntities: Record<string, unknown> = {};
+          const deletedKeysSet = new Set<string>();
+
+          for (const patch of patches) {
+            if (patch.path.length === 0) {
+              isFullRewrite = true;
+              break;
+            }
+            const entityKey = String(patch.path[0]);
+            if (patch.op === "remove" && patch.path.length === 1) {
+              deletedKeysSet.add(entityKey);
+              delete updatedEntities[entityKey];
+            } else {
+              if (
+                nextState &&
+                typeof nextState === "object" &&
+                entityKey in (nextState as object)
+              ) {
+                updatedEntities[entityKey] = (
+                  nextState as Record<string, unknown>
+                )[entityKey];
+                deletedKeysSet.delete(entityKey);
+              }
+            }
+          }
+
+          if (isFullRewrite) {
+            await writeCollectionState(currentDB, nextState);
+          } else if (
+            Object.keys(updatedEntities).length > 0 ||
+            deletedKeysSet.size > 0
+          ) {
+            await writeCollectionEntities(
+              currentDB,
+              updatedEntities,
+              Array.from(deletedKeysSet),
+            );
+          }
+        } else {
+          await writeState(currentDB, nextState);
+        }
 
         // ── 4. Append to outbox (for eventual sync) ─────────────
         const outboxEntry: OutboxEntry<T> = {
@@ -436,13 +492,20 @@ export function createSyncStore<T extends Record<string, unknown>>(
 
       hydrationPromise = (async () => {
         db = await openSyncDB(storageKey);
-        const persisted = await readState<T>(db);
+        const persisted =
+          storageMode === "collection"
+            ? await readCollectionState<T>(db)
+            : await readState<T>(db);
 
         if (persisted !== undefined) {
           memoryState = persisted;
         } else if (initialState !== undefined) {
           memoryState = initialState;
-          await writeState(db, initialState);
+          if (storageMode === "collection") {
+            await writeCollectionState(db, initialState);
+          } else {
+            await writeState(db, initialState);
+          }
         }
 
         isHydrated = true;

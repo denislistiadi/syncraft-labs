@@ -35,10 +35,13 @@ import type { OutboxEntry } from "./types.js";
 const DB_PREFIX = "syncraft-labs_";
 
 /** Current database schema version. Bump this when adding stores/indexes. */
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-/** Object store name for the current state. */
+/** Object store name for the current state (document mode). */
 const STATE_STORE = "state" as const;
+
+/** Object store name for collection-mode entity state. */
+const STATE_ENTITIES_STORE = "state_entities" as const;
 
 /** Object store name for the outbox queue. */
 const OUTBOX_STORE = "outbox" as const;
@@ -65,8 +68,9 @@ type SyncDB = IDBPDatabase<unknown>;
 /**
  * Opens (or creates) an IndexedDB database for the given storage key.
  *
- * The database has two object stores:
- * - `state`: Holds the current state under the key "current"
+ * The database has three object stores:
+ * - `state`: Holds the current state under the key "current" (document mode)
+ * - `state_entities`: Holds per-entity state records (collection mode)
  * - `outbox`: Holds pending mutations keyed by UUID
  *
  * @param storageKey - Unique identifier for this state slice.
@@ -87,6 +91,11 @@ export async function openSyncDB(storageKey: string): Promise<SyncDB> {
         db.createObjectStore(STATE_STORE);
       }
 
+      // State entities store: per-entity records using out-of-line keys
+      if (!db.objectStoreNames.contains(STATE_ENTITIES_STORE)) {
+        db.createObjectStore(STATE_ENTITIES_STORE);
+      }
+
       // Outbox store: keyed by the entry's UUID
       if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
         db.createObjectStore(OUTBOX_STORE, { keyPath: "id" });
@@ -96,7 +105,7 @@ export async function openSyncDB(storageKey: string): Promise<SyncDB> {
 }
 
 /**
- * Read the current persisted state from IndexedDB.
+ * Read the current persisted state from IndexedDB (document mode).
  *
  * @template T - The shape of the state.
  * @param db - The opened database handle.
@@ -110,7 +119,7 @@ export async function readState<T>(db: SyncDB): Promise<T | undefined> {
 }
 
 /**
- * Write the current state to IndexedDB.
+ * Write the current state to IndexedDB (document mode).
  *
  * Uses `put` (upsert) so it works for both initial writes and updates.
  * This is a fire-and-forget write — the in-memory cache is the primary
@@ -122,6 +131,85 @@ export async function readState<T>(db: SyncDB): Promise<T | undefined> {
  */
 export async function writeState<T>(db: SyncDB, value: T): Promise<void> {
   await db.put(STATE_STORE, value, STATE_KEY);
+}
+
+/**
+ * Read all per-entity records from IndexedDB and assemble into a Record (collection mode).
+ *
+ * @template T - The shape of the collection state (Record<string, Entity>).
+ * @param db - The opened database handle.
+ * @returns The assembled collection state, or `undefined` if empty.
+ */
+export async function readCollectionState<T>(db: SyncDB): Promise<T | undefined> {
+  const keys = await db.getAllKeys(STATE_ENTITIES_STORE);
+  if (keys.length === 0) {
+    return undefined;
+  }
+
+  const values = await db.getAll(STATE_ENTITIES_STORE);
+  const result: Record<string, unknown> = {};
+
+  for (let i = 0; i < keys.length; i++) {
+    const key = String(keys[i]);
+    result[key] = values[i];
+  }
+
+  return result as T;
+}
+
+/**
+ * Write/update specific entities and/or remove deleted entities in IndexedDB (collection mode).
+ * Uses a single transaction for atomicity.
+ *
+ * @param db - The opened database handle.
+ * @param updatedEntities - Map of entityKey -> entityObject to write.
+ * @param deletedKeys - Array of entityKeys to delete from IndexedDB.
+ */
+export async function writeCollectionEntities(
+  db: SyncDB,
+  updatedEntities: Record<string, unknown>,
+  deletedKeys: readonly string[] = [],
+): Promise<void> {
+  const tx = db.transaction(STATE_ENTITIES_STORE, "readwrite");
+  const store = tx.objectStore(STATE_ENTITIES_STORE);
+
+  const promises: Promise<unknown>[] = [];
+
+  for (const [key, value] of Object.entries(updatedEntities)) {
+    promises.push(store.put(value, key));
+  }
+
+  for (const key of deletedKeys) {
+    promises.push(store.delete(key));
+  }
+
+  promises.push(tx.done);
+  await Promise.all(promises);
+}
+
+/**
+ * Write a full collection state to IndexedDB, clearing any existing entities.
+ *
+ * @template T - The collection state shape.
+ * @param db - The opened database handle.
+ * @param value - The full collection state object.
+ */
+export async function writeCollectionState<T>(db: SyncDB, value: T): Promise<void> {
+  const tx = db.transaction(STATE_ENTITIES_STORE, "readwrite");
+  const store = tx.objectStore(STATE_ENTITIES_STORE);
+
+  await store.clear();
+
+  if (value && typeof value === "object") {
+    const promises: Promise<unknown>[] = [];
+    for (const [key, entity] of Object.entries(value as Record<string, unknown>)) {
+      promises.push(store.put(entity, key));
+    }
+    promises.push(tx.done);
+    await Promise.all(promises);
+  } else {
+    await tx.done;
+  }
 }
 
 /**
