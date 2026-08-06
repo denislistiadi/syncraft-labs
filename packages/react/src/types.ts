@@ -52,6 +52,19 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * @default 5000
    */
   readonly syncInterval?: number;
+
+  /**
+   * Controls how state is persisted to IndexedDB.
+   *
+   * - `"document"` (default): entire state stored as a single record.
+   * - `"collection"`: state is decomposed per-entity in IndexedDB.
+   */
+  readonly storageMode?: "document" | "collection";
+
+  /**
+   * Property name on each entity used as its unique identifier when `storageMode` is `"collection"`.
+   */
+  readonly idField?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
