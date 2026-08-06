@@ -58,7 +58,9 @@ function getOrCreateStore<T extends Record<string, unknown>>(
   const store = createSyncStore<T>({
     storageKey: key,
     initialState: options.initialState,
-  });
+    storageMode: options.storageMode,
+    idField: options.idField,
+  } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
 
   registry.set(key, store as unknown as SyncStore<never>);
   return store;

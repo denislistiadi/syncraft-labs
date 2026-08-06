@@ -20,7 +20,7 @@ import type { Patch } from "./produce.js";
  *
  * @template T - The shape of the state being synchronized.
  */
-export interface SyncStoreConfig<T> {
+export interface BaseSyncStoreConfig<T> {
   /**
    * Unique key used for the IndexedDB database name.
    * Each key gets its own isolated database with `state` and `outbox` stores.
@@ -44,6 +44,39 @@ export interface SyncStoreConfig<T> {
    */
   readonly maxOutboxSize?: number | undefined;
 }
+
+export interface DocumentSyncStoreConfig<T> extends BaseSyncStoreConfig<T> {
+  /**
+   * Controls how state is persisted to IndexedDB.
+   * `"document"` (default): entire state stored as a single record under key `"current"`.
+   */
+  readonly storageMode?: "document" | undefined;
+  readonly idField?: never | undefined;
+}
+
+export interface CollectionSyncStoreConfig<T> extends BaseSyncStoreConfig<T> {
+  /**
+   * Controls how state is persisted to IndexedDB.
+   * `"collection"`: state is decomposed per-entity in IndexedDB.
+   * Requires `T` to be a `Record<string, Entity>` shape and `idField` to be provided.
+   */
+  readonly storageMode: "collection";
+
+  /**
+   * Property name on each entity used as its unique identifier when `storageMode` is `"collection"`.
+   * Required when `storageMode` is `"collection"`.
+   *
+   * @example "id"
+   */
+  readonly idField: string;
+}
+
+/**
+ * Configuration for creating a SyncStore instance.
+ *
+ * @template T - The shape of the state being synchronized.
+ */
+export type SyncStoreConfig<T> = DocumentSyncStoreConfig<T> | CollectionSyncStoreConfig<T>;
 
 // ─────────────────────────────────────────────────────────────
 // Outbox Entry

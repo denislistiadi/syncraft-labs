@@ -69,10 +69,18 @@ unsubscribe();
 store.destroy();
 ```
 
-## Core Concepts
+### Storage Modes ("document" vs "collection")
+- **`document`** (default): Stores the entire state as a single blob under the key `"current"`. Suited for small-to-medium state.
+- **`collection`**: Decomposes state per-entity in IndexedDB. State must be shaped as `Record<string, Entity>`. When updating one entity, only that entity's record is rewritten to IndexedDB rather than the entire state dataset. Requires `idField` in store configuration.
 
-### Zero-Dependency Proxy Draft Engine
-State updates use a custom, lightweight proxy-based engine (`produceWithPatches`). It captures mutations made directly on the `draft` object and generates JSON-compatible patches and inverse patches without relying on third-party libraries.
+```ts
+const store = createSyncStore<Record<string, TodoItem>>({
+  storageKey: "todos-collection",
+  storageMode: "collection",
+  idField: "id",
+  initialState: {},
+});
+```
 
 ### Optimistic Updates & Rollback
 When you call `store.set()`, the memory state updates instantly, ensuring a zero-latency UI. The state is then persisted to IndexedDB asynchronously. If persistence fails (e.g., due to storage quotas), the memory state automatically rolls back to the previous snapshot and subscribers are notified.
@@ -83,12 +91,20 @@ Stores with the same `storageKey` automatically synchronize state across multipl
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing the state snapshot, patches, and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
+## Migrating from Document to Collection Mode
+
+If you are migrating an existing store from `"document"` mode to `"collection"` mode:
+
+1. **Re-shape your state**: Ensure your state type is structured as `Record<string, Entity>` rather than an array or nested document.
+2. **Set `storageMode` and `idField`**: Pass `storageMode: "collection"` and `idField: "id"` (or your entity's unique key field) in `SyncStoreConfig`.
+3. **Database Migration**: Collection mode uses a dedicated `state_entities` object store. Existing persisted state in `"document"` mode will not be auto-migrated. Clear the existing store or re-hydrate from remote source (`fetcher`).
+
 ## API Reference
 
 | Export | Type | Description |
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
-| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`) |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`, `storageMode?`, `idField?`) |
 | `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `destroy`) |
 | `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`, `snapshot`) |
 | `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
