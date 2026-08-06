@@ -286,7 +286,7 @@ store.destroy();
 | Export | Type | Description |
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Create a new SyncStore instance |
-| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?` |
+| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
 | `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `destroy` |
 | `OutboxEntry<T>` | Type | Pending mutation: `id`, `timestamp`, `patches`, `inversePatches`, `snapshot` |
 | `DraftUpdater<T>` | Type | Proxy draft function: `(draft: T) => void \| T` |
