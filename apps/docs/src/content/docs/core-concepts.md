@@ -98,6 +98,7 @@ Each `storageKey` you provide creates its own, isolated IndexedDB database prefi
 
 For example, `useSync("my-cart")` will create a database named `syncraft-labs_my-cart`.
 
-Inside this database, there are two object stores:
-1. **`state` store:** Holds exactly one row (`key: "current"`). This contains the latest snapshot of your data.
-2. **`outbox` store:** Holds pending mutations. Each row is an `OutboxEntry` containing the exact patches that were applied, a timestamp, and a UUID.
+Inside this database, there are object stores configured based on your `storageMode`:
+1. **`state` store (`storageMode: "document"`):** Holds exactly one row (`key: "current"`). This contains the full snapshot blob of your data.
+2. **`state_entities` store (`storageMode: "collection"`):** Holds individual per-entity records keyed by entity ID. Updating one entity writes only its record rather than rewriting the entire state blob.
+3. **`outbox` store:** Holds pending mutations. Each row is an `OutboxEntry` containing the exact patches that were applied, a timestamp, and a UUID.

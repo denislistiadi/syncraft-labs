@@ -119,12 +119,12 @@ Primary composable for Syncraft Labs in Vue.
 
 #### `UseSyncOptions<T>`
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
+| `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
 
 #### `UseSyncReturn<T>`
 
