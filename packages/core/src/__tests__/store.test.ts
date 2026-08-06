@@ -684,5 +684,168 @@ describe("createSyncStore", () => {
       expect(store.isHydrating).toBe(false);
     });
   });
+
+  // ── Collection Mode ────────────────────────────────────────
+
+  describe("collection mode", () => {
+    type Entity = { id: string; name: string; score: number };
+    type CollectionState = Record<string, Entity>;
+
+    it("should throw if storageMode is collection but idField is missing", () => {
+      expect(() =>
+        // @ts-expect-error missing idField
+        createSyncStore<CollectionState>({
+          storageKey: uniqueKey(),
+          storageMode: "collection",
+        }),
+      ).toThrow('idField is required when storageMode is "collection"');
+    });
+
+    it("should hydrate initialState in collection mode", async () => {
+      const initialState: CollectionState = {
+        item1: { id: "item1", name: "Item 1", score: 10 },
+        item2: { id: "item2", name: "Item 2", score: 20 },
+      };
+
+      const store = createSyncStore<CollectionState>({
+        storageKey: uniqueKey(),
+        storageMode: "collection",
+        idField: "id",
+        initialState,
+      });
+
+      await store.hydrate();
+
+      expect(store.getSnapshot()).toEqual(initialState);
+      store.destroy();
+    });
+
+    it("should perform partial writes on entity update in collection mode", async () => {
+      const key = uniqueKey();
+      const initialState: CollectionState = {
+        item1: { id: "item1", name: "Item 1", score: 10 },
+        item2: { id: "item2", name: "Item 2", score: 20 },
+      };
+
+      const store = createSyncStore<CollectionState>({
+        storageKey: key,
+        storageMode: "collection",
+        idField: "id",
+        initialState,
+      });
+
+      await store.hydrate();
+
+      const spy = vi.spyOn(storage, "writeCollectionEntities");
+
+      await store.set((draft) => {
+        draft.item1!.score = 99;
+      });
+
+      expect(store.getSnapshot()?.item1?.score).toBe(99);
+      expect(spy).toHaveBeenCalledTimes(1);
+      // Verify that writeCollectionEntities was called only with item1 (not item2)
+      expect(spy).toHaveBeenCalledWith(
+        expect.anything(),
+        { item1: { id: "item1", name: "Item 1", score: 99 } },
+        [],
+      );
+
+      spy.mockRestore();
+      store.destroy();
+    });
+
+    it("should handle entity deletions in collection mode", async () => {
+      const key = uniqueKey();
+      const initialState: CollectionState = {
+        item1: { id: "item1", name: "Item 1", score: 10 },
+        item2: { id: "item2", name: "Item 2", score: 20 },
+      };
+
+      const store = createSyncStore<CollectionState>({
+        storageKey: key,
+        storageMode: "collection",
+        idField: "id",
+        initialState,
+      });
+
+      await store.hydrate();
+
+      const spy = vi.spyOn(storage, "writeCollectionEntities");
+
+      await store.set((draft) => {
+        delete draft.item1;
+      });
+
+      expect(store.getSnapshot()?.item1).toBeUndefined();
+      expect(store.getSnapshot()?.item2).toBeDefined();
+      expect(spy).toHaveBeenCalledWith(expect.anything(), {}, ["item1"]);
+
+      spy.mockRestore();
+      store.destroy();
+    });
+
+    it("should restore collection state across store instances", async () => {
+      const key = uniqueKey();
+      const initialState: CollectionState = {
+        item1: { id: "item1", name: "Item 1", score: 10 },
+      };
+
+      const store1 = createSyncStore<CollectionState>({
+        storageKey: key,
+        storageMode: "collection",
+        idField: "id",
+        initialState,
+      });
+      await store1.hydrate();
+
+      await store1.set((draft) => {
+        draft.item2 = { id: "item2", name: "Item 2", score: 50 };
+      });
+      store1.destroy();
+
+      // Second session
+      const store2 = createSyncStore<CollectionState>({
+        storageKey: key,
+        storageMode: "collection",
+        idField: "id",
+      });
+      await store2.hydrate();
+
+      expect(store2.getSnapshot()).toEqual({
+        item1: { id: "item1", name: "Item 1", score: 10 },
+        item2: { id: "item2", name: "Item 2", score: 50 },
+      });
+
+      store2.destroy();
+    });
+
+    it("should rollback in-memory state when writeCollectionEntities throws", async () => {
+      const store = createSyncStore<CollectionState>({
+        storageKey: uniqueKey(),
+        storageMode: "collection",
+        idField: "id",
+        initialState: { item1: { id: "item1", name: "Original", score: 1 } },
+      });
+      await store.hydrate();
+
+      const spy = vi
+        .spyOn(storage, "writeCollectionEntities")
+        .mockRejectedValueOnce(new Error("IDB failure"));
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await expect(
+        store.set((draft) => {
+          draft.item1!.name = "Changed";
+        }),
+      ).rejects.toThrow("IDB failure");
+
+      expect(store.getSnapshot()?.item1?.name).toBe("Original");
+
+      spy.mockRestore();
+      consoleSpy.mockRestore();
+      store.destroy();
+    });
+  });
 });
 
