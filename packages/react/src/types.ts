@@ -35,7 +35,7 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
   /**
    * Async function to push pending mutations to a remote source.
    * Called automatically by the background sync loop.
-   * Receives all pending outbox entries (patches + snapshots).
+   * Receives all pending outbox entries (patches + inverse patches).
    *
    * @example
    * pusher: (entries) => fetch('/api/sync', {
