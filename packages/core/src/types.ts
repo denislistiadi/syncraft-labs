@@ -90,7 +90,7 @@ export type SyncStoreConfig<T> = DocumentSyncStoreConfig<T> | CollectionSyncStor
  * Framework wrappers (React/Vue) drain this queue by calling
  * a user-provided `pusher` function.
  */
-export interface OutboxEntry<T> {
+export interface OutboxEntry<_T = unknown> {
   /** Unique identifier for this mutation (UUID v4). */
   readonly id: string;
 
@@ -108,13 +108,6 @@ export interface OutboxEntry<T> {
    * Enables rollback if the server rejects the change.
    */
   readonly inversePatches: readonly Patch[];
-
-  /**
-   * Full state snapshot AFTER the mutation was applied.
-   * Redundant with patches, but simplifies Phase 1 syncing
-   * where we just send the latest state to the server.
-   */
-  readonly snapshot: T;
 }
 
 // ─────────────────────────────────────────────────────────────

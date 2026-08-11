@@ -22,7 +22,6 @@ interface OutboxEntry<T> {
   timestamp: number;    // Unix ms — when the mutation was created
   patches: Patch[];     // Applied patches — what changed
   inversePatches: Patch[];  // Inverse patches — how to undo
-  snapshot: T;          // Full state AFTER the mutation
 }
 ```
 
@@ -30,7 +29,6 @@ interface OutboxEntry<T> {
 
 | Field | Use Case |
 |-------|----------|
-| `snapshot` | **Simplest** — replace server state with the latest snapshot |
 | `patches` | **Granular** — apply individual changes (add, replace, remove) |
 | `inversePatches` | **Undo** — server-side rollback if the mutation is rejected |
 | `timestamp` | **Ordering** — resolve conflicts by time |
@@ -38,9 +36,9 @@ interface OutboxEntry<T> {
 
 ---
 
-## Strategy 1: Last-Write-Wins (Snapshot)
+## Strategy 1: Last-Write-Wins (Full State)
 
-The simplest approach — send the latest snapshot to the server and overwrite:
+The simplest approach — send current full state to the server and overwrite:
 
 ### Client
 
@@ -49,12 +47,11 @@ const { data, update } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
   fetcher: () => fetch("/api/todos").then((r) => r.json()),
   pusher: async (entries) => {
-    // Send only the latest snapshot (last entry has the most recent state)
-    const latest = entries[entries.length - 1];
+    // Send current state snapshot
     await fetch("/api/todos", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(latest.snapshot),
+      body: JSON.stringify(data),
     });
   },
 });

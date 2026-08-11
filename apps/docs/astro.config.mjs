@@ -9,6 +9,7 @@ export default defineConfig({
     starlight({
       title: 'Syncraft Labs',
       description: 'Local-First State Synchronization Engine for React & Vue',
+      favicon: './src/assets/logo.png',
       logo: {
         src: './src/assets/logo.png',
       },

@@ -60,8 +60,19 @@ interface OutboxEntry<T> {
   readonly timestamp: number;    // Unix ms
   readonly patches: Patch[];     // Applied JSON patches
   readonly inversePatches: Patch[]; // Inverse patches for rollback
-  readonly snapshot: T;          // Full state after mutation
 }
+```
+
+### Utilities
+
+#### `applyPatches<T>(baseState: T, patches: readonly Patch[]): T`
+
+Apply an array of Immer-style JSON patches to a base state object. Returns a new state object without mutating the original.
+
+```ts
+import { applyPatches } from "@syncraft-labs/core";
+
+const nextState = applyPatches(baseState, entry.patches);
 ```
 
 #### `Patch`

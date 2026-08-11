@@ -422,7 +422,6 @@ export function createSyncStore<T extends Record<string, unknown>>(
           timestamp: Date.now(),
           patches,
           inversePatches,
-          snapshot: nextState,
         };
 
         await pushOutbox(currentDB, outboxEntry);

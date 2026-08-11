@@ -204,7 +204,7 @@ describe("createSyncStore", () => {
       expect(entry.timestamp).toBeGreaterThan(0);
       expect(entry.patches.length).toBeGreaterThan(0);
       expect(entry.inversePatches.length).toBeGreaterThan(0);
-      expect(entry.snapshot.todos).toHaveLength(1);
+      expect("snapshot" in entry).toBe(false);
 
       store.destroy();
     });
@@ -441,9 +441,55 @@ describe("createSyncStore", () => {
 
       const outbox = await store2.getOutbox();
       expect(outbox).toHaveLength(1);
-      expect(outbox[0]?.snapshot.todos[0]?.text).toBe("Pending sync");
+      expect(outbox[0]?.patches.length).toBeGreaterThan(0);
 
       store2.destroy();
+    });
+  });
+
+  describe("outbox size optimization", () => {
+    it("should NOT include snapshot field in outbox entries", async () => {
+      const store = await createHydratedStore();
+      await store.set((draft) => {
+        draft.todos.push({ id: "1", text: "No snapshot", done: false });
+      });
+
+      const outbox = await store.getOutbox();
+      const entry = outbox[0]!;
+
+      expect(entry.patches.length).toBeGreaterThan(0);
+      expect(entry.inversePatches.length).toBeGreaterThan(0);
+      expect("snapshot" in entry).toBe(false);
+
+      store.destroy();
+    });
+
+    it("should reduce outbox entry size by >80% for large state", async () => {
+      const largeInitialState: TodoState = {
+        todos: Array.from({ length: 1000 }, (_, i) => ({
+          id: String(i),
+          text: `Todo item ${i} with long description text for benchmark`,
+          done: i % 2 === 0,
+        })),
+        lastUpdated: 0,
+      };
+
+      const store = await createHydratedStore({ initialState: largeInitialState });
+
+      await store.set((draft) => {
+        draft.todos[0]!.text = "Updated item text";
+      });
+
+      const outbox = await store.getOutbox();
+      const entry = outbox[0]!;
+
+      const entryJsonSize = JSON.stringify(entry).length;
+      const fullStateJsonSize = JSON.stringify(largeInitialState).length;
+
+      // Entry without snapshot should be >80% smaller than full state JSON
+      expect(entryJsonSize).toBeLessThan(fullStateJsonSize * 0.2);
+
+      store.destroy();
     });
   });
 

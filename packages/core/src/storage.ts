@@ -35,7 +35,7 @@ import type { OutboxEntry } from "./types.js";
 const DB_PREFIX = "syncraft-labs_";
 
 /** Current database schema version. Bump this when adding stores/indexes. */
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 /** Object store name for the current state (document mode). */
 const STATE_STORE = "state" as const;
@@ -100,6 +100,11 @@ export async function openSyncDB(storageKey: string): Promise<SyncDB> {
       if (!db.objectStoreNames.contains(OUTBOX_STORE)) {
         db.createObjectStore(OUTBOX_STORE, { keyPath: "id" });
       }
+
+      // v2 -> v3 migration note: OutboxEntry no longer includes `snapshot`.
+      // Legacy outbox entries persisted under DB_VERSION 2 remain readable.
+      // Runtime TypeScript types ignore the extra `snapshot` property, and
+      // old entries are automatically cleaned up when cleared after sync.
     },
   });
 }
