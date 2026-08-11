@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **BREAKING (Core)**: `OutboxEntry<T>` no longer includes a `snapshot` field. Outbox entries now store only `patches` and `inversePatches`, reducing storage size by >80% for large state. If your `pusher` function relied on `entry.snapshot`, use `store.getSnapshot()` instead or reconstruct state via the new `applyPatches()` utility.
+
 ### Added
+- **Core**: Added `applyPatches<T>(base, patches)` utility function for applying Immer-style JSON patches to a state object. Exported from `@syncraft-labs/core`.
 - **Core**: Added `storageMode: "document" | "collection"` configuration option to `createSyncStore`. In `"collection"` mode (requires `idField`), state formatted as `Record<string, Entity>` is stored per-entity in IndexedDB. Mutating single entities writes only the updated entity records to IndexedDB rather than rewriting the entire state dataset.
 - **React**: Exposed `storageMode` and `idField` in `UseSyncOptions`.
 - **Vue**: Exposed `storageMode` and `idField` in `UseSyncOptions`.
