@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { produceWithPatches } from "../produce.js";
+import { produceWithPatches, applyPatches } from "../produce.js";
 
 describe("produceWithPatches", () => {
   it("should handle top-level property assignment", () => {
@@ -149,3 +149,51 @@ describe("produceWithPatches", () => {
     expect(patches).toEqual([{ op: "replace", path: ["a"], value: 2 }]);
   });
 });
+
+describe("applyPatches", () => {
+  it("should apply replace patches", () => {
+    const base = { a: 1, b: 2 };
+    const result = applyPatches(base, [{ op: "replace", path: ["a"], value: 10 }]);
+    expect(result).toEqual({ a: 10, b: 2 });
+    expect(base.a).toBe(1); // Original unchanged
+  });
+
+  it("should apply add patches", () => {
+    const base: Record<string, number> = { a: 1 };
+    const result = applyPatches(base, [{ op: "add", path: ["b"], value: 2 }]);
+    expect(result).toEqual({ a: 1, b: 2 });
+  });
+
+  it("should apply remove patches", () => {
+    const base: Record<string, number> = { a: 1, b: 2 };
+    const result = applyPatches(base, [{ op: "remove", path: ["b"] }]);
+    expect(result).toEqual({ a: 1 });
+  });
+
+  it("should apply root-level replace patch", () => {
+    const base = { a: 1 };
+    const result = applyPatches(base, [{ op: "replace", path: [], value: { a: 99 } }]);
+    expect(result).toEqual({ a: 99 });
+  });
+
+  it("should roundtrip applyPatches(base, patches) === nextState", () => {
+    const base = { todos: [{ id: "1", text: "Buy milk", done: false }], count: 1 };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.todos.push({ id: "2", text: "Walk dog", done: true });
+      d.count = 2;
+    });
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed).toEqual(next);
+  });
+
+  it("should roundtrip inversePatches: applyPatches(nextState, inversePatches) === base", () => {
+    const base = { todos: [{ id: "1", text: "Buy milk", done: false }], count: 1 };
+    const [next, , inversePatches] = produceWithPatches(base, (d) => {
+      d.todos[0]!.done = true;
+      d.count = 2;
+    });
+    const reconstructed = applyPatches(next, inversePatches);
+    expect(reconstructed).toEqual(base);
+  });
+});
+

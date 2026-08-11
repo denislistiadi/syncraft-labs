@@ -20,6 +20,7 @@
 
 // ── Factory ───────────────────────────────────────────────────
 export { createSyncStore } from "./store.js";
+export { applyPatches } from "./produce.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {

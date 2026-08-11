@@ -207,3 +207,61 @@ export function produceWithPatches<T>(
 
   return [nextState as T, patches, inversePatches];
 }
+
+/**
+ * Apply a series of Immer-style JSON patches to a base state object.
+ * Returns a new state object with the patches applied (does not mutate baseState).
+ *
+ * @template T - The shape of the state.
+ * @param baseState - The original state to apply patches onto.
+ * @param patches - Array of patches to apply sequentially.
+ * @returns A new state object representing the state after all patches are applied.
+ */
+export function applyPatches<T>(baseState: T, patches: readonly Patch[]): T {
+  if (patches.length === 0) {
+    return baseState;
+  }
+
+  // Deep clone baseState to avoid mutating the original
+  let state: any = structuredClone(baseState);
+
+  for (const patch of patches) {
+    const { op, path, value } = patch;
+
+    if (path.length === 0) {
+      if (op === "replace") {
+        state = structuredClone(value);
+      }
+      continue;
+    }
+
+    let target = state;
+    for (let i = 0; i < path.length - 1; i++) {
+      target = target[path[i]!];
+    }
+    const lastKey = path[path.length - 1]!;
+
+    switch (op) {
+      case "replace":
+        target[lastKey] = structuredClone(value);
+        break;
+      case "add":
+        if (Array.isArray(target)) {
+          target.splice(Number(lastKey), 0, structuredClone(value));
+        } else {
+          target[lastKey] = structuredClone(value);
+        }
+        break;
+      case "remove":
+        if (Array.isArray(target)) {
+          target.splice(Number(lastKey), 1);
+        } else {
+          delete target[lastKey];
+        }
+        break;
+    }
+  }
+
+  return state as T;
+}
+
