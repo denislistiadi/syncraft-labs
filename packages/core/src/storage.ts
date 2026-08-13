@@ -145,7 +145,9 @@ export async function writeState<T>(db: SyncDB, value: T): Promise<void> {
  * @param db - The opened database handle.
  * @returns The assembled collection state, or `undefined` if empty.
  */
-export async function readCollectionState<T>(db: SyncDB): Promise<T | undefined> {
+export async function readCollectionState<T>(
+  db: SyncDB,
+): Promise<T | undefined> {
   const keys = await db.getAllKeys(STATE_ENTITIES_STORE);
   if (keys.length === 0) {
     return undefined;
@@ -199,7 +201,10 @@ export async function writeCollectionEntities(
  * @param db - The opened database handle.
  * @param value - The full collection state object.
  */
-export async function writeCollectionState<T>(db: SyncDB, value: T): Promise<void> {
+export async function writeCollectionState<T>(
+  db: SyncDB,
+  value: T,
+): Promise<void> {
   const tx = db.transaction(STATE_ENTITIES_STORE, "readwrite");
   const store = tx.objectStore(STATE_ENTITIES_STORE);
 
@@ -207,7 +212,9 @@ export async function writeCollectionState<T>(db: SyncDB, value: T): Promise<voi
 
   if (value && typeof value === "object") {
     const promises: Promise<unknown>[] = [];
-    for (const [key, entity] of Object.entries(value as Record<string, unknown>)) {
+    for (const [key, entity] of Object.entries(
+      value as Record<string, unknown>,
+    )) {
       promises.push(store.put(entity, key));
     }
     promises.push(tx.done);
@@ -247,8 +254,8 @@ export async function pushOutbox<T>(
 export async function readOutbox<T>(
   db: SyncDB,
 ): Promise<readonly OutboxEntry<T>[]> {
-  const entries = await db.getAll(OUTBOX_STORE);
-  return entries as OutboxEntry<T>[];
+  const entries = (await db.getAll(OUTBOX_STORE)) as OutboxEntry<T>[];
+  return entries.sort((a, b) => a.timestamp - b.timestamp);
 }
 
 /**
@@ -285,10 +292,7 @@ export async function clearOutbox(
   const store = tx.objectStore(OUTBOX_STORE);
 
   // Fire all deletes concurrently within the same transaction.
-  await Promise.all([
-    ...ids.map((id) => store.delete(id)),
-    tx.done,
-  ]);
+  await Promise.all([...ids.map((id) => store.delete(id)), tx.done]);
 }
 
 /**
