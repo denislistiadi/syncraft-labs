@@ -171,3 +171,33 @@ useSync("notes", { pusher: pushFn, syncInterval: 30_000 });
 ```
 
 > **Default:** `5000` (5 seconds).
+
+---
+
+## Outbox Compaction
+
+When a user performs rapid mutations to the same state field while offline (e.g. typing in an input field or dragging a slider), every `update()` call appends an outbox entry.
+
+Syncraft automatically runs **outbox compaction** before each background sync loop push (in React `useSync` and Vue `useSync`). Consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
+
+```ts
+// 10 consecutive updates to `lastUpdated` while offline...
+// Without compaction: 10 outbox entries sent over the network
+// With compaction:    1 outbox entry containing only the latest patch
+```
+
+You can also run compaction manually on any store instance or array of outbox entries:
+
+```ts
+import { compactOutbox } from "@syncraft-labs/core";
+
+// Standalone function:
+const result = compactOutbox(outboxEntries);
+if (result) {
+  await pusher([result.compacted]);
+  await store.clearOutbox(result.originalIds);
+}
+
+// Or on store instance:
+const compactedView = await store.compactOutbox();
+```

@@ -18,9 +18,10 @@
  * ```
  */
 
-// ── Factory ───────────────────────────────────────────────────
+// ── Factory & Utilities ───────────────────────────────────────
 export { createSyncStore } from "./store.js";
 export { applyPatches } from "./produce.js";
+export { compactOutbox } from "./compact.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
@@ -33,3 +34,4 @@ export type {
 } from "./types.js";
 
 export type { Patch } from "./produce.js";
+export type { CompactResult } from "./compact.js";

@@ -260,18 +260,20 @@ export function useSync<T extends Record<string, unknown>>(
       if (!pusher) return;
 
       try {
-        const outbox = await store.getOutbox();
+        const rawOutbox = await store.getOutbox();
 
-        if (outbox.length === 0) {
+        if (rawOutbox.length === 0) {
           // Nothing to sync — reset backoff and schedule next check
           retryCount = 0;
           if (!cancelled) timeoutId = setTimeout(syncLoop, syncInterval);
           return;
         }
 
+        const outbox = await store.compactOutbox();
+
         setIsSyncing(true);
         await pusher(outbox);
-        await store.clearOutbox(outbox.map((e) => e.id));
+        await store.clearOutbox(rawOutbox.map((e) => e.id));
 
         // Success — reset state
         retryCount = 0;

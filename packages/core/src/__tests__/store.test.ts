@@ -893,5 +893,53 @@ describe("createSyncStore", () => {
       store.destroy();
     });
   });
+
+  // ── compactOutbox() ─────────────────────────────────────────
+
+  describe("compactOutbox()", () => {
+    it("should return empty array when outbox is empty", async () => {
+      const store = await createHydratedStore();
+
+      const compacted = await store.compactOutbox();
+      expect(compacted).toHaveLength(0);
+
+      store.destroy();
+    });
+
+    it("should compact 10 mutations to the same field into 1 outbox entry", async () => {
+      const store = await createHydratedStore();
+
+      // Perform 10 consecutive mutations to the same field
+      for (let i = 1; i <= 10; i++) {
+        await store.set((draft) => {
+          draft.lastUpdated = i * 100;
+        });
+      }
+
+      // Raw outbox has 10 entries
+      const rawOutbox = await store.getOutbox();
+      expect(rawOutbox).toHaveLength(10);
+
+      // Compacted outbox has 1 entry
+      const compactedOutbox = await store.compactOutbox();
+      expect(compactedOutbox).toHaveLength(1);
+
+      const entry = compactedOutbox[0]!;
+      expect(entry.patches).toHaveLength(1);
+      expect(entry.patches[0]).toEqual({
+        op: "replace",
+        path: ["lastUpdated"],
+        value: 1000,
+      });
+
+      // Clear all raw outbox entries
+      await store.clearOutbox(rawOutbox.map((e) => e.id));
+
+      const remaining = await store.getOutbox();
+      expect(remaining).toHaveLength(0);
+
+      store.destroy();
+    });
+  });
 });
 

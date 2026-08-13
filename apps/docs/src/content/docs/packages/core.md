@@ -34,6 +34,7 @@ Create a new store instance. Each store manages one slice of state identified by
 | `subscribe(listener)` | `(listener: SyncListener<T>) => Unsubscribe` | Listen to state changes |
 | `hydrate()` | `() => Promise<T \| undefined>` | Load from IndexedDB (call once on init) |
 | `getOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations |
+| `compactOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Return compacted view of outbox entries (last-write-wins) |
 | `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove synced entries by ID |
 | `destroy()` | `() => void` | Close IndexedDB connection, clear listeners |
 | `isHydrating` | `boolean` (getter) | `true` until `hydrate()` completes |
@@ -64,6 +65,20 @@ interface OutboxEntry<T> {
 ```
 
 ### Utilities
+
+#### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`
+
+Compact an array of outbox entries by merging consecutive mutations to the same path (last-write-wins). Returns `{ compacted, originalIds }` or `null` if empty.
+
+```ts
+import { compactOutbox } from "@syncraft-labs/core";
+
+const result = compactOutbox(outboxEntries);
+if (result) {
+  await pusher([result.compacted]);
+  await store.clearOutbox(result.originalIds);
+}
+```
 
 #### `applyPatches<T>(baseState: T, patches: readonly Patch[]): T`
 

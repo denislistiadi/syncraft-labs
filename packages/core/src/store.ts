@@ -31,6 +31,7 @@
  */
 
 import { produceWithPatches, type Patch } from "./produce.js";
+import { compactOutbox as compactOutboxFn } from "./compact.js";
 import type {
   DraftUpdater,
   OutboxEntry,
@@ -64,11 +65,25 @@ import type { IDBPDatabase } from "idb";
  * and Node.js 19+. Falls back to a timestamp-based ID for older runtimes.
  */
 function generateId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
     return crypto.randomUUID();
   }
   // Fallback: timestamp + random suffix (not truly UUID, but unique enough)
   return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+}
+
+let lastOutboxTimestamp = 0;
+function getMonotonicTimestamp(): number {
+  const now = Date.now();
+  if (now <= lastOutboxTimestamp) {
+    lastOutboxTimestamp += 1;
+    return lastOutboxTimestamp;
+  }
+  lastOutboxTimestamp = now;
+  return now;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -263,15 +278,10 @@ export function createSyncStore<T extends Record<string, unknown>>(
       // We access `process.env` via globalThis to avoid requiring
       // @types/node in this browser-first library. Bundlers like Vite
       // and webpack replace `process.env.NODE_ENV` at build time.
-      if (
-        !isHydrated &&
-        !isDestroyed &&
-        !hasWarnedPreHydration
-      ) {
+      if (!isHydrated && !isDestroyed && !hasWarnedPreHydration) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- safe runtime check for process.env
         const nodeEnv = (globalThis as Record<string, unknown>).process as
-          | { env?: { NODE_ENV?: string } }
-          | undefined;
+          { env?: { NODE_ENV?: string } } | undefined;
         const isProd = nodeEnv?.env?.NODE_ENV === "production";
 
         if (!isProd) {
@@ -318,10 +328,8 @@ export function createSyncStore<T extends Record<string, unknown>>(
         inversePatches = [{ op: "replace", path: [], value: undefined }];
       } else {
         // ── Immer: Produce next state with patches ──────────────
-        const [producedState, producedPatches, producedInverse] = produceWithPatches(
-          baseState,
-          updater,
-        ) as [T, Patch[], Patch[]];
+        const [producedState, producedPatches, producedInverse] =
+          produceWithPatches(baseState, updater) as [T, Patch[], Patch[]];
         nextState = producedState;
         patches = producedPatches;
         inversePatches = producedInverse;
@@ -367,7 +375,10 @@ export function createSyncStore<T extends Record<string, unknown>>(
 
       // ── 2b. Broadcast to other tabs ───────────────────────────
       if (channel) {
-        channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: nextState });
+        channel.postMessage({
+          type: "SYNCRAFT_STATE_UPDATE",
+          snapshot: nextState,
+        });
       }
 
       // ── 3. Persist to IndexedDB with rollback on failure ────
@@ -419,7 +430,7 @@ export function createSyncStore<T extends Record<string, unknown>>(
         // ── 4. Append to outbox (for eventual sync) ─────────────
         const outboxEntry: OutboxEntry<T> = {
           id: generateId(),
-          timestamp: Date.now(),
+          timestamp: getMonotonicTimestamp(),
           patches,
           inversePatches,
         };
@@ -476,6 +487,14 @@ export function createSyncStore<T extends Record<string, unknown>>(
       assertNotDestroyed();
       const currentDB = assertDB();
       await clearOutboxStorage(currentDB, ids);
+    },
+
+    async compactOutbox(): Promise<readonly OutboxEntry<T>[]> {
+      assertNotDestroyed();
+      const currentDB = assertDB();
+      const entries = await readOutbox<T>(currentDB);
+      const result = compactOutboxFn(entries);
+      return result ? [result.compacted] : [];
     },
 
     async hydrate(): Promise<T | undefined> {

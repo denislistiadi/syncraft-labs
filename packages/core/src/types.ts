@@ -225,6 +225,13 @@ export interface SyncStore<T> {
   clearOutbox(ids: readonly string[]): Promise<void>;
 
   /**
+   * Return a compacted view of the outbox entries.
+   * Merges consecutive mutations to the same path into a single outbox entry (last-write-wins).
+   * Does NOT modify IndexedDB — returns the compacted result for pusher use.
+   */
+  compactOutbox(): Promise<readonly OutboxEntry<T>[]>;
+
+  /**
    * Hydrate the store from IndexedDB.
    * Called once during initialization. If `initialState` was provided
    * and no persisted state exists, it writes `initialState` to IDB.

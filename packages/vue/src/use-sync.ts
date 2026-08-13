@@ -152,17 +152,19 @@ export function useSync<T extends Record<string, unknown>>(
     const pusher = options.pusher;
 
     try {
-      const outbox = await store.getOutbox();
+      const rawOutbox = await store.getOutbox();
 
-      if (outbox.length === 0) {
+      if (rawOutbox.length === 0) {
         retryCount = 0;
         if (!cancelled) syncTimeoutId = setTimeout(syncLoop, syncInterval);
         return;
       }
 
+      const outbox = await store.compactOutbox();
+
       isSyncing.value = true;
       await pusher(outbox);
-      await store.clearOutbox(outbox.map((e) => e.id));
+      await store.clearOutbox(rawOutbox.map((e) => e.id));
 
       retryCount = 0;
       error.value = null;
