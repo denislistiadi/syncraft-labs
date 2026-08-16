@@ -97,41 +97,52 @@ const { data, update, refetch, error } = useSync<TodoState>("todos", opts);
 
 ## Outbox Overflow Handling
 
-If a user works offline for a long time, the outbox might hit `maxOutboxSize` (default: 1000). When full, `set()` throws:
+If a user works offline for a long time, the outbox might hit `maxOutboxSize` (default: 1000). You can configure how Syncraft Labs responds using `overflowStrategy`:
 
-> `[SyncStore] Outbox size limit reached (1000 entries). Sync pending changes before adding more.`
+### 1. `overflowStrategy: "reject"` (Default)
 
-Handle this explicitly:
+When full, `set()` throws a hard `Error`:
 
 ```tsx
-function AddTaskButton({ update }: { update: (fn: any) => void }) {
-  const [overflow, setOverflow] = useState(false);
-
-  const handleAdd = () => {
-    try {
-      update((draft: any) => {
-        draft.tasks.push({ id: crypto.randomUUID(), title: "New task" });
-      });
-      setOverflow(false);
-    } catch (err: any) {
-      if (err.message?.includes("Outbox size limit")) {
-        setOverflow(true);
-      }
-    }
-  };
-
-  return (
-    <>
-      <button onClick={handleAdd}>Add Task</button>
-      {overflow && (
-        <p className="warning">
-          You have too many unsynced changes. Please go online to sync before adding more.
-        </p>
-      )}
-    </>
-  );
-}
+const { update } = useSync("todos", {
+  maxOutboxSize: 100,
+  overflowStrategy: "reject", // default
+  onOverflow: ({ outboxSize, maxOutboxSize }) => {
+    console.warn(`Outbox overflowed (${outboxSize}/${maxOutboxSize})`);
+  },
+});
 ```
+
+### 2. `overflowStrategy: "dropOldest"`
+
+Automatically drops the oldest entry from IndexedDB with a `console.warn` when full, allowing new mutations to proceed:
+
+```tsx
+const { update } = useSync("todos", {
+  maxOutboxSize: 500,
+  overflowStrategy: "dropOldest",
+  onOverflow: ({ storageKey }) => {
+    toast.warn("Offline storage limit reached. Oldest unsynced change was discarded.");
+  },
+});
+```
+
+### 3. `overflowStrategy: "forceFlush"`
+
+Triggers an immediate sync attempt via `onOverflow` before deciding whether to allow the write:
+
+```tsx
+const { update } = useSync("todos", {
+  maxOutboxSize: 200,
+  overflowStrategy: "forceFlush",
+  onOverflow: async () => {
+    // User-provided logic to flush pending entries
+    await triggerEmergencySync();
+  },
+});
+```
+
+> **Note:** For `"forceFlush"`, if `onOverflow` resolves and the outbox count is still at or above `maxOutboxSize`, `set()` throws an `Error` indicating the flush failed to free enough space.
 
 ---
 

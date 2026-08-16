@@ -20,7 +20,9 @@ Create a new store instance. Each store manages one slice of state identified by
 
 | `storageKey` | `string` | *required* | Unique key for IndexedDB database name |
 | `initialState` | `T` | `undefined` | Default state when no persisted data exists |
-| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before `set()` throws |
+| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
+| `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached: `"reject"` throws Error, `"dropOldest"` drops oldest entry with warning, `"forceFlush"` invokes `onOverflow` callback to attempt sync before write |
+| `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
 | `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
 
