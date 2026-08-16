@@ -31,6 +31,8 @@ export type {
   Unsubscribe,
   DraftUpdater,
   OutboxEntry,
+  OutboxOverflowStrategy,
+  OutboxOverflowInfo,
 } from "./types.js";
 
 export type { Patch } from "./produce.js";

@@ -43,6 +43,50 @@ export interface BaseSyncStoreConfig<T> {
    * @default 1000
    */
   readonly maxOutboxSize?: number | undefined;
+
+  /**
+   * Strategy for handling outbox overflow when `maxOutboxSize` is reached.
+   *
+   * @default "reject"
+   */
+  readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
+
+  /**
+   * Callback invoked when an outbox overflow event occurs.
+   *
+   * For `"dropOldest"`: called AFTER the oldest entry is removed.
+   * For `"forceFlush"`: called BEFORE checking if space was freed.
+   * For `"reject"`: called right before the Error is thrown.
+   *
+   * @param info - Details about the overflow event.
+   */
+  readonly onOverflow?:
+    | ((info: OutboxOverflowInfo) => void | Promise<void>)
+    | undefined;
+}
+
+/**
+ * Strategy for handling outbox overflow when `maxOutboxSize` is reached.
+ *
+ * - `"reject"` (default): throw an error, blocking the mutation
+ * - `"dropOldest"`: remove the oldest outbox entry, emit a warning via `console.warn`, then allow the new write
+ * - `"forceFlush"`: attempt a sync flush via the `onOverflow` callback before rejecting —
+ *    if the flush succeeds (outbox shrinks below limit), the write proceeds; otherwise it rejects
+ */
+export type OutboxOverflowStrategy = "reject" | "dropOldest" | "forceFlush";
+
+/**
+ * Details provided to the `onOverflow` callback when an outbox overflow occurs.
+ */
+export interface OutboxOverflowInfo {
+  /** The store key that overflowed. */
+  readonly storageKey: string;
+  /** Current outbox count at overflow time. */
+  readonly outboxSize: number;
+  /** The configured max outbox size. */
+  readonly maxOutboxSize: number;
+  /** Which strategy was applied. */
+  readonly strategy: OutboxOverflowStrategy;
 }
 
 export interface DocumentSyncStoreConfig<T> extends BaseSyncStoreConfig<T> {

@@ -43,6 +43,7 @@ import type {
 import {
   closeDB,
   countOutbox,
+  deleteOldestOutboxEntry,
   openSyncDB,
   pushOutbox,
   readOutbox,
@@ -139,6 +140,8 @@ export function createSyncStore<T extends Record<string, unknown>>(
 
   /** Default outbox cap — prevents unbounded growth when offline. */
   const maxOutboxSize = config.maxOutboxSize ?? 1000;
+  const overflowStrategy = config.overflowStrategy ?? "reject";
+  const onOverflow = config.onOverflow;
 
   // ── Internal State ──────────────────────────────────────────
 
@@ -346,10 +349,51 @@ export function createSyncStore<T extends Record<string, unknown>>(
       // state that can't be persisted. Uses IDB's O(1) count().
       const outboxSize = await countOutbox(currentDB);
       if (outboxSize >= maxOutboxSize) {
-        throw new Error(
-          `[Syncraft Labs] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
-            `Sync pending changes before making more mutations.`,
-        );
+        if (overflowStrategy === "dropOldest") {
+          await deleteOldestOutboxEntry(currentDB);
+          console.warn(
+            `[Syncraft Labs] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
+              `Oldest outbox entry dropped per "dropOldest" strategy.`,
+          );
+          if (onOverflow) {
+            await onOverflow({
+              storageKey,
+              outboxSize,
+              maxOutboxSize,
+              strategy: "dropOldest",
+            });
+          }
+        } else if (overflowStrategy === "forceFlush") {
+          if (onOverflow) {
+            await onOverflow({
+              storageKey,
+              outboxSize,
+              maxOutboxSize,
+              strategy: "forceFlush",
+            });
+          }
+          const newSize = await countOutbox(currentDB);
+          if (newSize >= maxOutboxSize) {
+            throw new Error(
+              `[Syncraft Labs] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
+                `Force flush did not free enough space before write.`,
+            );
+          }
+        } else {
+          // "reject" (default)
+          if (onOverflow) {
+            await onOverflow({
+              storageKey,
+              outboxSize,
+              maxOutboxSize,
+              strategy: "reject",
+            });
+          }
+          throw new Error(
+            `[Syncraft Labs] Outbox size limit reached (${maxOutboxSize}) for store "${storageKey}". ` +
+              `Sync pending changes before making more mutations.`,
+          );
+        }
       }
 
       // ── Optimistic Update with Pessimistic Rollback ─────────
