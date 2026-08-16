@@ -287,7 +287,9 @@ store.destroy();
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Create a new SyncStore instance |
 | `compactOutbox(entries)` | Function | Compact outbox entries by merging same-path mutations |
-| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
+| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
+| `OutboxOverflowStrategy` | Type | Strategy enum: `"reject"` \| `"dropOldest"` \| `"forceFlush"` |
+| `OutboxOverflowInfo` | Type | Event details: `storageKey`, `outboxSize`, `maxOutboxSize`, `strategy` |
 | `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy` |
 | `OutboxEntry<T>` | Type | Pending mutation: `id`, `timestamp`, `patches`, `inversePatches` |
 | `DraftUpdater<T>` | Type | Proxy draft function: `(draft: T) => void \| T` |
@@ -302,7 +304,7 @@ store.destroy();
 | `useSync<T>(key, options)` | Hook | Primary React integration |
 | `useSyncSuspense<T>(key, options)` | Hook | React Suspense integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
 | `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`, `destroyStore` |
 
 ### `@syncraft-labs/vue`

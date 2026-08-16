@@ -941,5 +941,195 @@ describe("createSyncStore", () => {
       store.destroy();
     });
   });
+
+  describe("outbox overflow strategy", () => {
+    it('should throw error when maxOutboxSize is reached with default strategy ("reject")', async () => {
+      const store = createSyncStore<TodoState>({
+        storageKey: uniqueKey(),
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 2,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.lastUpdated = 1;
+      });
+      await store.set((draft) => {
+        draft.lastUpdated = 2;
+      });
+
+      // 3rd mutation should throw
+      await expect(
+        store.set((draft) => {
+          draft.lastUpdated = 3;
+        }),
+      ).rejects.toThrow("Outbox size limit reached");
+
+      store.destroy();
+    });
+
+    it('should fire onOverflow callback before throwing when strategy is "reject"', async () => {
+      const onOverflow = vi.fn();
+      const storageKey = uniqueKey();
+      const store = createSyncStore<TodoState>({
+        storageKey,
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 1,
+        overflowStrategy: "reject",
+        onOverflow,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.lastUpdated = 1;
+      });
+
+      await expect(
+        store.set((draft) => {
+          draft.lastUpdated = 2;
+        }),
+      ).rejects.toThrow("Outbox size limit reached");
+
+      expect(onOverflow).toHaveBeenCalledTimes(1);
+      expect(onOverflow).toHaveBeenCalledWith({
+        storageKey,
+        outboxSize: 1,
+        maxOutboxSize: 1,
+        strategy: "reject",
+      });
+
+      store.destroy();
+    });
+
+    it('should drop oldest outbox entry and allow write when strategy is "dropOldest"', async () => {
+      const onOverflow = vi.fn();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const storageKey = uniqueKey();
+
+      const store = createSyncStore<TodoState>({
+        storageKey,
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 2,
+        overflowStrategy: "dropOldest",
+        onOverflow,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.lastUpdated = 100;
+      });
+      await store.set((draft) => {
+        draft.lastUpdated = 200;
+      });
+
+      const initialOutbox = await store.getOutbox();
+      expect(initialOutbox).toHaveLength(2);
+      const firstEntryId = initialOutbox[0]!.id;
+
+      // 3rd mutation — should drop oldest (firstEntryId) and succeed
+      await store.set((draft) => {
+        draft.lastUpdated = 300;
+      });
+
+      const updatedOutbox = await store.getOutbox();
+      expect(updatedOutbox).toHaveLength(2);
+      expect(updatedOutbox.some((e) => e.id === firstEntryId)).toBe(false);
+      expect(updatedOutbox[1]!.patches[0]).toEqual({
+        op: "replace",
+        path: ["lastUpdated"],
+        value: 300,
+      });
+
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Oldest outbox entry dropped per "dropOldest" strategy'),
+      );
+      expect(onOverflow).toHaveBeenCalledWith({
+        storageKey,
+        outboxSize: 2,
+        maxOutboxSize: 2,
+        strategy: "dropOldest",
+      });
+
+      warnSpy.mockRestore();
+      store.destroy();
+    });
+
+    it('should allow write if forceFlush callback frees outbox space', async () => {
+      const storageKey = uniqueKey();
+      let storeHandle: SyncStore<TodoState> | null = null;
+
+      const onOverflow = vi.fn(async () => {
+        if (storeHandle) {
+          const entries = await storeHandle.getOutbox();
+          await storeHandle.clearOutbox(entries.map((e) => e.id));
+        }
+      });
+
+      const store = createSyncStore<TodoState>({
+        storageKey,
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 2,
+        overflowStrategy: "forceFlush",
+        onOverflow,
+      });
+      storeHandle = store;
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.lastUpdated = 1;
+      });
+      await store.set((draft) => {
+        draft.lastUpdated = 2;
+      });
+
+      // 3rd mutation triggers forceFlush onOverflow callback which clears outbox
+      await store.set((draft) => {
+        draft.lastUpdated = 3;
+      });
+
+      expect(onOverflow).toHaveBeenCalledTimes(1);
+      const outbox = await store.getOutbox();
+      // Outbox should contain only the 3rd mutation
+      expect(outbox).toHaveLength(1);
+      expect(outbox[0]!.patches[0]).toEqual({
+        op: "replace",
+        path: ["lastUpdated"],
+        value: 3,
+      });
+
+      store.destroy();
+    });
+
+    it('should reject write if forceFlush callback fails to free outbox space', async () => {
+      const onOverflow = vi.fn();
+      const storageKey = uniqueKey();
+
+      const store = createSyncStore<TodoState>({
+        storageKey,
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 2,
+        overflowStrategy: "forceFlush",
+        onOverflow,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.lastUpdated = 1;
+      });
+      await store.set((draft) => {
+        draft.lastUpdated = 2;
+      });
+
+      await expect(
+        store.set((draft) => {
+          draft.lastUpdated = 3;
+        }),
+      ).rejects.toThrow("Force flush did not free enough space");
+
+      expect(onOverflow).toHaveBeenCalledTimes(1);
+
+      store.destroy();
+    });
+  });
 });
 

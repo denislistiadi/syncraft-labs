@@ -5,7 +5,12 @@
  */
 
 import type { Ref, ShallowRef } from "vue";
-import type { OutboxEntry, DraftUpdater } from "@syncraft-labs/core";
+import type {
+  OutboxEntry,
+  DraftUpdater,
+  OutboxOverflowStrategy,
+  OutboxOverflowInfo,
+} from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Composable Options
@@ -38,6 +43,15 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * @default 5000
    */
   readonly syncInterval?: number;
+
+  /** Maximum number of outbox entries before overflow strategy triggers. */
+  readonly maxOutboxSize?: number;
+
+  /** Strategy for handling outbox overflow when maxOutboxSize is reached. */
+  readonly overflowStrategy?: OutboxOverflowStrategy;
+
+  /** Callback invoked when an outbox overflow event occurs. */
+  readonly onOverflow?: (info: OutboxOverflowInfo) => void | Promise<void>;
 
   /** Controls how state is persisted to IndexedDB ("document" | "collection"). */
   readonly storageMode?: "document" | "collection";

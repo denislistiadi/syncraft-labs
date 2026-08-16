@@ -1,0 +1,1930 @@
+# Syncraft Labs - Full Documentation
+
+> Complete documentation for Syncraft Labs (Local-First State Synchronization Engine for React & Vue).
+> Generated automatically for AI Agents and LLMs.
+> Website: https://syncraft-labs.web.id
+
+---
+
+# Table of Contents
+1. [Getting Started](#getting-started)
+2. [Core Concepts](#core-concepts)
+3. [Core Package (@syncraft-labs/core)](#packages-core)
+4. [React Package (@syncraft-labs/react)](#packages-react)
+5. [Vue Package (@syncraft-labs/vue)](#packages-vue)
+6. [Cross-Tab Sync](#guides-cross-tab-sync)
+7. [Error Handling](#guides-error-handling)
+8. [Sync Strategies](#guides-sync-strategies)
+9. [Multi-Store Architecture](#guides-multi-store-architecture)
+10. [SSR (Next.js & Nuxt)](#guides-ssr-nextjs-nuxt)
+11. [Testing](#guides-testing)
+12. [Production Checklist](#guides-production-checklist)
+
+---
+
+<a id="getting-started"></a>
+# Getting Started
+
+> URL: https://syncraft-labs.web.id/getting-started/
+
+Syncraft Labs provides official bindings for **React** and **Vue 3**, alongside a framework-agnostic **Core** library.
+
+## React 18+
+
+### Installation
+
+```bash
+npm install @syncraft-labs/core @syncraft-labs/react
+```
+
+### Quick Start
+
+Wrap your application tree in `<SyncraftProvider>` (crucial for SSR safety), then consume state anywhere with `useSync`.
+
+```tsx
+import { SyncraftProvider, useSync } from "@syncraft-labs/react";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+function TodoApp() {
+  const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
+    initialState: { todos: [] },
+    
+    // Fetch initial data (called once if IndexedDB is empty)
+    fetcher: () => fetch("/api/todos").then((r) => r.json()),
+    
+    // Push pending mutations to the server automatically
+    pusher: (entries) =>
+      fetch("/api/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(entries),
+      }),
+  });
+
+  if (isHydrating) return <p>Loading from cache…</p>;
+
+  const addTodo = () => {
+    update((draft) => {
+      draft.todos.push({
+        id: crypto.randomUUID(),
+        text: "New todo",
+        done: false,
+      });
+    });
+  };
+
+  return (
+    <div>
+      {isOffline && <span>Offline — changes will sync later</span>}
+      <button onClick={addTodo}>Add Todo</button>
+      <ul>
+        {data?.todos.map((t) => (
+          <li key={t.id}>{t.text}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export function App() {
+  return (
+    // Isolate state per request to avoid data leaks in SSR
+    <SyncraftProvider>
+      <TodoApp />
+    </SyncraftProvider>
+  );
+}
+```
+
+---
+
+## Vue 3.3+
+
+### Installation
+
+```bash
+npm install @syncraft-labs/core @syncraft-labs/vue
+```
+
+### Quick Start
+
+Mount the `createSyncraft()` plugin in your root application (crucial for Nuxt SSR isolation), then use the composable anywhere.
+
+```ts
+// main.ts
+import { createApp } from 'vue'
+import { createSyncraft } from '@syncraft-labs/vue'
+import App from './App.vue'
+
+const app = createApp(App)
+app.use(createSyncraft())
+app.mount('#app')
+```
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import { useSync } from "@syncraft-labs/vue";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
+  initialState: { todos: [] },
+  fetcher: () => fetch("/api/todos").then((r) => r.json()),
+  pusher: (entries) =>
+    fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entries),
+    }),
+});
+
+function addTodo() {
+  update((draft) => {
+    draft.todos.push({
+      id: crypto.randomUUID(),
+      text: "New todo",
+      done: false,
+    });
+  });
+}
+</script>
+
+<template>
+  <p v-if="isHydrating">Loading…</p>
+  <div v-else>
+    <span v-if="isOffline">Offline — changes will sync later</span>
+    <button @click="addTodo">Add Todo</button>
+    <ul>
+      <li v-for="t in data?.todos" :key="t.id">{{ t.text }}</li>
+    </ul>
+  </div>
+</template>
+```
+
+---
+
+## Core Only (Vanilla JS)
+
+### Installation
+
+```bash
+npm install @syncraft-labs/core
+```
+
+### Quick Start
+
+```ts
+import { createSyncStore } from "@syncraft-labs/core";
+
+interface AppState {
+  count: number;
+}
+
+const store = createSyncStore<AppState>({
+  storageKey: "my-counter",
+  initialState: { count: 0 },
+});
+
+// 1. Hydrate from IndexedDB
+await store.hydrate();
+
+// 2. Read state (synchronous after hydration)
+console.log(store.getSnapshot()); // { count: 0 }
+
+// 3. Mutate with draft functions
+await store.set((draft) => {
+  draft.count += 1;
+});
+
+// 4. Subscribe to changes
+store.subscribe((state) => {
+  console.log("State changed:", state);
+});
+
+// 5. Read outbox (pending mutations for sync)
+const pending = await store.getOutbox();
+
+// 6. Clean up
+store.destroy();
+```
+
+---
+
+<a id="core-concepts"></a>
+# Core Concepts
+
+> URL: https://syncraft-labs.web.id/core-concepts/
+
+Syncraft Labs operates heavily on the concept of **Optimistic Updates** and **Eventual Consistency**. To use it effectively, you must understand the mental model behind its data flow.
+
+## Data Flow
+
+Every time you mutate state via `update()`, the data flows through several stages instantly:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  User Action: update(draft => { draft.count++ })            │
+└──────────────────────────────┬──────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  Proxy Draft Generator (produceWithPatches)                 │
+│  Generates: nextState, patches, inversePatches              │
+└──────┬───────────────────────┬───────────────────────┬──────┘
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│ Memory Cache │     │  IndexedDB State │     │ IndexedDB Outbox │
+│  (Optimistic)│     │  (Durable State) │     │ (Mutations Log)  │
+└──────┬───────┘     └─────────┬────────┘     └────────┬─────────┘
+       │                       │                       │
+       ▼                       ▼                       ▼
+┌──────────────┐     ┌──────────────────┐     ┌──────────────────┐
+│  Subscribers │     │ Revert on Failure│     │ Background Sync  │
+│   Notified   │     │   (Auto-Rollback)│     │  (Pusher Loop)   │
+└──────────────┘     └──────────────────┘     └──────────────────┘
+```
+
+1. **User Action:** You call `update(draft => { draft.count++ })`.
+2. **Draft processing:** Our zero-dependency, proxy-based `produceWithPatches` generator intercepts draft mutations and produces the `nextState`, as well as `patches` and `inversePatches`.
+3. **Optimistic UI:** The in-memory cache is updated instantly. The UI re-renders synchronously.
+4. **Persistence:** The `nextState` is written to IndexedDB. A new `OutboxEntry` is appended to the outbox queue in IndexedDB.
+5. **Synchronization:** The background loop wakes up, reads the outbox, and attempts to push pending entries to the server.
+
+### Optimistic Updates & Rollback
+
+Because Syncraft Labs updates the memory instantly (before IndexedDB confirms the write), the UI never hangs on slow storage. 
+
+However, if the IndexedDB write fails (e.g., due to strict storage quotas in private browsing), Syncraft Labs performs an **automatic rollback**:
+1. The memory is reverted to the previous state using captured `inversePatches`.
+2. All subscribers are re-notified with the reverted state.
+3. The UI gracefully snaps back, and the `error` state is populated for you to render a warning.
+
+## Architecture
+
+Syncraft Labs is structured into three distinct layers to provide flexibility and SSR safety:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Component Layer (React / Vue)                              │
+│                                                             │
+│  useSync("todos", { fetcher, pusher })                      │
+│       │                                                     │
+│       ├──▶ useSyncExternalStore / shallowRef                │
+│       ├──▶ Auto-hydration (onMount)                         │
+│       ├──▶ Background sync loop (pusher)                    │
+│       └──▶ Network tracking (online/offline)                │
+└─────────────────┬───────────────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────────────┐
+│  Core Layer (@syncraft-labs/core)                           │
+│                                                             │
+│  createSyncStore<T>({ storageKey, initialState })           │
+│       │                                                     │
+│       ├──▶ In-memory cache (instant reads)                  │
+│       ├──▶ Custom produceWithPatches (immutable mutations)  │
+│       ├──▶ Subscriber notifications (sync, immediate)       │
+│       └──▶ Optimistic update + rollback on failure          │
+└─────────────────┬───────────────────────────────────────────┘
+                  │
+┌─────────────────▼───────────────────────────────────────────┐
+│  Storage Layer (IndexedDB via idb)                          │
+│                                                             │
+│  Database: "syncraft-labs_{key}"                            │
+│  ┌──────────────────┐  ┌────────────────────────┐           │
+│  │  state store     │  │  outbox store          │           │
+│  │  key: "current"  │  │  key: entry.id (UUID)  │           │
+│  │  value: T        │  │  value: OutboxEntry<T> │           │
+│  └──────────────────┘  └────────────────────────┘           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## Storage Schema
+
+Each `storageKey` you provide creates its own, isolated IndexedDB database prefixed with `syncraft-labs_`.
+
+For example, `useSync("my-cart")` will create a database named `syncraft-labs_my-cart`.
+
+Inside this database, there are object stores configured based on your `storageMode`:
+1. **`state` store (`storageMode: "document"`):** Holds exactly one row (`key: "current"`). This contains the full snapshot blob of your data.
+2. **`state_entities` store (`storageMode: "collection"`):** Holds individual per-entity records keyed by entity ID. Updating one entity writes only its record rather than rewriting the entire state blob.
+3. **`outbox` store:** Holds pending mutations. Each row is an `OutboxEntry` containing the exact patches that were applied, a timestamp, and a UUID.
+
+---
+
+<a id="packages-core"></a>
+# Core Package (@syncraft-labs/core)
+
+> URL: https://syncraft-labs.web.id/packages/core/
+
+The `@syncraft-labs/core` package provides the underlying engine for Syncraft Labs. It is framework-agnostic and can be used in any JavaScript/TypeScript environment.
+
+## API Reference
+
+### `createSyncStore<T>(config): SyncStore<T>`
+
+Create a new store instance. Each store manages one slice of state identified by `storageKey`.
+
+#### Config: `SyncStoreConfig<T>`
+
+| `storageKey` | `string` | *required* | Unique key for IndexedDB database name |
+| `initialState` | `T` | `undefined` | Default state when no persisted data exists |
+| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
+| `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached: `"reject"` throws Error, `"dropOldest"` drops oldest entry with warning, `"forceFlush"` invokes `onOverflow` callback to attempt sync before write |
+| `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
+| `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
+| `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
+
+#### Returns: `SyncStore<T>`
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `get()` | `() => Promise<T \| undefined>` | Async read — memory → IndexedDB fallback |
+| `getSnapshot()` | `() => T \| undefined` | Synchronous read from memory (fast path) |
+| `set(updater)` | `(updater: DraftUpdater<T>) => Promise<void>` | Mutate via draft. Optimistic + durable |
+| `subscribe(listener)` | `(listener: SyncListener<T>) => Unsubscribe` | Listen to state changes |
+| `hydrate()` | `() => Promise<T \| undefined>` | Load from IndexedDB (call once on init) |
+| `getOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations |
+| `compactOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Return compacted view of outbox entries (last-write-wins) |
+| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove synced entries by ID |
+| `destroy()` | `() => void` | Close IndexedDB connection, clear listeners |
+| `isHydrating` | `boolean` (getter) | `true` until `hydrate()` completes |
+
+---
+
+### Core Types
+
+#### `DraftUpdater<T>`
+
+```ts
+type DraftUpdater<T> = (draft: T) => void | T;
+```
+
+Two patterns:
+- **Mutate the draft** (most common): `(draft) => { draft.count += 1; }`
+- **Replace entirely**: `() => freshDataFromServer`
+
+#### `OutboxEntry<T>`
+
+```ts
+interface OutboxEntry<T> {
+  readonly id: string;           // UUID v4
+  readonly timestamp: number;    // Unix ms
+  readonly patches: Patch[];     // Applied JSON patches
+  readonly inversePatches: Patch[]; // Inverse patches for rollback
+}
+```
+
+### Utilities
+
+#### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`
+
+Compact an array of outbox entries by merging consecutive mutations to the same path (last-write-wins). Returns `{ compacted, originalIds }` or `null` if empty.
+
+```ts
+import { compactOutbox } from "@syncraft-labs/core";
+
+const result = compactOutbox(outboxEntries);
+if (result) {
+  await pusher([result.compacted]);
+  await store.clearOutbox(result.originalIds);
+}
+```
+
+#### `applyPatches<T>(baseState: T, patches: readonly Patch[]): T`
+
+Apply an array of Immer-style JSON patches to a base state object. Returns a new state object without mutating the original.
+
+```ts
+import { applyPatches } from "@syncraft-labs/core";
+
+const nextState = applyPatches(baseState, entry.patches);
+```
+
+#### `Patch`
+
+```ts
+interface Patch {
+  op: "replace" | "add" | "remove";
+  path: (string | number)[];
+  value?: unknown;
+}
+```
+
+#### `SyncListener<T>`
+
+```ts
+type SyncListener<T> = (state: T) => void;
+```
+
+#### `Unsubscribe`
+
+```ts
+type Unsubscribe = () => void;
+```
+
+---
+
+<a id="packages-react"></a>
+# React Package (@syncraft-labs/react)
+
+> URL: https://syncraft-labs.web.id/packages/react/
+
+`@syncraft-labs/react` provides the `useSync` and `useSyncSuspense` hooks — giving your React components instant writes, IndexedDB persistence, background sync, and offline support.
+
+Built on `useSyncExternalStore` for tear-free concurrent rendering.
+
+## Install
+
+```bash
+npm install @syncraft-labs/core @syncraft-labs/react
+```
+
+**Peer dependencies:** React ≥ 18.0.0
+
+## Quick Start
+
+Wrap your app with `<SyncraftProvider>` (required for store registry isolation across requests in SSR):
+
+```tsx
+import { SyncraftProvider, useSync } from "@syncraft-labs/react";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+function TodoApp() {
+  const { data, update, isHydrating, isOffline, error } = useSync<TodoState>(
+    "todos",
+    {
+      initialState: { todos: [] },
+    },
+  );
+
+  if (isHydrating) return <p>Loading from cache…</p>;
+
+  return (
+    <div>
+      {isOffline && <p>You're offline — changes saved locally</p>}
+      {error && <p>Error: {error.message}</p>}
+
+      <button
+        onClick={() =>
+          update((draft) => {
+            draft.todos.push({
+              id: crypto.randomUUID(),
+              text: "New todo",
+              done: false,
+            });
+          })
+        }
+      >
+        Add Todo
+      </button>
+
+      <ul>
+        {data?.todos.map((t) => (
+          <li key={t.id}>
+            <label>
+              <input
+                type="checkbox"
+                checked={t.done}
+                onChange={() =>
+                  update((draft) => {
+                    const todo = draft.todos.find((x) => x.id === t.id);
+                    if (todo) todo.done = !todo.done;
+                  })
+                }
+              />
+              {t.text}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SyncraftProvider>
+      <TodoApp />
+    </SyncraftProvider>
+  );
+}
+```
+
+---
+
+## API Reference
+
+### `SyncraftProvider`
+
+Context provider that initializes and scopes the Store Registry for your React component tree. **Required** to prevent cross-request state leakage during SSR.
+
+```tsx
+<SyncraftProvider>
+  <App />
+</SyncraftProvider>
+```
+
+### `useSync<T>(key, options): UseSyncReturn<T>`
+
+Standard React hook for subscribing to a SyncStore.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Unique IndexedDB storage key |
+| `options` | `UseSyncOptions<T>` | Configuration object |
+
+#### `UseSyncOptions<T>`
+
+| `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
+| `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
+| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
+| `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
+| `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
+
+#### `UseSyncReturn<T>`
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `T \| undefined` | Current state (`undefined` during hydration) |
+| `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with draft (fire-and-forget) |
+| `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
+| `isHydrating` | `boolean` | `true` while loading from IndexedDB |
+| `isSyncing` | `boolean` | `true` while pusher/refetch is running |
+| `isOffline` | `boolean` | `true` when `navigator.onLine` is `false` |
+| `error` | `Error \| null` | Last error from set/pusher/refetch |
+| `destroyStore` | `() => void` | Destroy the store for this key |
+
+### `useSyncSuspense<T>(key, options): UseSyncReturn<T>`
+
+React Suspense-compatible version of `useSync`. Suspends component rendering while the store hydrates from IndexedDB or initial `fetcher` is executing.
+
+```tsx
+<React.Suspense fallback={<Skeleton />}>
+  <TodoAppWithSuspense />
+</React.Suspense>
+```
+
+### `destroyStore(registry, key): void`
+
+Destroy a store and remove it from the specified registry. Closes IndexedDB connection and clears listeners.
+
+---
+
+<a id="packages-vue"></a>
+# Vue Package (@syncraft-labs/vue)
+
+> URL: https://syncraft-labs.web.id/packages/vue/
+
+`@syncraft-labs/vue` provides the `useSync` composable — giving your Vue 3 components instant writes, IndexedDB persistence, background sync, and offline support.
+
+Built with `shallowRef` to avoid unnecessary deep reactivity overhead on proxy-managed state snapshots.
+
+## Install
+
+```bash
+npm install @syncraft-labs/core @syncraft-labs/vue
+```
+
+**Peer dependencies:** Vue ≥ 3.3.0
+
+## Quick Start
+
+Initialize the `createSyncraft()` plugin in your main entry file (required for app-level Store Registry isolation in Nuxt/SSR):
+
+```ts
+// main.ts
+import { createApp } from 'vue'
+import { createSyncraft } from '@syncraft-labs/vue'
+import App from './App.vue'
+
+const app = createApp(App)
+app.use(createSyncraft())
+app.mount('#app')
+```
+
+```vue
+<!-- App.vue -->
+<script setup lang="ts">
+import { useSync } from "@syncraft-labs/vue";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+const { data, update, isHydrating, isOffline, error } = useSync<TodoState>(
+  "todos",
+  {
+    initialState: { todos: [] },
+  },
+);
+
+function addTodo() {
+  update((draft) => {
+    draft.todos.push({
+      id: crypto.randomUUID(),
+      text: "New todo",
+      done: false,
+    });
+  });
+}
+
+function toggleTodo(id: string) {
+  update((draft) => {
+    const todo = draft.todos.find((t) => t.id === id);
+    if (todo) todo.done = !todo.done;
+  });
+}
+</script>
+
+<template>
+  <p v-if="isHydrating">Loading from cache…</p>
+
+  <div v-else>
+    <p v-if="isOffline">You're offline — changes saved locally</p>
+    <p v-if="error">Error: {{ error.message }}</p>
+
+    <button @click="addTodo">Add Todo</button>
+
+    <ul>
+      <li v-for="t in data?.todos" :key="t.id">
+        <label>
+          <input
+            type="checkbox"
+            :checked="t.done"
+            @change="toggleTodo(t.id)"
+          />
+          {{ t.text }}
+        </label>
+      </li>
+    </ul>
+  </div>
+</template>
+```
+
+---
+
+## API Reference
+
+### `createSyncraft()`
+
+Vue plugin function that sets up the store registry via Vue's `provide` mechanism.
+
+```ts
+import { createSyncraft } from '@syncraft-labs/vue';
+
+app.use(createSyncraft());
+```
+
+### `useSync<T>(key, options): UseSyncReturn<T>`
+
+Primary composable for Syncraft Labs in Vue.
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `key` | `string` | Unique IndexedDB storage key |
+| `options` | `UseSyncOptions<T>` | Configuration object |
+
+#### `UseSyncOptions<T>`
+
+| `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
+| `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
+| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
+| `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
+| `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
+
+#### `UseSyncReturn<T>`
+
+All reactive values are returned as Vue Refs:
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `data` | `ShallowRef<T \| undefined>` | Current state (`undefined` during hydration) |
+| `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with draft (fire-and-forget) |
+| `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
+| `isHydrating` | `Ref<boolean>` | `true` while loading from IndexedDB |
+| `isSyncing` | `Ref<boolean>` | `true` while pusher/refetch is running |
+| `isOffline` | `Ref<boolean>` | `true` when `navigator.onLine` is `false` |
+| `error` | `ShallowRef<Error \| null>` | Last error from set/pusher/refetch |
+| `destroyStore` | `() => void` | Destroy the store for this key |
+
+### `destroyStore(registry, key): void`
+
+Destroy a store and remove it from the specified registry.
+
+---
+
+<a id="guides-cross-tab-sync"></a>
+# Cross-Tab Sync
+
+> URL: https://syncraft-labs.web.id/guides/cross-tab-sync/
+
+Syncraft Labs automatically synchronizes state across browser tabs using the [BroadcastChannel API](https://developer.mozilla.org/en-US/docs/Web/API/BroadcastChannel). When a user updates state in one tab, all other tabs with the same store key are updated instantly — no server round-trip required.
+
+---
+
+## How It Works
+
+```
+Tab 1                                     Tab 2
+┌─────────────────────┐                   ┌─────────────────────┐
+│  useSync("cart")    │                   │  useSync("cart")    │
+│  update(draft => {  │                   │                     │
+│    draft.items.push │                   │                     │
+│  })                 │                   │                     │
+│         │           │                   │                     │
+│         ▼           │                   │                     │
+│  1. Memory update   │                   │                     │
+│  2. Notify subs     │                   │                     │
+│  3. ──BroadcastChannel──────────────▶   │  4. Receive message │
+│  4. IndexedDB write │                   │  5. Update memory   │
+│  5. Append outbox   │                   │  6. Notify subs     │
+└─────────────────────┘                   └─────────────────────┘
+```
+
+### Step-by-Step
+
+1. **Tab 1** calls `update()` — memory is updated immediately
+2. **Tab 1** notifies its own subscribers (UI re-renders)
+3. **Tab 1** posts a `SYNCRAFT_STATE_UPDATE` message via BroadcastChannel
+4. **Tab 2** receives the message on the channel named `syncraft-{storageKey}`
+5. **Tab 2** updates its in-memory state with the received snapshot
+6. **Tab 2** notifies its own subscribers
+7. **Tab 2** UI re-renders with the new state
+
+---
+
+## Behavior Details
+
+- **Zero network calls:** Cross-tab sync uses pure browser inter-process communication. No network traffic is generated.
+- **Same origin requirement:** BroadcastChannel only broadcasts across tabs sharing the exact same protocol, domain, and port (Same-Origin Policy).
+- **Outbox draining:** Only the tab making the edit appends to the outbox queue. Secondary tabs receive the updated state snapshot so their local UI remains in sync without creating duplicate outbox entries.
+
+---
+
+<a id="guides-error-handling"></a>
+# Error Handling
+
+> URL: https://syncraft-labs.web.id/guides/error-handling/
+
+Syncraft Labs uses an **optimistic update with pessimistic rollback** strategy. This guide explains every error scenario and the patterns to handle them.
+
+---
+
+## The Rollback Flow
+
+When you call `update()`, the following happens:
+
+```
+update(draft => { draft.count += 1 })
+     │
+     ▼
+┌─ 1. Produce nextState + patches (proxy)
+│
+├─ 2. Update memory (instant)           ← UI sees the change HERE
+├─ 3. Notify subscribers (re-render)
+├─ 4. Broadcast to other tabs
+│
+├─ 5. Write to IndexedDB  ─── SUCCESS ──▶ Done ✅
+│                          │
+│                          └── FAILURE ──▶ ROLLBACK ⚠️
+│                                           │
+│                                           ├─ Revert memory to previous state
+│                                           ├─ Re-notify subscribers (re-render)
+│                                           └─ Set error state
+└─ 6. Append OutboxEntry  ─── FAILURE ──▶ Same rollback
+```
+
+**Key insight:** The UI updates **before** IndexedDB confirms the write. If the write fails, the UI reverts back — users see a brief flash of the new state, then it disappears. This is the trade-off for instant writes.
+
+---
+
+## Error Sources
+
+| Source | When | Rollback? | Retry? |
+|--------|------|-----------|--------|
+| `set()` / `update()` | IndexedDB write fails (quota, corruption) | ✅ Yes | ❌ No (user must retry) |
+| `pusher` | Network/server error during sync | ❌ No (state is in IndexedDB) | ✅ Auto (exponential backoff) |
+| `fetcher` | Network/server error during initial fetch | ❌ No | ❌ No (call `refetch()`) |
+| `hydrate()` | IndexedDB read fails | ❌ No | ❌ No |
+| Outbox overflow | `maxOutboxSize` reached | ❌ No (state write prevented) | ❌ No (sync first) |
+
+---
+
+## Monitoring the `error` State
+
+Both `useSync` (React) and `useSync` (Vue) return a reactive `error` object. When any operation fails, `error` is populated. When an operation succeeds, `error` is cleared (`null`).
+
+### React Example
+
+```tsx
+function TodoApp() {
+  const { data, update, refetch, error } = useSync<TodoState>("todos", opts);
+
+  return (
+    <div>
+      {error && (
+        <div role="alert" className="error-banner">
+          <span>{error.message}</span>
+          <button onClick={() => refetch()}>Try Again</button>
+        </div>
+      )}
+      {/* UI components */}
+    </div>
+  );
+}
+```
+
+### Vue Example
+
+```vue
+<script setup lang="ts">
+import { useSync } from "@syncraft-labs/vue";
+
+const { data, update, refetch, error } = useSync<TodoState>("todos", opts);
+</script>
+
+<template>
+  <div v-if="error" class="error-banner" role="alert">
+    <span>{{ error.message }}</span>
+    <button @click="refetch">Try Again</button>
+  </div>
+</template>
+```
+
+---
+
+## Outbox Overflow Handling
+
+If a user works offline for a long time, the outbox might hit `maxOutboxSize` (default: 1000). You can configure how Syncraft Labs responds using `overflowStrategy`:
+
+### 1. `overflowStrategy: "reject"` (Default)
+
+When full, `set()` throws a hard `Error`:
+
+```tsx
+const { update } = useSync("todos", {
+  maxOutboxSize: 100,
+  overflowStrategy: "reject", // default
+  onOverflow: ({ outboxSize, maxOutboxSize }) => {
+    console.warn(`Outbox overflowed (${outboxSize}/${maxOutboxSize})`);
+  },
+});
+```
+
+### 2. `overflowStrategy: "dropOldest"`
+
+Automatically drops the oldest entry from IndexedDB with a `console.warn` when full, allowing new mutations to proceed:
+
+```tsx
+const { update } = useSync("todos", {
+  maxOutboxSize: 500,
+  overflowStrategy: "dropOldest",
+  onOverflow: ({ storageKey }) => {
+    toast.warn("Offline storage limit reached. Oldest unsynced change was discarded.");
+  },
+});
+```
+
+### 3. `overflowStrategy: "forceFlush"`
+
+Triggers an immediate sync attempt via `onOverflow` before deciding whether to allow the write:
+
+```tsx
+const { update } = useSync("todos", {
+  maxOutboxSize: 200,
+  overflowStrategy: "forceFlush",
+  onOverflow: async () => {
+    // User-provided logic to flush pending entries
+    await triggerEmergencySync();
+  },
+});
+```
+
+> **Note:** For `"forceFlush"`, if `onOverflow` resolves and the outbox count is still at or above `maxOutboxSize`, `set()` throws an `Error` indicating the flush failed to free enough space.
+
+---
+
+## Sync Failure Recovery
+
+When `pusher` fails (e.g., server returned 500 or network timeout):
+
+1. The outbox entries **remain in IndexedDB**.
+2. Syncraft Labs starts **exponential backoff**:
+   - Delay doubles each attempt: 1s → 2s → 4s → 8s → 16s → 32s → 60s (max)
+3. When `navigator.onLine` fires (user comes back online), the backoff timer resets and sync attempts **immediately**.
+
+You can also trigger a manual sync attempt by calling `refetch()`:
+
+```tsx
+const { refetch, isSyncing, error } = useSync<State>("key", opts);
+
+// Manual retry button
+<button onClick={() => refetch()} disabled={isSyncing}>
+  {isSyncing ? "Syncing…" : "Retry Sync"}
+</button>
+```
+
+---
+
+<a id="guides-sync-strategies"></a>
+# Sync Strategies
+
+> URL: https://syncraft-labs.web.id/guides/sync-strategies/
+
+Syncraft Labs handles the client side of synchronization — queueing mutations in an outbox and draining them via your `pusher`. This guide covers how to design the **server side** and choose the right strategy for your use case.
+
+---
+
+## Outbox Entry Anatomy
+
+Every `update()` call produces an `OutboxEntry<T>` stored in IndexedDB:
+
+```ts
+interface OutboxEntry<T> {
+  id: string;           // UUID — unique per mutation
+  timestamp: number;    // Unix ms — when the mutation was created
+  patches: Patch[];     // Applied patches — what changed
+  inversePatches: Patch[];  // Inverse patches — how to undo
+}
+```
+
+### When to Use What
+
+| Field | Use Case |
+|-------|----------|
+| `patches` | **Granular** — apply individual changes (add, replace, remove) |
+| `inversePatches` | **Undo** — server-side rollback if the mutation is rejected |
+| `timestamp` | **Ordering** — resolve conflicts by time |
+| `id` | **Idempotency** — prevent duplicate processing |
+
+---
+
+## Strategy 1: Last-Write-Wins (Full State)
+
+The simplest approach — send current full state to the server and overwrite:
+
+### Client
+
+```tsx
+const { data, update } = useSync<TodoState>("todos", {
+  initialState: { todos: [] },
+  fetcher: () => fetch("/api/todos").then((r) => r.json()),
+  pusher: async (entries) => {
+    // Send current state snapshot
+    await fetch("/api/todos", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  },
+});
+```
+
+### Pros & Cons
+
+- ✅ Simple server logic — no diffing required
+- ✅ Guaranteed convergence (server always matches client)
+- ❌ Concurrent edits from another device will be overwritten
+
+---
+
+## Strategy 2: Patch Draining (Granular Mutations)
+
+Send all queued outbox entries to the server so it can process each mutation individually:
+
+### Client
+
+```tsx
+const { data, update } = useSync<TodoState>("todos", {
+  initialState: { todos: [] },
+  pusher: async (entries) => {
+    await fetch("/api/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entries),
+    });
+  },
+});
+```
+
+### Server (Node / Express Example)
+
+```ts
+app.post("/api/sync", async (req, res) => {
+  const entries: OutboxEntry<TodoState>[] = req.body;
+
+  for (const entry of entries) {
+    // 1. Check idempotency (skip if already processed)
+    if (await isProcessed(entry.id)) continue;
+
+    // 2. Apply patches to server DB
+    for (const patch of entry.patches) {
+      await applyPatchToDatabase(req.userId, patch);
+    }
+
+    // 3. Mark entry as processed
+    await markProcessed(entry.id);
+  }
+
+  res.json({ status: "ok" });
+});
+```
+
+### Pros & Cons
+
+- ✅ Preserves individual mutation history
+- ✅ Enables server-side audit logs
+- ✅ Idempotent by design (using `entry.id`)
+- ❌ Requires patch handling logic on the server
+
+---
+
+## Idempotency Pattern
+
+Network retries are normal in offline-first apps. A `pusher` call might succeed on the server but fail on the network return. When retried, the server receives the same entries again.
+
+**Prevent duplicate processing using `entry.id`:**
+
+```ts
+// Server pseudo-code
+async function processOutbox(entries: OutboxEntry<T>[]) {
+  const db = await getDB();
+
+  await db.transaction(async (tx) => {
+    for (const entry of entries) {
+      // Fast check: has this UUID been processed?
+      const exists = await tx.processedMutations.find(entry.id);
+      if (exists) continue;
+
+      // Apply mutation
+      await tx.state.applyPatches(entry.patches);
+
+      // Record UUID (with TTL of 30 days)
+      await tx.processedMutations.insert({ id: entry.id, createdAt: new Date() });
+    }
+  });
+}
+```
+
+---
+
+## Conflict Resolution Strategies
+
+When multiple clients modify the same data offline, conflicts can occur.
+
+| Conflict Strategy | How it works | Best for |
+|-------------------|--------------|----------|
+| **Client Wins** | Server accepts whatever client sends | Single-user apps (personal todo, user settings) |
+| **Server Wins** | Server rejects outbox if server state changed | Financial transactions, inventory counts |
+| **Merge (Field-Level)** | Merge non-overlapping patches | Collaborative documents, forms |
+| **CRDT (Phase 2)** | Automatic deterministic merge | Real-time multi-user editing |
+
+---
+
+## Custom Sync Intervals
+
+Control how aggressively Syncraft syncs by setting `syncInterval` (ms):
+
+```tsx
+// High frequency — e.g., real-time collaboration
+useSync("doc", { pusher: pushFn, syncInterval: 1000 });
+
+// Low frequency — e.g., low-bandwidth mobile app
+useSync("notes", { pusher: pushFn, syncInterval: 30_000 });
+```
+
+> **Default:** `5000` (5 seconds).
+
+---
+
+## Outbox Compaction
+
+When a user performs rapid mutations to the same state field while offline (e.g. typing in an input field or dragging a slider), every `update()` call appends an outbox entry.
+
+Syncraft automatically runs **outbox compaction** before each background sync loop push (in React `useSync` and Vue `useSync`). Consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
+
+```ts
+// 10 consecutive updates to `lastUpdated` while offline...
+// Without compaction: 10 outbox entries sent over the network
+// With compaction:    1 outbox entry containing only the latest patch
+```
+
+You can also run compaction manually on any store instance or array of outbox entries:
+
+```ts
+import { compactOutbox } from "@syncraft-labs/core";
+
+// Standalone function:
+const result = compactOutbox(outboxEntries);
+if (result) {
+  await pusher([result.compacted]);
+  await store.clearOutbox(result.originalIds);
+}
+
+// Or on store instance:
+const compactedView = await store.compactOutbox();
+```
+
+---
+
+<a id="guides-multi-store-architecture"></a>
+# Multi-Store Architecture
+
+> URL: https://syncraft-labs.web.id/guides/multi-store-architecture/
+
+In large applications, a single store rarely suffices. Syncraft Labs supports **one store per key** — each key creates an isolated IndexedDB database with its own state and outbox. This guide covers patterns for managing multiple stores at scale.
+
+---
+
+## Domain Separation
+
+Organize stores by **bounded context** — each domain gets its own store key:
+
+```ts
+// stores/keys.ts — Single source of truth for all store keys
+export const STORE_KEYS = {
+  USER_PROFILE: "user-profile",
+  PRODUCTS: "products",
+  CART: "shopping-cart",
+  ORDERS: "orders",
+  NOTIFICATIONS: "notifications",
+  SETTINGS: "app-settings",
+} as const;
+
+export type StoreKey = (typeof STORE_KEYS)[keyof typeof STORE_KEYS];
+```
+
+Each key gets its own IndexedDB database (`syncraft-labs_user-profile`, `syncraft-labs_products`, etc.) — fully isolated with separate state and outbox queues.
+
+### Benefits of Domain Separation
+
+| Benefit | Explanation |
+|---------|-------------|
+| **Isolation** | A corrupt outbox in `cart` doesn't affect `user-profile` |
+| **Independent sync** | Each domain can have its own `pusher`, `fetcher`, and `syncInterval` |
+| **Granular cleanup** | Destroy one store without affecting others |
+| **Smaller payloads** | Each `pusher` call sends only relevant domain data |
+| **Team boundaries** | Different teams own different domains without conflicts |
+
+---
+
+## Typed Store Definitions
+
+Define each store's state shape alongside its configuration to enforce type safety:
+
+```ts
+// stores/user-profile.ts
+import type { UseSyncOptions } from "@syncraft-labs/react";
+import { STORE_KEYS } from "./keys";
+
+export interface UserProfileState {
+  id: string;
+  name: string;
+  email: string;
+  avatarUrl: string;
+  preferences: {
+    theme: "light" | "dark" | "system";
+    language: string;
+  };
+}
+
+export const userProfileOptions: UseSyncOptions<UserProfileState> = {
+  initialState: {
+    id: "",
+    name: "Guest",
+    email: "",
+    avatarUrl: "",
+    preferences: { theme: "system", language: "en" },
+  },
+  fetcher: () => fetch("/api/me").then((r) => r.json()),
+  pusher: (entries) =>
+    fetch("/api/me/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(entries),
+    }),
+  syncInterval: 10_000,
+};
+```
+
+Create a custom hook for each domain:
+
+```tsx
+// hooks/useUserProfile.ts
+import { useSync } from "@syncraft-labs/react";
+import { STORE_KEYS } from "../stores/keys";
+import { userProfileOptions, type UserProfileState } from "../stores/user-profile";
+
+export function useUserProfile() {
+  return useSync<UserProfileState>(STORE_KEYS.USER_PROFILE, userProfileOptions);
+}
+```
+
+---
+
+## Cross-Store Dependencies
+
+When components need data from multiple stores, compose hooks cleanly:
+
+```tsx
+function CheckoutHeader() {
+  const { data: profile } = useUserProfile();
+  const { data: cart } = useCart();
+  const { data: settings } = useSettings();
+
+  const totalItems = cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
+  const currency = settings?.currency ?? "USD";
+
+  return (
+    <header>
+      <span>Welcome, {profile?.name}</span>
+      <span>Cart: {totalItems} items ({currency})</span>
+    </header>
+  );
+}
+```
+
+> **Rule:** Never nest store calls inside draft updaters. Keep stores decoupled — read from Store A and write to Store B in separate steps:
+
+```tsx
+// ❌ WRONG — do NOT do this
+function TransferCredits() {
+  const { update: updateWallet } = useWallet();
+  const { update: updateRewards } = useRewards();
+
+  const redeem = () => {
+    updateRewards((draft) => {
+      draft.points -= 100;
+      // ❌ Calling another store inside a draft updater causes race conditions
+      updateWallet((wDraft) => { wDraft.balance += 10; });
+    });
+  };
+}
+
+// ✅ RIGHT — decoupled updates
+function TransferCredits() {
+  const { update: updateWallet } = useWallet();
+  const { update: updateRewards } = useRewards();
+
+  const redeem = () => {
+    updateRewards((draft) => {
+      draft.points -= 100;
+    });
+    updateWallet((draft) => {
+      draft.balance += 10;
+    });
+  };
+}
+```
+
+---
+
+## Memory and Resource Cleanup
+
+By default, stores live in the singleton registry for the lifetime of the application. If your app has features used only occasionally (e.g., an Admin Panel or Settings Page), destroy those stores when the feature unmounts:
+
+```tsx
+import { useEffect } from "react";
+import { useSync, destroyStore } from "@syncraft-labs/react";
+
+function AdminPanel() {
+  const sync = useSync<AdminState>("admin-analytics", adminOptions);
+
+  // Optional: destroy store on unmount if no other component uses it
+  useEffect(() => {
+    return () => {
+      // destroyStore(registry, key) if manual destruction is needed
+    };
+  }, []);
+
+  return <div>{/* Admin UI */}</div>;
+}
+```
+
+---
+
+## Summary Matrix
+
+| Domain | Key | Sync Interval | Persistence Strategy |
+|--------|-----|---------------|----------------------|
+| User Profile | `user-profile` | 10s | IndexedDB + Remote Fetch |
+| Cart | `shopping-cart` | 3s | IndexedDB + Frequent Sync |
+| Settings | `app-settings` | Off (local only) | IndexedDB only |
+| Analytics | `admin-analytics` | 30s | On-demand + Auto-destroy |
+
+---
+
+<a id="guides-ssr-nextjs-nuxt"></a>
+# SSR (Next.js & Nuxt)
+
+> URL: https://syncraft-labs.web.id/guides/ssr-nextjs-nuxt/
+
+Syncraft Labs is a **client-side library** — it depends on IndexedDB and BroadcastChannel, which don't exist on the server. This guide covers how to integrate safely with server-rendering frameworks.
+
+---
+
+## Why SSR Needs Special Handling
+
+Without the Provider/Plugin pattern, stores would be **module-level singletons** — shared across all requests on the server. This causes:
+
+| Problem | Impact |
+|---------|--------|
+| **Data leak between users** | User A sees User B's state |
+| **Memory growth** | Stores never cleaned up between requests |
+| **Hydration mismatch** | Server renders `undefined`, client hydrates from IndexedDB |
+
+Syncraft Labs solves this with **request-scoped registries**:
+- **React:** `<SyncraftProvider>` creates a new `Map` per render tree
+- **Vue:** `createSyncraft()` creates a new `Map` per app instance
+
+---
+
+## Next.js (App Router)
+
+### 1. Create a Client Provider
+
+IndexedDB does not exist on the server. Mark the provider as a Client Component:
+
+```tsx
+// app/providers.tsx
+"use client";
+
+import { SyncraftProvider } from "@syncraft-labs/react";
+
+export function Providers({ children }: { children: React.ReactNode }) {
+  return <SyncraftProvider>{children}</SyncraftProvider>;
+}
+```
+
+### 2. Wrap in Root Layout
+
+```tsx
+// app/layout.tsx
+import { Providers } from "./providers";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Providers>{children}</Providers>
+      </body>
+    </html>
+  );
+}
+```
+
+### 3. Use `useSync` Only in Client Components
+
+```tsx
+// components/todo-list.tsx
+"use client";
+
+import { useSync } from "@syncraft-labs/react";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+export function TodoList() {
+  const { data, update, isHydrating } = useSync<TodoState>("todos", {
+    initialState: { todos: [] },
+    fetcher: () => fetch("/api/todos").then((r) => r.json()),
+  });
+
+  if (isHydrating) return <p>Loading…</p>;
+
+  return (
+    <ul>
+      {data?.todos.map((t) => (
+        <li key={t.id}>{t.text}</li>
+      ))}
+    </ul>
+  );
+}
+```
+
+### 4. Use in a Server Component Page
+
+```tsx
+// app/page.tsx (Server Component — no "use client")
+import { TodoList } from "@/components/todo-list";
+
+export default function HomePage() {
+  return (
+    <main>
+      <h1>My Todos</h1>
+      {/* TodoList is a Client Component, safe to use here */}
+      <TodoList />
+    </main>
+  );
+}
+```
+
+### Handling Hydration Mismatch
+
+During SSR, `useSync` returns `data: undefined` (IndexedDB isn't available). On the client, it hydrates and returns the persisted state. This is handled gracefully by `isHydrating`:
+
+```tsx
+// ✅ No mismatch — server and client both show the loading state
+if (isHydrating) return <Skeleton />;
+
+// After hydration, client renders from IndexedDB
+return <DataView data={data} />;
+```
+
+> **Tip:** If using React Suspense with `useSyncSuspense`, wrap the component in `<Suspense>`. The thrown promise during hydration integrates naturally with Suspense boundaries.
+
+---
+
+## Next.js (Pages Router)
+
+```tsx
+// pages/_app.tsx
+import { SyncraftProvider } from "@syncraft-labs/react";
+import type { AppProps } from "next/app";
+
+export default function App({ Component, pageProps }: AppProps) {
+  return (
+    <SyncraftProvider>
+      <Component {...pageProps} />
+    </SyncraftProvider>
+  );
+}
+```
+
+All pages and components within `_app` can safely use `useSync`.
+
+---
+
+## Nuxt 3
+
+### 1. Create a Client-Only Plugin
+
+```ts
+// plugins/syncraft.client.ts
+import { createSyncraft } from "@syncraft-labs/vue";
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const syncraft = createSyncraft();
+  nuxtApp.vueApp.use(syncraft);
+});
+```
+
+> **Note:** The `.client.ts` suffix ensures this plugin only runs in the browser. Nuxt will skip it during SSR.
+
+### 2. Use the Composable in Components
+
+```vue
+<!-- components/TodoList.vue -->
+<script setup lang="ts">
+import { useSync } from "@syncraft-labs/vue";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string; done: boolean }>;
+}
+
+const { data, update, isHydrating } = useSync<TodoState>("todos", {
+  initialState: { todos: [] },
+  fetcher: () => $fetch("/api/todos"),
+});
+</script>
+
+<template>
+  <p v-if="isHydrating">Loading…</p>
+  <ul v-else>
+    <li v-for="t in data?.todos" :key="t.id">{{ t.text }}</li>
+  </ul>
+</template>
+```
+
+### 3. Client-Only Components (Optional)
+
+If you want to prevent any SSR rendering for Syncraft-powered components, use Nuxt's `<ClientOnly>`:
+
+```vue
+<!-- pages/index.vue -->
+<template>
+  <div>
+    <h1>My Todos</h1>
+    <ClientOnly>
+      <TodoList />
+      <template #fallback>
+        <p>Loading…</p>
+      </template>
+    </ClientOnly>
+  </div>
+</template>
+```
+
+---
+
+## How Isolation Works
+
+```
+Request 1 (User A)                   Request 2 (User B)
+┌─────────────────────┐              ┌─────────────────────┐
+│  SyncraftProvider    │              │  SyncraftProvider    │
+│  registry = new Map  │              │  registry = new Map  │
+│  ┌────────────────┐  │              │  ┌────────────────┐  │
+│  │ "todos" → StoreA│  │              │  │ "todos" → StoreB│  │
+│  └────────────────┘  │              │  └────────────────┘  │
+└─────────────────────┘              └─────────────────────┘
+         ↕ Isolated                           ↕ Isolated
+```
+
+Each `SyncraftProvider` (React) or `createSyncraft()` (Vue) creates a **fresh** `Map` registry. Stores are scoped to that registry — no data leaks between requests.
+
+---
+
+<a id="guides-testing"></a>
+# Testing
+
+> URL: https://syncraft-labs.web.id/guides/testing/
+
+Syncraft Labs stores state in IndexedDB, which doesn't exist in Node.js test environments. This guide shows how to set up your test environment and write effective tests.
+
+---
+
+## Test Environment Setup
+
+### 1. Install `fake-indexeddb`
+
+This polyfill provides an in-memory IndexedDB implementation for Node.js:
+
+```bash
+npm install -D fake-indexeddb
+```
+
+### 2. Configure Vitest
+
+```ts
+// vitest.config.ts
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/__tests__/setup.ts"],
+  },
+});
+```
+
+### 3. Create Setup File
+
+```ts
+// src/__tests__/setup.ts
+import "fake-indexeddb/auto";
+
+// fake-indexeddb/auto sets up global indexedDB, IDBKeyRange, etc.
+```
+
+---
+
+## Testing React Components
+
+### Wrapping with Provider
+
+Every test must wrap the rendered component in `<SyncraftProvider>`:
+
+```tsx
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { SyncraftProvider, useSync } from "@syncraft-labs/react";
+import { describe, it, expect } from "vitest";
+
+interface TodoState {
+  todos: Array<{ id: string; text: string }>;
+}
+
+function TestApp() {
+  const { data, update, isHydrating } = useSync<TodoState>("test-todos", {
+    initialState: { todos: [] },
+  });
+
+  if (isHydrating) return <div>Loading…</div>;
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          update((draft) => {
+            draft.todos.push({ id: "1", text: "Buy milk" });
+          })
+        }
+      >
+        Add
+      </button>
+      <ul>
+        {data?.todos.map((t) => (
+          <li key={t.id}>{t.text}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+describe("TestApp", () => {
+  it("adds a todo item optimistic update", async () => {
+    render(
+      <SyncraftProvider>
+        <TestApp />
+      </SyncraftProvider>
+    );
+
+    // Wait for hydration
+    await waitFor(() => {
+      expect(screen.queryByText("Loading…")).toBeNull();
+    });
+
+    // Trigger update
+    fireEvent.click(screen.getByText("Add"));
+
+    // Verify optimistic UI update
+    expect(screen.getByText("Buy milk")).toBeDefined();
+  });
+});
+```
+
+---
+
+## Testing Vue Components
+
+Use `@vue/test-utils` and mount with `createSyncraft()` plugin:
+
+```ts
+import { mount } from "@vue/test-utils";
+import { createSyncraft } from "@syncraft-labs/vue";
+import { describe, it, expect } from "vitest";
+import TodoComponent from "./TodoComponent.vue";
+
+describe("TodoComponent", () => {
+  it("renders correctly", async () => {
+    const wrapper = mount(TodoComponent, {
+      global: {
+        plugins: [createSyncraft()],
+      },
+    });
+
+    await wrapper.vm.$nextTick();
+    expect(wrapper.text()).toContain("Add Todo");
+  });
+});
+```
+
+---
+
+## Resetting Registries Between Tests
+
+To ensure test isolation, clean up stores between test runs:
+
+```ts
+import { beforeEach } from "vitest";
+import { _resetRegistry } from "@syncraft-labs/react";
+
+beforeEach(() => {
+  // Clear any existing store singletons
+  // When using <SyncraftProvider>, a fresh registry is created automatically per render
+});
+```
+
+---
+
+<a id="guides-production-checklist"></a>
+# Production Checklist
+
+> URL: https://syncraft-labs.web.id/guides/production-checklist/
+
+Before shipping your Syncraft Labs–powered application to production, walk through each item below. These recommendations come from real-world patterns observed in large-scale, offline-capable apps.
+
+---
+
+## 1. Configure Outbox Size Limits
+
+Every call to `update()` appends an `OutboxEntry` to IndexedDB. If users stay offline for hours (or days), the outbox can grow without bound — eventually exhausting the browser's storage quota.
+
+**Set `maxOutboxSize` explicitly:**
+
+```ts
+const store = createSyncStore<AppState>({
+  storageKey: "orders",
+  initialState: { orders: [] },
+  maxOutboxSize: 500, // default is 1000
+});
+```
+
+When the limit is reached, `set()` throws an error that you can catch to show a user-facing prompt:
+
+```tsx
+const { update, error } = useSync<AppState>("orders", {
+  initialState: { orders: [] },
+  pusher: pushToServer,
+});
+
+// In your UI
+{error?.message.includes("Outbox size limit") && (
+  <div className="alert alert-warning">
+    Too many pending changes. Please connect to the internet to sync.
+  </div>
+)}
+```
+
+> **Guideline:** Set `maxOutboxSize` to a value that balances offline productivity with storage constraints. For most apps, 200–1000 entries is reasonable.
+
+---
+
+## 2. Handle Errors Gracefully
+
+Syncraft Labs uses an **optimistic update with pessimistic rollback** strategy. When an IndexedDB write fails:
+
+1. The in-memory state is **rolled back** to the previous value.
+2. All subscribers are re-notified with the reverted state.
+3. The error is captured in the `error` field returned by `useSync`.
+
+**Always render the `error` state in your UI:**
+
+```tsx
+const { data, update, error } = useSync<AppState>("dashboard", opts);
+
+return (
+  <div>
+    {error && (
+      <Toast type="error">
+        Save failed: {error.message}. Your changes have been reverted.
+      </Toast>
+    )}
+    {/* rest of UI */}
+  </div>
+);
+```
+
+For React apps, wrap your tree in an [Error Boundary](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary) to catch unexpected throws. See the [Error Handling guide](/guides/error-handling) for complete patterns.
+
+---
+
+## 3. Monitor IndexedDB Storage Quota
+
+Browsers enforce storage quotas. When the quota is exceeded, IndexedDB writes fail and Syncraft Labs will roll back the optimistic update.
+
+**Check available storage proactively:**
+
+```ts
+async function checkStorageQuota() {
+  if ("storage" in navigator && "estimate" in navigator.storage) {
+    const { usage, quota } = await navigator.storage.estimate();
+    const usedMB = (usage ?? 0) / (1024 * 1024);
+    const quotaMB = (quota ?? 0) / (1024 * 1024);
+    const percentUsed = ((usage ?? 0) / (quota ?? 1)) * 100;
+
+    console.log(`Storage: ${usedMB.toFixed(1)}MB / ${quotaMB.toFixed(1)}MB (${percentUsed.toFixed(1)}%)`);
+
+    if (percentUsed > 80) {
+      // Warn user or trigger outbox drain
+      console.warn("Storage quota is running low!");
+    }
+  }
+}
+```
+
+**Request persistent storage to prevent eviction:**
+
+```ts
+async function requestPersistentStorage() {
+  if (navigator.storage && navigator.storage.persist) {
+    const granted = await navigator.storage.persist();
+    console.log(`Persistent storage ${granted ? "granted" : "denied"}`);
+  }
+}
+```
+
+> **Why?** Without persistent storage, browsers may silently evict IndexedDB data under storage pressure (especially Safari and Firefox). Requesting persistence ensures user data survives.
+
+---
+
+## 4. Secure Your `fetcher` and `pusher`
+
+In production, every API call needs proper authentication. Inject auth tokens into your `fetcher` and `pusher`:
+
+```tsx
+function useAuthSync<T extends Record<string, unknown>>(key: string, opts: UseSyncOptions<T>) {
+  const { getAccessToken } = useAuth(); // your auth hook
+
+  return useSync<T>(key, {
+    ...opts,
+    fetcher: opts.fetcher
+      ? async () => {
+          const token = await getAccessToken();
+          const res = await fetch("/api/data", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+          return res.json();
+        }
+      : undefined,
+    pusher: opts.pusher
+      ? async (entries) => {
+          const token = await getAccessToken();
+          const res = await fetch("/api/sync", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(entries),
+          });
+          if (!res.ok) throw new Error(`Sync failed: ${res.status}`);
+        }
+      : undefined,
+  });
+}
+```
+
+> **Important:** Never store auth tokens in Syncraft stores. Tokens should live in secure, httpOnly cookies or a dedicated auth manager — not in IndexedDB.
+
+---
+
+## 5. Require HTTPS
+
+IndexedDB is available over HTTP in development, but production apps **must** use HTTPS for:
+
+- **Service Worker support** (required for full offline capability)
+- **Persistent storage** (`navigator.storage.persist()` requires a secure context)
+- **BroadcastChannel** works on HTTP but cross-tab sync is only meaningful in secure contexts
+
+Ensure your deployment serves over HTTPS. All major hosts (Vercel, Netlify, Cloudflare) provide HTTPS by default.
+
+---
+
+## 6. Content Security Policy
+
+If your app uses a strict CSP, ensure that `worker-src` and `script-src` allow `blob:` URIs if you plan to use Web Workers alongside Syncraft. The core library itself does not use workers, but your `pusher` implementation might.
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; worker-src 'self' blob:;
+```
+
+---
+
+## 7. Monitoring and Observability
+
+Subscribe to store changes for logging and telemetry:
+
+```ts
+import { createSyncStore } from "@syncraft-labs/core";
+
+const store = createSyncStore<AppState>({
+  storageKey: "critical-data",
+  initialState: defaultState,
+});
+
+// Monitor outbox growth
+setInterval(async () => {
+  const outbox = await store.getOutbox();
+  if (outbox.length > 100) {
+    analytics.track("outbox_growth_warning", {
+      count: outbox.length,
+      oldestEntry: outbox[0]?.timestamp,
+    });
+  }
+}, 60_000);
+
+// Monitor state changes
+store.subscribe((state) => {
+  analytics.track("state_updated", {
+    storageKey: "critical-data",
+    timestamp: Date.now(),
+  });
+});
+```
+
+---
+
+## Quick Reference
+
+| Item | Priority | Details |
+|------|----------|---------|
+| `maxOutboxSize` | 🔴 Critical | Prevents unbounded outbox growth |
+| Error state UI | 🔴 Critical | Show rollback errors to users |
+| Auth in fetcher/pusher | 🔴 Critical | Secure all API calls |
+| HTTPS | 🔴 Critical | Required for persistence APIs |
+| Storage quota monitoring | 🟡 Important | Proactive quota checks |
+| Persistent storage request | 🟡 Important | Prevent silent data eviction |
+| CSP headers | 🟢 Nice-to-have | Only needed for strict CSP policies |
+| Telemetry / monitoring | 🟢 Nice-to-have | Production observability |
+
+---
+

@@ -1,0 +1,24 @@
+# Syncraft Labs Documentation
+
+> Local-First State Synchronization Engine for React & Vue. Write instantly, persist automatically, sync eventually.
+
+## Overview & Setup
+- [Getting Started](https://syncraft-labs.web.id/getting-started/): Installation and quick start guide for Syncraft Labs in React, Vue, and vanilla JS.
+- [Core Concepts](https://syncraft-labs.web.id/core-concepts/): Learn the mental model behind Syncraft Labs — Architecture, Data Flow, Optimistic Updates, and Storage Schema.
+
+## Packages
+- [Core Package (@syncraft-labs/core)](https://syncraft-labs.web.id/packages/core/): Framework-agnostic store engine, storage adapters, and outbox queue management.
+- [React Package (@syncraft-labs/react)](https://syncraft-labs.web.id/packages/react/): React 18+ hooks, SyncProvider, and state synchronization bindings.
+- [Vue Package (@syncraft-labs/vue)](https://syncraft-labs.web.id/packages/vue/): Vue 3 composables, useSync, and Vue plugin integration.
+
+## Guides
+- [Cross-Tab Sync](https://syncraft-labs.web.id/guides/cross-tab-sync/): Real-time multi-tab synchronization using BroadcastChannel and storage events.
+- [Error Handling](https://syncraft-labs.web.id/guides/error-handling/): Error types, error listeners, retry mechanisms, and fallback strategies.
+- [Sync Strategies](https://syncraft-labs.web.id/guides/sync-strategies/): Optimistic, pessimistic, background, and custom sync strategies.
+- [Multi-Store Architecture](https://syncraft-labs.web.id/guides/multi-store-architecture/): Managing multiple stores, domain isolation, and modular state.
+- [SSR (Next.js & Nuxt)](https://syncraft-labs.web.id/guides/ssr-nextjs-nuxt/): Hydration, server-side rendering, and client-side activation.
+- [Testing](https://syncraft-labs.web.id/guides/testing/): Unit testing, mocking storage adapters, and testing offline scenarios.
+- [Production Checklist](https://syncraft-labs.web.id/guides/production-checklist/): Security, performance, migration, monitoring, and production readiness.
+
+## Full Documentation
+- [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.

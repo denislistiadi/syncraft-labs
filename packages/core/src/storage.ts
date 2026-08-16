@@ -274,6 +274,28 @@ export async function countOutbox(db: SyncDB): Promise<number> {
 }
 
 /**
+ * Delete the oldest entry (by timestamp) from the outbox queue.
+ *
+ * Used when `overflowStrategy` is set to `"dropOldest"`.
+ *
+ * @template T - The shape of the state.
+ * @param db - The opened database handle.
+ * @returns The deleted outbox entry, or `undefined` if the outbox was empty.
+ */
+export async function deleteOldestOutboxEntry<T>(
+  db: SyncDB,
+): Promise<OutboxEntry<T> | undefined> {
+  const entries = (await db.getAll(OUTBOX_STORE)) as OutboxEntry<T>[];
+  if (entries.length === 0) {
+    return undefined;
+  }
+  entries.sort((a, b) => a.timestamp - b.timestamp);
+  const oldest = entries[0]!;
+  await db.delete(OUTBOX_STORE, oldest.id);
+  return oldest;
+}
+
+/**
  * Remove synced entries from the outbox by their IDs.
  *
  * Uses a transaction to delete multiple entries atomically.
