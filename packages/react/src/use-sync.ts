@@ -58,6 +58,9 @@ function getOrCreateStore<T extends Record<string, unknown>>(
   const store = createSyncStore<T>({
     storageKey: key,
     initialState: options.initialState,
+    maxOutboxSize: options.maxOutboxSize,
+    overflowStrategy: options.overflowStrategy,
+    onOverflow: options.onOverflow,
     storageMode: options.storageMode,
     idField: options.idField,
   } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
