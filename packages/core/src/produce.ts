@@ -43,57 +43,60 @@ export function produceWithPatches<T>(
     if (proxies.has(target)) return proxies.get(target);
 
     const handler: ProxyHandler<any> = {
-      get(obj, prop) {
+      get(_dummy, prop) {
         if (prop === "__isProxy") return true;
-        if (prop === "__target") return obj;
+        if (prop === "__target") return target;
         if (prop === "__proto__" || prop === "constructor" || prop === "prototype") {
           return undefined;
         }
 
         if (typeof prop === "symbol") {
-          return Reflect.get(obj, prop);
+          const source = copies.get(target) ?? target;
+          return Reflect.get(source, prop);
         }
 
-        const source = copies.get(obj) ?? obj;
+        const source = copies.get(target) ?? target;
         const value = source[prop];
 
         if (typeof value === "function") {
           return function (...args: any[]) {
-            return value.apply(proxies.get(obj), args);
+            return value.apply(proxies.get(target), args);
           };
         }
 
         if (isPlainObject(value)) {
-          parents.set(value, { parent: obj, prop: prop as string | number });
+          parents.set(value, { parent: target, prop: prop as string | number });
           return getDraft(value, [...path, prop as string | number]);
         }
 
         return value;
       },
-      set(obj, prop, value) {
+      set(_dummy, prop, value) {
         if (typeof prop === "symbol") {
-          const copy = copies.get(obj) ?? { ...obj };
-          copies.set(obj, copy);
+          const copy =
+            copies.get(target) ??
+            (Array.isArray(target) ? [...target] : { ...target });
+          copies.set(target, copy);
           return Reflect.set(copy, prop, value);
         }
 
         if (prop === "__proto__" || prop === "constructor" || prop === "prototype") {
           return false; // Prevent prototype pollution
         }
-        const isArr = Array.isArray(obj);
+        const isArr = Array.isArray(target);
         const propKey =
           isArr && typeof prop === "string" && /^\d+$/.test(prop)
             ? Number(prop)
             : prop;
 
         if (isArr && propKey === "length") {
-          const source = copies.get(obj) ?? obj;
+          const source = copies.get(target) ?? target;
           const oldLength = source.length;
           const newLength = value as number;
 
           if (oldLength !== newLength) {
-            markChanged(obj);
-            const copy = copies.get(obj);
+            markChanged(target);
+            const copy = copies.get(target);
             
             if (newLength < oldLength) {
               for (let i = oldLength - 1; i >= newLength; i--) {
@@ -115,7 +118,7 @@ export function produceWithPatches<T>(
           return true;
         }
 
-        const source = copies.get(obj) ?? obj;
+        const source = copies.get(target) ?? target;
         const hasKey = isArr
           ? Number(propKey) < source.length || propKey in source
           : propKey in source;
@@ -123,8 +126,8 @@ export function produceWithPatches<T>(
 
         if (hasKey && oldValue === value) return true;
 
-        markChanged(obj);
-        const copy = copies.get(obj);
+        markChanged(target);
+        const copy = copies.get(target);
         
         let actualValue = value;
         if (value && typeof value === "object" && value.__isProxy) {
@@ -145,29 +148,31 @@ export function produceWithPatches<T>(
 
         return true;
       },
-      deleteProperty(obj, prop) {
+      deleteProperty(_dummy, prop) {
         if (typeof prop === "symbol") {
-          const copy = copies.get(obj) ?? { ...obj };
-          copies.set(obj, copy);
+          const copy =
+            copies.get(target) ??
+            (Array.isArray(target) ? [...target] : { ...target });
+          copies.set(target, copy);
           return Reflect.deleteProperty(copy, prop);
         }
 
         if (prop === "__proto__" || prop === "constructor" || prop === "prototype") {
           return false;
         }
-        const isArr = Array.isArray(obj);
+        const isArr = Array.isArray(target);
         const propKey =
           isArr && typeof prop === "string" && /^\d+$/.test(prop)
             ? Number(prop)
             : prop;
 
-        const source = copies.get(obj) ?? obj;
+        const source = copies.get(target) ?? target;
         if (!(propKey in source)) return true;
 
         const oldValue = source[propKey];
 
-        markChanged(obj);
-        const copy = copies.get(obj);
+        markChanged(target);
+        const copy = copies.get(target);
 
         delete copy[propKey];
         isDirty = true;
@@ -178,11 +183,29 @@ export function produceWithPatches<T>(
 
         return true;
       },
+      has(_dummy, prop) {
+        if (prop === "__isProxy" || prop === "__target") return true;
+        const source = copies.get(target) ?? target;
+        return prop in source;
+      },
+      ownKeys(_dummy) {
+        const source = copies.get(target) ?? target;
+        return Reflect.ownKeys(source);
+      },
+      getOwnPropertyDescriptor(_dummy, prop) {
+        const source = copies.get(target) ?? target;
+        const desc = Reflect.getOwnPropertyDescriptor(source, prop);
+        if (!desc) return undefined;
+        return {
+          ...desc,
+          configurable: true,
+          writable: true,
+        };
+      },
     };
 
-    const proxy = new Proxy(target, handler);
-    Object.defineProperty(proxy, "__target", { value: target, enumerable: false });
-    
+    const proxyTarget = Array.isArray(target) ? [] : {};
+    const proxy = new Proxy(proxyTarget, handler);
     proxies.set(target, proxy);
     return proxy;
   }
