@@ -32,6 +32,7 @@
 
 import { produceWithPatches, type Patch } from "./produce.js";
 import { compactOutbox as compactOutboxFn } from "./compact.js";
+import { isDevMode, deepFreeze } from "./guards.js";
 import type {
   DraftUpdater,
   OutboxEntry,
@@ -128,7 +129,11 @@ function getMonotonicTimestamp(): number {
 export function createSyncStore<T extends Record<string, unknown>>(
   config: SyncStoreConfig<T>,
 ): SyncStore<T> {
-  const { storageKey, initialState } = config;
+  const { storageKey } = config;
+  const initialState =
+    config.initialState !== undefined && isDevMode()
+      ? deepFreeze(config.initialState)
+      : config.initialState;
   const storageMode = config.storageMode ?? "document";
   const idField = config.idField;
 
@@ -196,7 +201,11 @@ export function createSyncStore<T extends Record<string, unknown>>(
     channel = new BroadcastChannel(`syncraft-${storageKey}`);
     channel.onmessage = (event) => {
       if (event.data?.type === "SYNCRAFT_STATE_UPDATE") {
-        memoryState = event.data.snapshot;
+        const snapshot = event.data.snapshot;
+        memoryState =
+          snapshot !== undefined && isDevMode()
+            ? deepFreeze(snapshot)
+            : snapshot;
         if (memoryState !== undefined) {
           notifyListeners(memoryState);
         }
@@ -261,8 +270,8 @@ export function createSyncStore<T extends Record<string, unknown>>(
             ? await readCollectionState<T>(db)
             : await readState<T>(db);
         if (persisted !== undefined) {
-          memoryState = persisted;
-          return persisted;
+          memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
+          return memoryState;
         }
       }
 
@@ -282,12 +291,7 @@ export function createSyncStore<T extends Record<string, unknown>>(
       // @types/node in this browser-first library. Bundlers like Vite
       // and webpack replace `process.env.NODE_ENV` at build time.
       if (!isHydrated && !isDestroyed && !hasWarnedPreHydration) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- safe runtime check for process.env
-        const nodeEnv = (globalThis as Record<string, unknown>).process as
-          { env?: { NODE_ENV?: string } } | undefined;
-        const isProd = nodeEnv?.env?.NODE_ENV === "production";
-
-        if (!isProd) {
+        if (isDevMode()) {
           hasWarnedPreHydration = true;
           console.warn(
             `[Syncraft Labs] getSnapshot() called on store "${storageKey}" before hydrate() completed. ` +
@@ -410,18 +414,18 @@ export function createSyncStore<T extends Record<string, unknown>>(
       const previousState = baseState;
 
       // ── 1. Update in-memory cache (instant, optimistic) ─────
-      memoryState = nextState;
+      memoryState = isDevMode() ? deepFreeze(nextState) : nextState;
 
       // ── 2. Notify subscribers (triggers React/Vue re-render) ─
       // This happens BEFORE the IndexedDB write completes.
       // The UI updates instantly — that's the "optimistic" in optimistic UI.
-      notifyListeners(nextState);
+      notifyListeners(memoryState);
 
       // ── 2b. Broadcast to other tabs ───────────────────────────
       if (channel) {
         channel.postMessage({
           type: "SYNCRAFT_STATE_UPDATE",
-          snapshot: nextState,
+          snapshot: memoryState,
         });
       }
 
@@ -560,9 +564,9 @@ export function createSyncStore<T extends Record<string, unknown>>(
             : await readState<T>(db);
 
         if (persisted !== undefined) {
-          memoryState = persisted;
+          memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
         } else if (initialState !== undefined) {
-          memoryState = initialState;
+          memoryState = isDevMode() ? deepFreeze(initialState) : initialState;
           if (storageMode === "collection") {
             await writeCollectionState(db, initialState);
           } else {

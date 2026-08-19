@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING (Core)**: `OutboxEntry<T>` no longer includes a `snapshot` field. Outbox entries now store only `patches` and `inversePatches`, reducing storage size by >80% for large state. If your `pusher` function relied on `entry.snapshot`, use `store.getSnapshot()` instead or reconstruct state via the new `applyPatches()` utility.
 
 ### Added
+- **Core**: Added deep-freeze protection for in-memory state in development mode (`NODE_ENV !== "production"`). State returned by `store.getSnapshot()`, `store.get()`, `store.hydrate()`, and subscriber callbacks is recursively frozen via `Object.freeze()` to detect and prevent accidental direct state mutations outside `store.set()`. Production builds incur zero runtime overhead.
+- **Core**: Exported `deepFreeze` utility function from `@syncraft-labs/core`.
 - **Core**: Added `overflowStrategy: "reject" | "dropOldest" | "forceFlush"` configuration option to `createSyncStore` (default `"reject"`). Configures store behavior when `maxOutboxSize` is reached. `"dropOldest"` drops the oldest entry with a warning; `"forceFlush"` invokes the `onOverflow` callback to attempt a sync before deciding whether to write or reject.
 - **Core**: Added `onOverflow` callback option to `createSyncStore` to receive outbox overflow event details (`OutboxOverflowInfo`).
 - **Core**: Exported `OutboxOverflowStrategy` and `OutboxOverflowInfo` types from `@syncraft-labs/core`.
