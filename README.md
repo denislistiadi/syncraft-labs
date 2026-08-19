@@ -42,6 +42,7 @@ User Action → Proxy Draft → Memory (instant) → IndexedDB (durable) → Out
 | **Cross-Tab Sync** | State automatically synchronizes across browser tabs via BroadcastChannel |
 | **React Suspense** | Dedicated `useSyncSuspense` hook for seamless integration with React Suspense |
 | **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests (no data leaks) |
+| **Dev-mode immutability** | Automatic deep freezing in development to prevent accidental direct state mutations |
 | **Proxy drafts** | Mutate state like plain JS — zero-dependency proxy engine handles immutability |
 | **Tiny footprint** | Tree-shakeable, zero-dependency engine for draft mutations |
 | **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc (`T extends Record<string, unknown> \| any[]`) |

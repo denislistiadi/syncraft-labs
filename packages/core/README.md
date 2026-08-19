@@ -88,8 +88,11 @@ When you call `store.set()`, the memory state updates instantly, ensuring a zero
 ### Cross-Tab Synchronization
 Stores with the same `storageKey` automatically synchronize state across multiple browser tabs using `BroadcastChannel`. Changes in one tab reflect instantly in another, without hitting the server.
 
+### State Immutability & Dev-Mode Freezing
+To prevent accidental direct mutations that silently desynchronize memory state from IndexedDB (e.g. `state.count++` instead of `store.set(draft => { draft.count++ })`), Syncraft automatically freezes state via `Object.freeze()` in development mode (`NODE_ENV !== "production"`). Direct mutations in dev mode produce an immediate `TypeError`. In production builds, this check is eliminated for zero runtime overhead.
+
 ### The Outbox Queue
-Every mutation appends an `OutboxEntry` containing the state snapshot, patches, and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
+Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
 ## Migrating from Document to Collection Mode
 
@@ -104,6 +107,9 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | Export | Type | Description |
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
+| `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
+| `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
+| `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
 | `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `OutboxOverflowStrategy` | Type | Strategy enum (`"reject"`, `"dropOldest"`, `"forceFlush"`) |
 | `OutboxOverflowInfo` | Interface | Event details (`storageKey`, `outboxSize`, `maxOutboxSize`, `strategy`) |
