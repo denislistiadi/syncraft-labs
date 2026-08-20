@@ -19,6 +19,15 @@ export default defineConfig({
       editLink: {
         baseUrl: 'https://github.com/denislistiadi/syncraft-labs/tree/main/apps/docs/',
       },
+      head: [
+        {
+          tag: 'meta',
+          attrs: {
+            name: 'google-site-verification',
+            content: 'At-3D8gAIF9if6cRDIAJC302O9nmaXEDyPKR6zTtxvQ',
+          },
+        },
+      ],
       customCss: ['./src/styles/custom.css'],
       sidebar: [
         {
