@@ -59,3 +59,61 @@ export function deepFreeze<T>(obj: T, seen = new WeakSet<object>()): T {
 
   return obj;
 }
+
+/**
+ * Detect circular references in an object tree.
+ * Throws an Error with the property path where the cycle was found.
+ *
+ * Correctly differentiates between circular references (which throw) and
+ * shared DAG (Directed Acyclic Graph) references (which are valid and allowed).
+ *
+ * @param obj - The object or array tree to validate.
+ * @param context - Optional context string for the error message (e.g. 'hydrate').
+ * @param path - Current traversal path stack.
+ * @param ancestors - Set of active ancestor objects on the current branch.
+ */
+export function assertNoCycles(
+  obj: unknown,
+  context?: string,
+  path: (string | number)[] = [],
+  ancestors: Set<object> = new Set(),
+): void {
+  if (obj === null || typeof obj !== "object") {
+    return;
+  }
+
+  // Handle proxy targets if a draft proxy is passed
+  const target =
+    typeof (obj as { __target?: object }).__target === "object" &&
+    (obj as { __target?: object }).__target !== null
+      ? ((obj as { __target: object }).__target as object)
+      : (obj as object);
+
+  if (ancestors.has(target)) {
+    const pathStr = path.length > 0 ? path.join(".") : "<root>";
+    const contextStr = context ? ` during ${context}` : "";
+    throw new Error(
+      `[Syncraft Labs] Circular reference detected at path "${pathStr}"${contextStr}. ` +
+        `State must be a plain acyclic object tree.`,
+    );
+  }
+
+  ancestors.add(target);
+
+  if (Array.isArray(target)) {
+    for (let i = 0; i < target.length; i++) {
+      assertNoCycles(target[i], context, [...path, i], ancestors);
+    }
+  } else {
+    for (const key of Object.keys(target)) {
+      assertNoCycles(
+        (target as Record<string, unknown>)[key],
+        context,
+        [...path, key],
+        ancestors,
+      );
+    }
+  }
+
+  ancestors.delete(target);
+}

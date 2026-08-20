@@ -32,7 +32,7 @@
 
 import { produceWithPatches, type Patch } from "./produce.js";
 import { compactOutbox as compactOutboxFn } from "./compact.js";
-import { isDevMode, deepFreeze } from "./guards.js";
+import { isDevMode, deepFreeze, assertNoCycles } from "./guards.js";
 import type {
   DraftUpdater,
   OutboxEntry,
@@ -130,6 +130,12 @@ export function createSyncStore<T extends Record<string, unknown>>(
   config: SyncStoreConfig<T>,
 ): SyncStore<T> {
   const { storageKey } = config;
+  if (config.initialState !== undefined && isDevMode()) {
+    assertNoCycles(
+      config.initialState,
+      `initialState for store "${storageKey}"`,
+    );
+  }
   const initialState =
     config.initialState !== undefined && isDevMode()
       ? deepFreeze(config.initialState)
@@ -202,6 +208,12 @@ export function createSyncStore<T extends Record<string, unknown>>(
     channel.onmessage = (event) => {
       if (event.data?.type === "SYNCRAFT_STATE_UPDATE") {
         const snapshot = event.data.snapshot;
+        if (snapshot !== undefined && isDevMode()) {
+          assertNoCycles(
+            snapshot,
+            `BroadcastChannel sync for store "${storageKey}"`,
+          );
+        }
         memoryState =
           snapshot !== undefined && isDevMode()
             ? deepFreeze(snapshot)
@@ -564,8 +576,17 @@ export function createSyncStore<T extends Record<string, unknown>>(
             : await readState<T>(db);
 
         if (persisted !== undefined) {
+          if (isDevMode()) {
+            assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
+          }
           memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
         } else if (initialState !== undefined) {
+          if (isDevMode()) {
+            assertNoCycles(
+              initialState,
+              `initialState for store "${storageKey}"`,
+            );
+          }
           memoryState = isDevMode() ? deepFreeze(initialState) : initialState;
           if (storageMode === "collection") {
             await writeCollectionState(db, initialState);

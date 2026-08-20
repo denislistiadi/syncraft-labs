@@ -1,3 +1,5 @@
+import { assertNoCycles } from "./guards.js";
+
 export type Path = (string | number)[];
 
 export interface Patch {
@@ -16,6 +18,10 @@ export function produceWithPatches<T>(
   baseState: T,
   updater: (draft: T) => void | T
 ): [T, Patch[], Patch[]] {
+  if (baseState !== null && typeof baseState === "object") {
+    assertNoCycles(baseState);
+  }
+
   const patches: Patch[] = [];
   const inversePatches: Patch[] = [];
   let isDirty = false;
@@ -38,9 +44,24 @@ export function produceWithPatches<T>(
     }
   }
 
-  function getDraft(target: any, path: Path): any {
+  function getDraft(
+    target: any,
+    path: Path,
+    ancestors: Set<object> = new Set()
+  ): any {
     if (!isPlainObject(target)) return target;
     if (proxies.has(target)) return proxies.get(target);
+
+    if (ancestors.has(target)) {
+      const pathStr = path.length > 0 ? path.join(".") : "<root>";
+      throw new Error(
+        `[Syncraft Labs] Circular reference detected at path "${pathStr}". ` +
+          `State must be a plain acyclic object tree.`
+      );
+    }
+
+    const nextAncestors = new Set(ancestors);
+    nextAncestors.add(target);
 
     const handler: ProxyHandler<any> = {
       get(_dummy, prop) {
@@ -66,7 +87,11 @@ export function produceWithPatches<T>(
 
         if (isPlainObject(value)) {
           parents.set(value, { parent: target, prop: prop as string | number });
-          return getDraft(value, [...path, prop as string | number]);
+          return getDraft(
+            value,
+            [...path, prop as string | number],
+            nextAncestors
+          );
         }
 
         return value;
@@ -132,6 +157,26 @@ export function produceWithPatches<T>(
         let actualValue = value;
         if (value && typeof value === "object" && value.__isProxy) {
           actualValue = copies.get(value.__target) ?? value.__target;
+        }
+
+        if (actualValue !== null && typeof actualValue === "object") {
+          const raw =
+            typeof (actualValue as any).__target === "object" &&
+            (actualValue as any).__target !== null
+              ? (actualValue as any).__target
+              : actualValue;
+          if (nextAncestors.has(raw)) {
+            const fullPath = [...path, propKey as string | number];
+            throw new Error(
+              `[Syncraft Labs] Circular reference detected at path "${fullPath.join(".")}". ` +
+                `State must be a plain acyclic object tree.`,
+            );
+          }
+          assertNoCycles(
+            actualValue,
+            undefined,
+            [...path, propKey as string | number],
+          );
         }
 
         copy[propKey] = actualValue;
@@ -215,6 +260,10 @@ export function produceWithPatches<T>(
 
   const nextState =
     result !== undefined ? result : copies.get(baseState) ?? baseState;
+
+  if (nextState !== null && typeof nextState === "object") {
+    assertNoCycles(nextState);
+  }
 
   if (!isDirty && result === undefined) {
     return [baseState, [], []];

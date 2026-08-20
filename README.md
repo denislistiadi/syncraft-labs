@@ -287,6 +287,9 @@ store.destroy();
 | Export | Type | Description |
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Create a new SyncStore instance |
+| `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
+| `assertNoCycles(obj, context?)` | Function | Detect circular references in an object tree with detailed property path |
+| `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Compact outbox entries by merging same-path mutations |
 | `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
 | `OutboxOverflowStrategy` | Type | Strategy enum: `"reject"` \| `"dropOldest"` \| `"forceFlush"` |
@@ -315,7 +318,7 @@ store.destroy();
 | `createSyncraft()` | Plugin | MUST be installed via `app.use()` to provide isolated state (SSR safe) |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
 | `UseSyncReturn<T>` | Type | Return: `data` (ShallowRef), `update`, `refetch`, `isHydrating` (Ref), `isSyncing` (Ref), `isOffline` (Ref), `error` (ShallowRef), `destroyStore` |
 
 ## Packages

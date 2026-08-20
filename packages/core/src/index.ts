@@ -22,7 +22,7 @@
 export { createSyncStore } from "./store.js";
 export { applyPatches } from "./produce.js";
 export { compactOutbox } from "./compact.js";
-export { deepFreeze } from "./guards.js";
+export { deepFreeze, assertNoCycles } from "./guards.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
