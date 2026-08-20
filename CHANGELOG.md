@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-21
+
 ### Changed
 - **BREAKING (Core)**: `OutboxEntry<T>` no longer includes a `snapshot` field. Outbox entries now store only `patches` and `inversePatches`, reducing storage size by >80% for large state. If your `pusher` function relied on `entry.snapshot`, use `store.getSnapshot()` instead or reconstruct state via the new `applyPatches()` utility.
 

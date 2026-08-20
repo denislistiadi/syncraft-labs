@@ -1,6 +1,6 @@
 {
   "name": "@syncraft-labs/react",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "React hooks for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
@@ -31,7 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@syncraft-labs/core": "0.3.0"
+    "@syncraft-labs/core": "0.4.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
