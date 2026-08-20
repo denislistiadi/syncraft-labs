@@ -163,7 +163,7 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 | `useSync<T>(key, options)` | Hook | Primary React integration hook returning reactive state and updater |
 | `useSyncSuspense<T>(key, options)` | Hook | Suspense-compatible hook throwing promises during hydration |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
 
 ## License

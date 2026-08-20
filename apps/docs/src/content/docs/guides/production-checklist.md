@@ -12,35 +12,31 @@ Before shipping your Syncraft Labs–powered application to production, walk thr
 
 ---
 
-## 1. Configure Outbox Size Limits
+## 1. Configure Outbox Size Limits & Overflow Strategy
 
 Every call to `update()` appends an `OutboxEntry` to IndexedDB. If users stay offline for hours (or days), the outbox can grow without bound — eventually exhausting the browser's storage quota.
 
-**Set `maxOutboxSize` explicitly:**
+**Set `maxOutboxSize` and `overflowStrategy` explicitly:**
 
 ```ts
 const store = createSyncStore<AppState>({
   storageKey: "orders",
   initialState: { orders: [] },
   maxOutboxSize: 500, // default is 1000
+  overflowStrategy: "dropOldest", // "reject" | "dropOldest" | "forceFlush"
+  onOverflow: ({ outboxSize, maxOutboxSize }) => {
+    console.warn(`Outbox overflowed: ${outboxSize}/${maxOutboxSize}`);
+  },
 });
 ```
 
-When the limit is reached, `set()` throws an error that you can catch to show a user-facing prompt:
+### Overflow Strategies
 
-```tsx
-const { update, error } = useSync<AppState>("orders", {
-  initialState: { orders: [] },
-  pusher: pushToServer,
-});
-
-// In your UI
-{error?.message.includes("Outbox size limit") && (
-  <div className="alert alert-warning">
-    Too many pending changes. Please connect to the internet to sync.
-  </div>
-)}
-```
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `"reject"` (default) | Throws an `Error` when full, preventing new writes | Critical data where no mutation can ever be lost |
+| `"dropOldest"` | Discards the oldest outbox entry with a warning and saves the newest | High-frequency sensor data, telemetry, draft autosaves |
+| `"forceFlush"` | Invokes `onOverflow` callback to attempt an emergency push before deciding | Background sync with active network retry fallback |
 
 > **Guideline:** Set `maxOutboxSize` to a value that balances offline productivity with storage constraints. For most apps, 200–1000 entries is reasonable.
 

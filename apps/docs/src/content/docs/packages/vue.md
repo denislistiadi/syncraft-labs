@@ -119,10 +119,15 @@ Primary composable for Syncraft Labs in Vue.
 
 #### `UseSyncOptions<T>`
 
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
+| `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
+| `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
 

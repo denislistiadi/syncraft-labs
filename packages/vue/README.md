@@ -139,7 +139,7 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 | `createSyncraft()` | Plugin | Vue plugin guaranteeing app-level store registry isolation across SSR requests |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 composable returning reactive `shallowRef` state and updater |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
 
 ## License

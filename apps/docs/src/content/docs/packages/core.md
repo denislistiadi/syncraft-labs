@@ -68,6 +68,28 @@ interface OutboxEntry<T> {
 
 ### Utilities
 
+#### `deepFreeze<T>(obj: T): Readonly<T>`
+
+Recursively freeze an object and all nested properties using `Object.freeze()`. Used in development mode (`NODE_ENV !== "production"`) to prevent accidental direct state mutations.
+
+```ts
+import { deepFreeze } from "@syncraft-labs/core";
+
+const frozen = deepFreeze({ user: { name: "Alice" } });
+// frozen.user.name = "Bob"; // Throws TypeError in strict mode
+```
+
+#### `assertNoCycles(obj: unknown, context?: string): void`
+
+Recursively traverse an object tree and throw a descriptive `Error` if a circular reference is detected. Supports DAG (Directed Acyclic Graph) / diamond shared references without false positives.
+
+```ts
+import { assertNoCycles } from "@syncraft-labs/core";
+
+assertNoCycles(state, "Initial state");
+// Throws Error: [Syncraft Labs] Initial state contains a circular reference at path "a.b.self"
+```
+
 #### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`
 
 Compact an array of outbox entries by merging consecutive mutations to the same path (last-write-wins). Returns `{ compacted, originalIds }` or `null` if empty.

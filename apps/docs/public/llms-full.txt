@@ -383,6 +383,28 @@ interface OutboxEntry<T> {
 
 ### Utilities
 
+#### `deepFreeze<T>(obj: T): Readonly<T>`
+
+Recursively freeze an object and all nested properties using `Object.freeze()`. Used in development mode (`NODE_ENV !== "production"`) to prevent accidental direct state mutations.
+
+```ts
+import { deepFreeze } from "@syncraft-labs/core";
+
+const frozen = deepFreeze({ user: { name: "Alice" } });
+// frozen.user.name = "Bob"; // Throws TypeError in strict mode
+```
+
+#### `assertNoCycles(obj: unknown, context?: string): void`
+
+Recursively traverse an object tree and throw a descriptive `Error` if a circular reference is detected. Supports DAG (Directed Acyclic Graph) / diamond shared references without false positives.
+
+```ts
+import { assertNoCycles } from "@syncraft-labs/core";
+
+assertNoCycles(state, "Initial state");
+// Throws Error: [Syncraft Labs] Initial state contains a circular reference at path "a.b.self"
+```
+
 #### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`
 
 Compact an array of outbox entries by merging consecutive mutations to the same path (last-write-wins). Returns `{ compacted, originalIds }` or `null` if empty.
@@ -545,10 +567,15 @@ Standard React hook for subscribing to a SyncStore.
 
 #### `UseSyncOptions<T>`
 
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
+| `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
+| `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
 
@@ -697,10 +724,15 @@ Primary composable for Syncraft Labs in Vue.
 
 #### `UseSyncOptions<T>`
 
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
+| `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
+| `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
 
@@ -1713,35 +1745,31 @@ Before shipping your Syncraft Labs–powered application to production, walk thr
 
 ---
 
-## 1. Configure Outbox Size Limits
+## 1. Configure Outbox Size Limits & Overflow Strategy
 
 Every call to `update()` appends an `OutboxEntry` to IndexedDB. If users stay offline for hours (or days), the outbox can grow without bound — eventually exhausting the browser's storage quota.
 
-**Set `maxOutboxSize` explicitly:**
+**Set `maxOutboxSize` and `overflowStrategy` explicitly:**
 
 ```ts
 const store = createSyncStore<AppState>({
   storageKey: "orders",
   initialState: { orders: [] },
   maxOutboxSize: 500, // default is 1000
+  overflowStrategy: "dropOldest", // "reject" | "dropOldest" | "forceFlush"
+  onOverflow: ({ outboxSize, maxOutboxSize }) => {
+    console.warn(`Outbox overflowed: ${outboxSize}/${maxOutboxSize}`);
+  },
 });
 ```
 
-When the limit is reached, `set()` throws an error that you can catch to show a user-facing prompt:
+### Overflow Strategies
 
-```tsx
-const { update, error } = useSync<AppState>("orders", {
-  initialState: { orders: [] },
-  pusher: pushToServer,
-});
-
-// In your UI
-{error?.message.includes("Outbox size limit") && (
-  <div className="alert alert-warning">
-    Too many pending changes. Please connect to the internet to sync.
-  </div>
-)}
-```
+| Strategy | Behavior | Best for |
+|----------|----------|----------|
+| `"reject"` (default) | Throws an `Error` when full, preventing new writes | Critical data where no mutation can ever be lost |
+| `"dropOldest"` | Discards the oldest outbox entry with a warning and saves the newest | High-frequency sensor data, telemetry, draft autosaves |
+| `"forceFlush"` | Invokes `onOverflow` callback to attempt an emergency push before deciding | Background sync with active network retry fallback |
 
 > **Guideline:** Set `maxOutboxSize` to a value that balances offline productivity with storage constraints. For most apps, 200–1000 entries is reasonable.
 

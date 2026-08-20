@@ -1,6 +1,6 @@
-# Website
+# Syncraft Labs Documentation
 
-This website is built using [Docusaurus](https://docusaurus.io/), a modern static website generator.
+Documentation website for Syncraft Labs, built using [Astro](https://astro.build/) and [Starlight](https://starlight.astro.build/).
 
 ## Installation
 
@@ -11,10 +11,10 @@ npm install
 ## Local Development
 
 ```bash
-npm start
+npm run dev
 ```
 
-This command starts a local development server and opens up a browser window. Most changes are reflected live without having to restart the server.
+This command starts a local development server at `http://localhost:4321`. Changes to content and components are reflected live via hot module replacement.
 
 ## Build
 
@@ -22,11 +22,11 @@ This command starts a local development server and opens up a browser window. Mo
 npm run build
 ```
 
-This command generates static content into the `build` directory and can be served using any static contents hosting service.
+This command generates static HTML, CSS, client JS, search indexes (Pagefind), and AI documentation (`public/llms.txt` and `public/llms-full.txt`) into the `dist` directory.
 
-## Serving Build Locally
+## Preview Build Locally
 
 ```bash
-npm run serve
+npm run preview
 ```
 
