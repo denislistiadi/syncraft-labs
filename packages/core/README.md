@@ -108,6 +108,7 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
 | `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
+| `assertNoCycles(obj, context?)` | Function | Detect circular references in an object tree with detailed property path |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
 | `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
