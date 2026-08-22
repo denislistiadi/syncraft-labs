@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-08-22
+
+### Security
+- **Core**: Evicted PolinRider malware artifacts from all build configurations, core assets, and package entry points.
+- **Project**: Conducted a full build integrity audit from an isolated, verified clean environment.
+- **Infrastructure**: Hardened account security by rotating all internal NPM publishing tokens and enforcing mandatory Two-Factor Authentication (2FA) for all subsequent package releases.
+
+## [0.4.1] - 2026-08-22 [WITHDRAWN]
+
+### Security
+- **Notice**: This version was compromised by a supply-chain attack associated with the PolinRider malware campaign, which injected obfuscated information-stealing code via extensive whitespace padding. 
+- **Action**: This version has been strictly deprecated on the NPM registry and pulled from active distribution. Do not install or depend on this version.
+
+
 ## [0.4.0] - 2026-08-21
 
 ### Changed
