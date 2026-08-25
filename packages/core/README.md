@@ -91,6 +91,13 @@ Stores with the same `storageKey` automatically synchronize state across multipl
 ### State Immutability & Dev-Mode Freezing
 To prevent accidental direct mutations that silently desynchronize memory state from IndexedDB (e.g. `state.count++` instead of `store.set(draft => { draft.count++ })`), Syncraft automatically freezes state via `Object.freeze()` in development mode (`NODE_ENV !== "production"`). Direct mutations in dev mode produce an immediate `TypeError`. In production builds, this check is eliminated for zero runtime overhead.
 
+### Supported State Shapes & Type Detection
+Syncraft Labs stores state in plain serializable structures. In development mode, `validateStateShape()` automatically guards your state:
+- **Plain Objects & Arrays**: Full deep drafting and patch generation support.
+- **Primitives**: Numbers, strings, booleans, null, undefined.
+- **Dates**: Allowed as immutable leaf values. Must be replaced wholesale (not mutated via `.setFullYear()`, etc.). Emits a dev warning recommending ISO strings or timestamps.
+- **Unsupported Types**: Custom class instances, `Map`, `Set`, `RegExp`, `Error`, and functions throw an explicit `Error` with the property path (e.g., `Unsupported type "Map" detected at path "cache.entries"`).
+
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
@@ -109,6 +116,8 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
 | `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
 | `assertNoCycles(obj, context?)` | Function | Detect circular references in an object tree with detailed property path |
+| `validateStateShape(obj, context?)` | Function | Recursively validate state shape; warns on Date and throws on unsupported types |
+| `isUnsupportedType(val)` | Function | Check if a value is an unsupported type for state drafting/persistence |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
 | `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |

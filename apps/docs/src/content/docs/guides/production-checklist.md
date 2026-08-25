@@ -208,12 +208,22 @@ store.subscribe((state) => {
 
 ---
 
+## 8. Ensure Supported State Shapes
+
+Syncraft Labs state must be composed of plain objects, arrays, and primitive values:
+
+- **Dates**: Allowed as leaf values only. Never mutate a Date instance's fields in place (e.g. via `date.setFullYear()`); replace it with a new Date or use ISO 8601 strings / Unix millisecond timestamps.
+- **Unsupported Types**: Custom class instances, `Map`, `Set`, `RegExp`, `Error`, and functions are not drafted and will trigger dev-mode errors via `validateStateShape()`.
+
+---
+
 ## Quick Reference
 
 | Item | Priority | Details |
 |------|----------|---------|
 | `maxOutboxSize` | 🔴 Critical | Prevents unbounded outbox growth |
 | Error state UI | 🔴 Critical | Show rollback errors to users |
+| Supported State Shapes | 🔴 Critical | Plain objects, arrays, primitives, Date leaves only |
 | Auth in fetcher/pusher | 🔴 Critical | Secure all API calls |
 | HTTPS | 🔴 Critical | Required for persistence APIs |
 | Storage quota monitoring | 🟡 Important | Proactive quota checks |
