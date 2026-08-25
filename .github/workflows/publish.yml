@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Release (Publish to npm & Deploy Docs)
 
 on:
   release:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish:
-    name: Build & Publish
+    name: Build, Publish & Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,3 +58,8 @@ jobs:
         run: cd packages/vue && npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      # ── Deploy Docs to Netlify ──────────────────────────────
+      - name: Deploy Docs to Netlify
+        run: npx netlify-cli deploy --prod --dir=apps/docs/dist --site=${{ secrets.NETLIFY_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }}
+
