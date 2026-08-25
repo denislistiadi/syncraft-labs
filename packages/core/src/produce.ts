@@ -1,4 +1,4 @@
-import { assertNoCycles } from "./guards.js";
+import { assertNoCycles, validateStateShape } from "./guards.js";
 
 export type Path = (string | number)[];
 
@@ -20,6 +20,7 @@ export function produceWithPatches<T>(
 ): [T, Patch[], Patch[]] {
   if (baseState !== null && typeof baseState === "object") {
     assertNoCycles(baseState);
+    validateStateShape(baseState, "produce baseState");
   }
 
   const patches: Patch[] = [];
@@ -159,6 +160,8 @@ export function produceWithPatches<T>(
           actualValue = copies.get(value.__target) ?? value.__target;
         }
 
+        const fullPath = [...path, propKey as string | number];
+
         if (actualValue !== null && typeof actualValue === "object") {
           const raw =
             typeof (actualValue as any).__target === "object" &&
@@ -166,7 +169,6 @@ export function produceWithPatches<T>(
               ? (actualValue as any).__target
               : actualValue;
           if (nextAncestors.has(raw)) {
-            const fullPath = [...path, propKey as string | number];
             throw new Error(
               `[Syncraft Labs] Circular reference detected at path "${fullPath.join(".")}". ` +
                 `State must be a plain acyclic object tree.`,
@@ -175,14 +177,16 @@ export function produceWithPatches<T>(
           assertNoCycles(
             actualValue,
             undefined,
-            [...path, propKey as string | number],
+            fullPath,
           );
+          validateStateShape(actualValue, "draft mutation", fullPath);
+        } else if (typeof actualValue === "function") {
+          validateStateShape(actualValue, "draft mutation", fullPath);
         }
 
         copy[propKey] = actualValue;
         isDirty = true;
 
-        const fullPath = [...path, propKey as string | number];
         if (hasKey) {
           patches.push({ op: "replace", path: fullPath, value: actualValue });
           inversePatches.push({ op: "replace", path: fullPath, value: oldValue });
@@ -263,6 +267,7 @@ export function produceWithPatches<T>(
 
   if (nextState !== null && typeof nextState === "object") {
     assertNoCycles(nextState);
+    validateStateShape(nextState, "produce nextState");
   }
 
   if (!isDirty && result === undefined) {

@@ -32,7 +32,7 @@
 
 import { produceWithPatches, type Patch } from "./produce.js";
 import { compactOutbox as compactOutboxFn } from "./compact.js";
-import { isDevMode, deepFreeze, assertNoCycles } from "./guards.js";
+import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "./guards.js";
 import type {
   DraftUpdater,
   OutboxEntry,
@@ -135,6 +135,10 @@ export function createSyncStore<T extends Record<string, unknown>>(
       config.initialState,
       `initialState for store "${storageKey}"`,
     );
+    validateStateShape(
+      config.initialState,
+      `initialState for store "${storageKey}"`,
+    );
   }
   const initialState =
     config.initialState !== undefined && isDevMode()
@@ -210,6 +214,10 @@ export function createSyncStore<T extends Record<string, unknown>>(
         const snapshot = event.data.snapshot;
         if (snapshot !== undefined && isDevMode()) {
           assertNoCycles(
+            snapshot,
+            `BroadcastChannel sync for store "${storageKey}"`,
+          );
+          validateStateShape(
             snapshot,
             `BroadcastChannel sync for store "${storageKey}"`,
           );
@@ -578,11 +586,16 @@ export function createSyncStore<T extends Record<string, unknown>>(
         if (persisted !== undefined) {
           if (isDevMode()) {
             assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
+            validateStateShape(persisted, `hydrate() for store "${storageKey}"`);
           }
           memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
         } else if (initialState !== undefined) {
           if (isDevMode()) {
             assertNoCycles(
+              initialState,
+              `initialState for store "${storageKey}"`,
+            );
+            validateStateShape(
               initialState,
               `initialState for store "${storageKey}"`,
             );
