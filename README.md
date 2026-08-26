@@ -289,6 +289,8 @@ store.destroy();
 | `createSyncStore<T>(config)` | Function | Create a new SyncStore instance |
 | `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
 | `assertNoCycles(obj, context?)` | Function | Detect circular references in an object tree with detailed property path |
+| `validateStateShape(obj, context?)` | Function | Validate state shape; warns on Date, throws on unsupported types (dev mode only) |
+| `isUnsupportedType(val)` | Function | Check if a value is unsupported for state persistence and proxy drafting |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Compact outbox entries by merging same-path mutations |
 | `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |

@@ -87,7 +87,31 @@ Recursively traverse an object tree and throw a descriptive `Error` if a circula
 import { assertNoCycles } from "@syncraft-labs/core";
 
 assertNoCycles(state, "Initial state");
-// Throws Error: [Syncraft Labs] Initial state contains a circular reference at path "a.b.self"
+// Throws Error: [Syncraft Labs] Circular reference detected at path "a.b.self" during Initial state. State must be a plain acyclic object tree.
+```
+
+#### `validateStateShape(obj: unknown, context?: string): void`
+
+Recursively traverse a state object tree to validate that all values conform to supported state shapes (plain objects, arrays, primitives, and Date leaves). Emits a dev warning for `Date` instances and throws an `Error` for unsupported types like `Map`, `Set`, `RegExp`, functions, or custom class instances.
+
+```ts
+import { validateStateShape } from "@syncraft-labs/core";
+
+validateStateShape(state, "hydrate()");
+// Warns: [Syncraft Labs] Date detected at path "user.createdAt" during hydrate() — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated.
+// Throws: [Syncraft Labs] Unsupported type "Map" detected at path "cache.entries" during hydrate(). State must only contain plain objects, arrays, and primitives. Use a plain object instead.
+```
+
+#### `isUnsupportedType(value: unknown): boolean`
+
+Check if a given value is unsupported for state persistence and draft proxying.
+
+```ts
+import { isUnsupportedType } from "@syncraft-labs/core";
+
+isUnsupportedType(new Map()); // true
+isUnsupportedType(new Date()); // false (allowed as leaf)
+isUnsupportedType({ a: 1 });   // false
 ```
 
 #### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`

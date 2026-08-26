@@ -1,4 +1,4 @@
-name: Publish to npm
+name: Release (Publish to npm & Deploy Docs)
 
 on:
   release:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   publish:
-    name: Build & Publish
+    name: Build, Publish & Deploy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,15 +23,12 @@ jobs:
 
       - run: npm ci
 
-      # ── Build ────────────────────────────────────────────────
       - name: Build all packages
         run: npm run build
 
-      # ── Test ─────────────────────────────────────────────────
       - name: Run tests
         run: npm run test
 
-      # ── Verify ───────────────────────────────────────────────
       - name: Verify package contents
         run: |
           echo "=== @syncraft-labs/core ==="
@@ -43,7 +40,6 @@ jobs:
           echo "=== @syncraft-labs/vue ==="
           cd ../vue && npm pack --dry-run
 
-      # ── Publish (order matters: core first) ──────────────────
       - name: Publish @syncraft-labs/core
         run: cd packages/core && npm publish --access public --provenance
         env:
@@ -58,3 +54,10 @@ jobs:
         run: cd packages/vue && npm publish --access public --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Deploy Docs to Netlify
+        run: npx netlify-cli deploy --prod --dir=apps/docs/dist
+        env:
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+
