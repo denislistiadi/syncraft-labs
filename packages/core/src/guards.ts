@@ -20,6 +20,13 @@ export function isDevMode(): boolean {
 }
 
 /**
+ * WeakSet tracking Date instances that have already emitted a dev warning.
+ * Prevents repeated console.warn spam on every mutation cycle.
+ * GC-safe: WeakSet does not hold strong references.
+ */
+const warnedDates = new WeakSet<object>();
+
+/**
  * Deep-freeze an object or array in place using `Object.freeze()`.
  * Protects state from accidental direct mutations outside of `store.set()`.
  *
@@ -179,7 +186,7 @@ export function validateStateShape(
       const pathStr = path.length > 0 ? path.join(".") : "<root>";
       const contextStr = context ? ` during ${context}` : "";
       throw new Error(
-        `[Syncraft Labs] Function detected at path "${pathStr}"${contextStr}. State must only contain plain objects, arrays, and primitives.`,
+        `[Syncraft Labs] Unsupported type "Function" detected at path "${pathStr}"${contextStr}. State must only contain plain objects, arrays, and primitives.`,
       );
     }
     return;
@@ -205,9 +212,12 @@ export function validateStateShape(
     target instanceof Date ||
     Object.prototype.toString.call(target) === "[object Date]"
   ) {
-    console.warn(
-      `[Syncraft Labs] Date detected at path "${pathStr}"${contextStr} — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated. Consider using ISO strings or timestamps instead.`,
-    );
+    if (!warnedDates.has(target)) {
+      warnedDates.add(target);
+      console.warn(
+        `[Syncraft Labs] Date detected at path "${pathStr}"${contextStr} — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated. Consider using ISO strings or timestamps instead.`,
+      );
+    }
     return;
   }
 

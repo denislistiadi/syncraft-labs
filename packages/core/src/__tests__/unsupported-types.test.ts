@@ -2,7 +2,6 @@ import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { isUnsupportedType, validateStateShape } from "../guards.js";
 import { produceWithPatches } from "../produce.js";
 import { createSyncStore } from "../store.js";
-import "fake-indexeddb/auto";
 
 class CustomEntity {
   constructor(public id: string, public name: string) {}
@@ -176,7 +175,7 @@ describe("validateStateShape utility", () => {
     };
 
     expect(() => validateStateShape(state)).toThrowError(
-      /Function detected at path "handlers\.onClick"/,
+      /Unsupported type "Function" detected at path "handlers\.onClick"/,
     );
   });
 
@@ -229,7 +228,7 @@ describe("produceWithPatches unsupported type detection", () => {
       produceWithPatches(base, (draft) => {
         draft.callback = () => "test";
       });
-    }).toThrowError(/Function detected at path "callback"/);
+    }).toThrowError(/Unsupported type "Function" detected at path "callback"/);
   });
 
   it("should warn but not throw when mutating draft to assign a Date", () => {
@@ -301,6 +300,71 @@ describe("createSyncStore unsupported type guards", () => {
         draft.data.map = new Map();
       }),
     ).rejects.toThrowError(/Unsupported type "Map" detected at path "data\.map"/);
+
+    store.destroy();
+  });
+});
+
+describe("production mode gating", () => {
+  let originalNodeEnv: string | undefined;
+
+  beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+  });
+
+  afterEach(() => {
+    if (originalNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
+  it("should NOT throw when produceWithPatches assigns a Map in production", () => {
+    const base = { cache: {} as Record<string, unknown> };
+
+    expect(() => {
+      produceWithPatches(base, (draft) => {
+        draft.cache.items = new Map();
+      });
+    }).not.toThrow();
+  });
+
+  it("should NOT throw when produceWithPatches assigns a class instance in production", () => {
+    const base = { user: null as unknown };
+
+    expect(() => {
+      produceWithPatches(base, (draft) => {
+        draft.user = new CustomEntity("42", "Alice");
+      });
+    }).not.toThrow();
+  });
+
+  it("should NOT throw when createSyncStore is initialized with unsupported class instance in production", () => {
+    expect(() => {
+      createSyncStore<{ account: UserAccount }>({
+        storageKey: "test-prod-gating-init",
+        initialState: {
+          account: new UserAccount("test@example.com"),
+        },
+      });
+    }).not.toThrow();
+  });
+
+  it("should NOT reject when store.set() assigns a Map in production", async () => {
+    const store = createSyncStore<{ data: Record<string, unknown> }>({
+      storageKey: "test-prod-gating-set",
+      initialState: { data: {} },
+    });
+
+    await store.hydrate();
+
+    await expect(
+      store.set((draft) => {
+        draft.data.map = new Map();
+      }),
+    ).resolves.toBeUndefined();
 
     store.destroy();
   });
