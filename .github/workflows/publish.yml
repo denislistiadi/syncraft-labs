@@ -23,15 +23,12 @@ jobs:
 
       - run: npm ci
 
-      # ── Build ────────────────────────────────────────────────
       - name: Build all packages
         run: npm run build
 
-      # ── Test ─────────────────────────────────────────────────
       - name: Run tests
         run: npm run test
 
-      # ── Verify ───────────────────────────────────────────────
       - name: Verify package contents
         run: |
           echo "=== @syncraft-labs/core ==="
@@ -43,7 +40,6 @@ jobs:
           echo "=== @syncraft-labs/vue ==="
           cd ../vue && npm pack --dry-run
 
-      # ── Publish (order matters: core first) ──────────────────
       - name: Publish @syncraft-labs/core
         run: cd packages/core && npm publish --access public --provenance
         env:
@@ -59,7 +55,6 @@ jobs:
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
-      # ── Deploy Docs to Netlify ──────────────────────────────
       - name: Deploy Docs to Netlify
         run: npx netlify-cli deploy --prod --dir=apps/docs/dist --site=${{ secrets.NETLIFY_SITE_ID }} --auth=${{ secrets.NETLIFY_AUTH_TOKEN }}
 
