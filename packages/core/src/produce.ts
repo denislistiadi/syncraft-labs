@@ -1,4 +1,4 @@
-import { assertNoCycles, validateStateShape } from "./guards.js";
+import { assertNoCycles, isDevMode, validateStateShape } from "./guards.js";
 
 export type Path = (string | number)[];
 
@@ -20,9 +20,9 @@ export function produceWithPatches<T>(
 ): [T, Patch[], Patch[]] {
   if (baseState !== null && typeof baseState === "object") {
     assertNoCycles(baseState);
-    validateStateShape(baseState, "produce baseState");
   }
 
+  const devMode = isDevMode();
   const patches: Patch[] = [];
   const inversePatches: Patch[] = [];
   let isDirty = false;
@@ -179,9 +179,13 @@ export function produceWithPatches<T>(
             undefined,
             fullPath,
           );
-          validateStateShape(actualValue, "draft mutation", fullPath);
+          if (devMode) {
+            validateStateShape(actualValue, "draft mutation", fullPath);
+          }
         } else if (typeof actualValue === "function") {
-          validateStateShape(actualValue, "draft mutation", fullPath);
+          if (devMode) {
+            validateStateShape(actualValue, "draft mutation", fullPath);
+          }
         }
 
         copy[propKey] = actualValue;
@@ -267,7 +271,9 @@ export function produceWithPatches<T>(
 
   if (nextState !== null && typeof nextState === "object") {
     assertNoCycles(nextState);
-    validateStateShape(nextState, "produce nextState");
+    if (devMode) {
+      validateStateShape(nextState, "produce nextState");
+    }
   }
 
   if (!isDirty && result === undefined) {
