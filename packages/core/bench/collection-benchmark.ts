@@ -6,7 +6,7 @@ type Entity = { id: string; name: string; score: number; payload: string };
 type State = Record<string, Entity>;
 
 async function runBenchmark() {
-  console.log("🚀 Starting Collection Mode Benchmark...");
+  console.log("Starting Collection Mode Benchmark...");
 
   const ITEM_COUNT = 10_000;
   const initialState: State = {};
@@ -18,7 +18,7 @@ async function runBenchmark() {
   }
 
   // ── Document Mode ──────────────────────────────────────────
-  console.log(`\n📦 Testing Document Mode (10,000 items)...`);
+  console.log(`\nTesting Document Mode (10,000 items)...`);
   const docKey = "bench-doc-mode";
   const docStore = createSyncStore<State>({
     storageKey: docKey,
@@ -32,18 +32,18 @@ async function runBenchmark() {
     draft["item_5000"]!.score = 999999;
   });
   const docDuration = performance.now() - docStart;
-  console.log(`⏱️ Document Mode update time: ${docDuration.toFixed(2)} ms`);
+  console.log(`Document Mode update time: ${docDuration.toFixed(2)} ms`);
 
   // Verify DB state for document mode
   const docDb = await openDB(`syncraft-labs_${docKey}`, 2);
   const docStateInDb = await docDb.get("state", "current");
   const docStateKeys = Object.keys(docStateInDb);
-  console.log(`📊 Document Mode IDB state record size: ${docStateKeys.length} entities stored in 1 single "current" blob`);
+  console.log(`Document Mode IDB state record size: ${docStateKeys.length} entities stored in 1 single "current" blob`);
   docDb.close();
   docStore.destroy();
 
   // ── Collection Mode ────────────────────────────────────────
-  console.log(`\n⚡ Testing Collection Mode (10,000 items)...`);
+  console.log(`\nTesting Collection Mode (10,000 items)...`);
   const colKey = "bench-col-mode";
   const colStore = createSyncStore<State>({
     storageKey: colKey,
@@ -58,25 +58,25 @@ async function runBenchmark() {
     draft["item_5000"]!.score = 999999;
   });
   const colDuration = performance.now() - colStart;
-  console.log(`⏱️ Collection Mode update time: ${colDuration.toFixed(2)} ms`);
+  console.log(`Collection Mode update time: ${colDuration.toFixed(2)} ms`);
 
   // Verify DB state for collection mode
   const colDb = await openDB(`syncraft-labs_${colKey}`, 2);
   const colEntitiesKeys = await colDb.getAllKeys("state_entities");
   const updatedEntity = await colDb.get("state_entities", "item_5000");
-  console.log(`📊 Collection Mode IDB state_entities count: ${colEntitiesKeys.length} per-entity records`);
-  console.log(`🎯 Updated entity score in IDB state_entities: ${updatedEntity.score}`);
+  console.log(`Collection Mode IDB state_entities count: ${colEntitiesKeys.length} per-entity records`);
+  console.log(`Updated entity score in IDB state_entities: ${updatedEntity.score}`);
   colDb.close();
   colStore.destroy();
 
   // ── Verification ──────────────────────────────────────────
-  console.log("\n✅ Benchmark Summary:");
+  console.log("\nBenchmark Summary:");
   console.log(`- Document mode: 1 blob containing all ${docStateKeys.length} items rewritten on every mutation.`);
   console.log(`- Collection mode: ${colEntitiesKeys.length} discrete per-entity records; updating 1 item mutates ONLY 1 record in IDB.`);
   console.log(`- Performance improvement: Collection mode updated in ${colDuration.toFixed(2)} ms vs Document mode in ${docDuration.toFixed(2)} ms.`);
 
   if (colEntitiesKeys.length === ITEM_COUNT && updatedEntity.score === 999999) {
-    console.log("🎉 SUCCESS: Granular/keyed collection storage benchmark completed successfully!");
+    console.log("SUCCESS: Granular/keyed collection storage benchmark completed successfully!");
   } else {
     console.error("❌ FAILED verification criteria.");
     process.exit(1);
