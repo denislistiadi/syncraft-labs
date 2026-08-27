@@ -28,6 +28,10 @@ export {
   validateStateShape,
   isUnsupportedType,
 } from "./guards.js";
+export {
+  SyncraftError,
+  toSyncraftError,
+} from "./errors.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
@@ -40,6 +44,11 @@ export type {
   OutboxOverflowStrategy,
   OutboxOverflowInfo,
 } from "./types.js";
+
+export type {
+  SyncraftErrorSource,
+  SyncraftErrorOptions,
+} from "./errors.js";
 
 export type { Patch } from "./produce.js";
 export type { CompactResult } from "./compact.js";
