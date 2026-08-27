@@ -27,5 +27,7 @@
 
 export { useSync, useSyncSuspense, destroyStore, _resetRegistry } from "./use-sync.js";
 export { SyncraftProvider, useStoreRegistry } from "./provider.js";
+export { SyncraftError, toSyncraftError } from "@syncraft-labs/core";
 export type { SyncraftProviderProps } from "./provider.js";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
+export type { SyncraftErrorSource, SyncraftErrorOptions } from "@syncraft-labs/core";

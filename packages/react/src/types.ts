@@ -25,7 +25,7 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * Initial state used when no persisted data exists in IndexedDB.
    * Falls through to `SyncStoreConfig.initialState`.
    */
-  readonly initialState?: T;
+  readonly initialState?: T | undefined;
 
   /**
    * Async function to fetch the latest state from a remote source.
@@ -35,7 +35,7 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * @example
    * fetcher: () => fetch('/api/todos').then(r => r.json())
    */
-  readonly fetcher?: () => Promise<T>;
+  readonly fetcher?: (() => Promise<T>) | undefined;
 
   /**
    * Async function to push pending mutations to a remote source.
@@ -48,7 +48,7 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    *   body: JSON.stringify(entries),
    * })
    */
-  readonly pusher?: (entries: readonly OutboxEntry<T>[]) => Promise<void>;
+  readonly pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
 
   /**
    * Interval (ms) between background sync attempts.
@@ -56,24 +56,24 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    *
    * @default 5000
    */
-  readonly syncInterval?: number;
+  readonly syncInterval?: number | undefined;
 
   /**
    * Maximum number of outbox entries allowed before `set()` triggers overflow strategy.
    * @default 1000
    */
-  readonly maxOutboxSize?: number;
+  readonly maxOutboxSize?: number | undefined;
 
   /**
    * Strategy for handling outbox overflow when `maxOutboxSize` is reached.
    * @default "reject"
    */
-  readonly overflowStrategy?: OutboxOverflowStrategy;
+  readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
 
   /**
    * Callback invoked when an outbox overflow event occurs.
    */
-  readonly onOverflow?: (info: OutboxOverflowInfo) => void | Promise<void>;
+  readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
 
   /**
    * Controls how state is persisted to IndexedDB.
@@ -81,12 +81,12 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * - `"document"` (default): entire state stored as a single record.
    * - `"collection"`: state is decomposed per-entity in IndexedDB.
    */
-  readonly storageMode?: "document" | "collection";
+  readonly storageMode?: "document" | "collection" | undefined;
 
   /**
    * Property name on each entity used as its unique identifier when `storageMode` is `"collection"`.
    */
-  readonly idField?: string;
+  readonly idField?: string | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -6,7 +6,7 @@
  */
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import { createSyncStore } from "@syncraft-labs/core";
+import { createSyncStore, SyncraftError } from "@syncraft-labs/core";
 import { useSync, _resetRegistry, SyncraftProvider } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -25,13 +25,6 @@ function uniqueKey(): string {
   keyCounter++;
   return `react-test-${keyCounter}-${Date.now()}`;
 }
-
-// ─────────────────────────────────────────────────────────────
-// Cleanup
-// ─────────────────────────────────────────────────────────────
-
-// (Note: `_resetRegistry` is now more complex to test globally since it's scoped to a Context. 
-// We will test isolation by using fresh Providers or unique keys.)
 
 // ─────────────────────────────────────────────────────────────
 // Tests
@@ -57,7 +50,7 @@ describe("useSync", () => {
       // Now use the hook — should read persisted data from IDB
       const { result } = renderHook(
         () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       // Initially hydrating
@@ -78,7 +71,7 @@ describe("useSync", () => {
 
       const { result } = renderHook(
         () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       await waitFor(() => {
@@ -101,7 +94,7 @@ describe("useSync", () => {
 
       const { result } = renderHook(
         () => useSync<TestState>(key, { fetcher }),
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       // Wait for hydration + fetch
@@ -131,7 +124,7 @@ describe("useSync", () => {
 
       const { result } = renderHook(
         () => useSync<TestState>(key, { fetcher }),
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       await waitFor(() => {
@@ -142,6 +135,32 @@ describe("useSync", () => {
       expect(fetcher).not.toHaveBeenCalled();
       expect(result.current.data?.count).toBe(10);
     });
+
+    it("should deduplicate fetcher calls when multiple components mount with same key", async () => {
+      const key = uniqueKey();
+
+      const fetcher = vi.fn().mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        return { count: 777, items: ["shared"] } satisfies TestState;
+      });
+
+      const { result } = renderHook(
+        () => {
+          const comp1 = useSync<TestState>(key, { fetcher });
+          const comp2 = useSync<TestState>(key, { fetcher });
+          return { comp1, comp2 };
+        },
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.comp1.data?.count).toBe(777);
+        expect(result.current.comp2.data?.count).toBe(777);
+      });
+
+      // Crucial assertion: exactly 1 fetcher call across both components!
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("Optimistic Updates", () => {
@@ -150,7 +169,7 @@ describe("useSync", () => {
 
       const { result } = renderHook(
         () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       // Wait for hydration
@@ -174,27 +193,127 @@ describe("useSync", () => {
       expect(result.current.data?.items).toEqual(["new-item"]);
     });
 
-    it("should expose error when update fails", async () => {
+    it("should expose error when update fails without throwing", async () => {
       const key = uniqueKey();
 
-      // Create store with very low outbox limit so we can trigger the limit error
-      // Note: we can't easily trigger this through the hook since it uses
-      // the default maxOutboxSize. Instead, test the error capture mechanism.
       const { result } = renderHook(
-        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
-        { wrapper: SyncraftProvider }
+        () =>
+          useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            maxOutboxSize: 1,
+            overflowStrategy: "reject",
+          }),
+        { wrapper: SyncraftProvider },
       );
 
       await waitFor(() => {
         expect(result.current.isHydrating).toBe(false);
       });
 
-      // error should be null initially
-      expect(result.current.error).toBeNull();
+      // Update once (fills outbox to limit 1)
+      act(() => {
+        result.current.update((draft) => {
+          draft.count = 1;
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.data?.count).toBe(1);
+      });
+
+      // Update second time (triggers maxOutboxSize overflow reject)
+      act(() => {
+        result.current.update((draft) => {
+          draft.count = 2;
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.error).not.toBeNull();
+      });
+
+      expect(result.current.error).toBeInstanceOf(SyncraftError);
+      expect((result.current.error as SyncraftError).source).toBe("store");
     });
   });
 
-  describe("Singleton Registry", () => {
+  describe("Error Contract & Refetch", () => {
+    it("refetch rethrows on failure and sets error state", async () => {
+      const key = uniqueKey();
+
+      const failingFetcher = vi
+        .fn()
+        .mockRejectedValue(new Error("Network error 500"));
+
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            fetcher: failingFetcher,
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      // refetch should throw
+      await expect(result.current.refetch()).rejects.toThrow(
+        "Network error 500",
+      );
+
+      // error state should also be populated
+      expect(result.current.error).not.toBeNull();
+      expect(result.current.error?.message).toContain("Network error 500");
+      expect((result.current.error as SyncraftError).source).toBe("fetch");
+    });
+
+    it("successful sync does not clear unrelated fetch error", async () => {
+      const key = uniqueKey();
+
+      const pusher = vi.fn().mockResolvedValue(undefined);
+      const failingFetcher = vi
+        .fn()
+        .mockRejectedValue(new Error("Fetch failed"));
+
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            fetcher: failingFetcher,
+            pusher,
+            syncInterval: 50,
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      // Trigger fetch error
+      await expect(result.current.refetch()).rejects.toThrow("Fetch failed");
+      expect(result.current.error?.message).toContain("Fetch failed");
+
+      // Mutate state to trigger sync loop
+      act(() => {
+        result.current.update((d) => {
+          d.count = 10;
+        });
+      });
+
+      // Wait for pusher to succeed
+      await waitFor(() => {
+        expect(pusher).toHaveBeenCalled();
+      });
+
+      // Error from fetch should NOT have been wiped out by successful push!
+      expect(result.current.error?.message).toContain("Fetch failed");
+    });
+  });
+
+  describe("Singleton Registry & Sync Loop Deduplication", () => {
     it("should share the same store instance across hooks with the same key", async () => {
       const key = uniqueKey();
 
@@ -205,7 +324,7 @@ describe("useSync", () => {
           const res2 = useSync<TestState>(key, { initialState: INITIAL_STATE });
           return { res1, res2 };
         },
-        { wrapper: SyncraftProvider }
+        { wrapper: SyncraftProvider },
       );
 
       // Wait for both to hydrate
@@ -229,6 +348,43 @@ describe("useSync", () => {
       });
       await waitFor(() => {
         expect(result.current.res2.data?.count).toBe(123);
+      });
+    });
+
+    it("should run exactly one sync loop across multiple components with same key", async () => {
+      const key = uniqueKey();
+      const pusher = vi.fn().mockResolvedValue(undefined);
+
+      const { result } = renderHook(
+        () => {
+          const res1 = useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            pusher,
+            syncInterval: 50,
+          });
+          const res2 = useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            pusher,
+            syncInterval: 50,
+          });
+          return { res1, res2 };
+        },
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.res1.isHydrating).toBe(false);
+        expect(result.current.res2.isHydrating).toBe(false);
+      });
+
+      act(() => {
+        result.current.res1.update((d) => {
+          d.count = 55;
+        });
+      });
+
+      await waitFor(() => {
+        expect(pusher).toHaveBeenCalledTimes(1);
       });
     });
   });
