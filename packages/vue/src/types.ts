@@ -23,41 +23,41 @@ import type {
  */
 export interface UseSyncOptions<T extends Record<string, unknown>> {
   /** Initial state when IndexedDB is empty. */
-  readonly initialState?: T;
+  readonly initialState?: T | undefined;
 
   /**
    * Async function to fetch latest state from a remote source.
    * Called once after hydration if IndexedDB is empty,
    * and by `refetch()` for pull-to-refresh.
    */
-  readonly fetcher?: () => Promise<T>;
+  readonly fetcher?: (() => Promise<T>) | undefined;
 
   /**
    * Async function to push pending mutations to a remote source.
    * Called automatically by the background sync loop.
    */
-  readonly pusher?: (entries: readonly OutboxEntry<T>[]) => Promise<void>;
+  readonly pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
 
   /**
    * Interval (ms) between background sync attempts.
    * @default 5000
    */
-  readonly syncInterval?: number;
+  readonly syncInterval?: number | undefined;
 
   /** Maximum number of outbox entries before overflow strategy triggers. */
-  readonly maxOutboxSize?: number;
+  readonly maxOutboxSize?: number | undefined;
 
   /** Strategy for handling outbox overflow when maxOutboxSize is reached. */
-  readonly overflowStrategy?: OutboxOverflowStrategy;
+  readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
 
   /** Callback invoked when an outbox overflow event occurs. */
-  readonly onOverflow?: (info: OutboxOverflowInfo) => void | Promise<void>;
+  readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
 
   /** Controls how state is persisted to IndexedDB ("document" | "collection"). */
-  readonly storageMode?: "document" | "collection";
+  readonly storageMode?: "document" | "collection" | undefined;
 
   /** Property name on each entity used as unique ID when storageMode is "collection". */
-  readonly idField?: string;
+  readonly idField?: string | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────

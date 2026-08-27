@@ -17,4 +17,6 @@
 
 export { useSync, destroyStore, _resetRegistry } from "./use-sync.js";
 export { createSyncraft } from "./plugin.js";
+export { SyncraftError, toSyncraftError } from "@syncraft-labs/core";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
+export type { SyncraftErrorSource, SyncraftErrorOptions } from "@syncraft-labs/core";

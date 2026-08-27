@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Core**: Added `SyncraftError` class extending `Error` with structured metadata (`source: "sync" | "fetch" | "hydration" | "store"`, `retryable: boolean`, and `cause`), plus `toSyncraftError()` normalization helper. Exported from `@syncraft-labs/core`, `@syncraft-labs/react`, and `@syncraft-labs/vue`.
+- **React & Vue**: Refactored `useSync` lifecycle with singleton `StoreController` per store key. Deduplicates hydration, initial fetch, and background sync loops across multiple components sharing a storage key (#38).
+- **React & Vue**: Added in-flight sync loop mutex and single-snapshot compaction (`compactOutbox(rawOutbox)`) to prevent outbox re-read windows and overlapping reconnect push race conditions (#39).
+- **React & Vue**: Added reactive options support and fixed cross-clearing bug where background sync success previously cleared unrelated fetch or hydration errors (#40).
+- **React & Vue**: Clarified and documented error contracts: `update()` operates as fire-and-forget (swallowing errors into `error` state), while `refetch()` throws on failure for imperative error handling while setting `error` state (#40).
+- **React**: Fixed `useSyncSuspense` infinite throw loop upon hydration rejection by caching errors, throwing directly to Error Boundaries, and guarding against `undefined` data (#41). Added full `useSyncSuspense` test suite.
 - **Core**: Added `validateStateShape()` utility for explicit detection of unsupported types (Date, Map, Set, custom class instances, RegExp, etc.) in state trees. Date objects emit a development-mode warning guiding developers toward ISO strings or timestamps; all other unsupported types throw an explicit Error with the exact property path and constructor name. Integrated into `createSyncStore`, `produceWithPatches`, `hydrate()`, and `BroadcastChannel` synchronization in development mode (zero production overhead).
 - **Core**: Added and exported `isUnsupportedType()` utility for querying whether a value is unsupported for state persistence and proxy drafting.
 - **Core**: Exported `validateStateShape` and `isUnsupportedType` from `@syncraft-labs/core`.

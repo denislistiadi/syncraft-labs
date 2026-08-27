@@ -4,11 +4,11 @@
  * Uses @vue/test-utils with a wrapper component pattern
  * to test composables inside a real Vue component lifecycle.
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { mount } from "@vue/test-utils";
 import { defineComponent, type ShallowRef, type Ref } from "vue";
-import { createSyncStore } from "@syncraft-labs/core";
-import { createSyncraft, useSync, _resetRegistry } from "../index.js";
+import { createSyncStore, SyncraftError } from "@syncraft-labs/core";
+import { createSyncraft, useSync } from "../index.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test State Shape
@@ -76,28 +76,21 @@ function mountComposable<T extends Record<string, unknown>>(
     template: "<div></div>",
   });
 
+  const plugin = createSyncraft();
   const wrapper = mount(TestComponent, {
     global: {
-      plugins: [createSyncraft()],
+      plugins: [plugin],
     },
   });
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    get result() { return result!; },
+    get result() {
+      return result;
+    },
     wrapper,
+    plugin,
   };
 }
-
-// ─────────────────────────────────────────────────────────────
-// Cleanup
-// ─────────────────────────────────────────────────────────────
-
-// Note: _resetRegistry is less relevant now as each mount has its own plugin instance.
-// But we keep it in case tests run shared registries (not currently done).
-afterEach(() => {
-  // _resetRegistry();
-});
 
 // ─────────────────────────────────────────────────────────────
 // Tests
@@ -170,6 +163,39 @@ describe("useSync (Vue)", () => {
       expect(fetcher).toHaveBeenCalledOnce();
       expect(result.data.value?.items).toEqual(["from-server"]);
     });
+
+    it("should deduplicate fetcher calls when multiple components mount with same key", async () => {
+      const key = uniqueKey();
+
+      const fetcher = vi.fn().mockImplementation(async () => {
+        await new Promise((r) => setTimeout(r, 20));
+        return { count: 888, items: ["vue-shared"] } satisfies TestState;
+      });
+
+      let res1!: ComposableResult<TestState>;
+      let res2!: ComposableResult<TestState>;
+
+      const DualComponent = defineComponent({
+        setup() {
+          res1 = useSync<TestState>(key, { fetcher }) as ComposableResult<TestState>;
+          res2 = useSync<TestState>(key, { fetcher }) as ComposableResult<TestState>;
+          return () => null;
+        },
+      });
+
+      mount(DualComponent, {
+        global: {
+          plugins: [createSyncraft()],
+        },
+      });
+
+      await waitFor(() => {
+        expect(res1.data.value?.count).toBe(888);
+        expect(res2.data.value?.count).toBe(888);
+      });
+
+      expect(fetcher).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("Optimistic Updates", () => {
@@ -197,6 +223,90 @@ describe("useSync (Vue)", () => {
       });
 
       expect(result.data.value?.items).toEqual(["new-item"]);
+    });
+
+    it("should expose error in error ref when update fails without throwing", async () => {
+      const key = uniqueKey();
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+        maxOutboxSize: 1,
+        overflowStrategy: "reject",
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      result.update((d) => {
+        d.count = 1;
+      });
+
+      await waitFor(() => {
+        expect(result.data.value?.count).toBe(1);
+      });
+
+      result.update((d) => {
+        d.count = 2;
+      });
+
+      await waitFor(() => {
+        expect(result.error.value).not.toBeNull();
+      });
+
+      expect(result.error.value).toBeInstanceOf(SyncraftError);
+      expect((result.error.value as SyncraftError).source).toBe("store");
+    });
+  });
+
+  describe("Error Contract & Refetch", () => {
+    it("refetch rethrows on failure and sets error ref", async () => {
+      const key = uniqueKey();
+      const failingFetcher = vi.fn().mockRejectedValue(new Error("Vue Network Error"));
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+        fetcher: failingFetcher,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      await expect(result.refetch()).rejects.toThrow("Vue Network Error");
+      expect(result.error.value?.message).toContain("Vue Network Error");
+      expect((result.error.value as SyncraftError).source).toBe("fetch");
+    });
+
+    it("successful sync does not clear unrelated fetch error", async () => {
+      const key = uniqueKey();
+      const pusher = vi.fn().mockResolvedValue(undefined);
+      const failingFetcher = vi.fn().mockRejectedValue(new Error("Vue Fetch Error"));
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+        fetcher: failingFetcher,
+        pusher,
+        syncInterval: 50,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      await expect(result.refetch()).rejects.toThrow("Vue Fetch Error");
+      expect(result.error.value?.message).toContain("Vue Fetch Error");
+
+      result.update((d) => {
+        d.count = 100;
+      });
+
+      await waitFor(() => {
+        expect(pusher).toHaveBeenCalled();
+      });
+
+      // Fetch error remains intact
+      expect(result.error.value?.message).toContain("Vue Fetch Error");
     });
   });
 });
