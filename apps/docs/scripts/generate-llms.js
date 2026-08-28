@@ -98,16 +98,40 @@ const pages = [
     title: 'Production Checklist',
     desc: 'Security, performance, migration, monitoring, and production readiness.',
   },
+  {
+    category: 'Security & Advisories',
+    file: 'security/policy.md',
+    slug: 'security/policy',
+    title: 'Security Policy',
+    desc: 'Supported version matrix, vulnerability reporting instructions, response SLAs, and safe harbor policy.',
+  },
+  {
+    category: 'Security & Advisories',
+    file: 'security/advisory-2026-001.md',
+    slug: 'security/advisory-2026-001',
+    title: 'Security Advisory: SYNCRAFT-SEC-2026-001',
+    desc: 'Official post-mortem and remediation advisory regarding the PolinRider supply-chain attack on v0.4.1.',
+  },
 ];
 
-function stripFrontmatter(content) {
-  return content.replace(/^---[\s\S]*?---\n*/, '').trim();
+function cleanMarkdown(content) {
+  let text = content.replace(/^---[\s\S]*?---\n*/, '').trim();
+  // Transform Starlight callouts into standard markdown blockquotes
+  text = text.replace(/:::(danger|warning|caution|note|tip)(?:\[(.*?)\])?\n([\s\S]*?):::/g, (_, type, title, body) => {
+    const label = title ? `**[${type.toUpperCase()}: ${title}]**` : `**[${type.toUpperCase()}]**`;
+    const formattedBody = body.trim().split('\n').map(line => `> ${line}`).join('\n');
+    return `> ${label}\n>\n${formattedBody}`;
+  });
+  return text;
 }
 
 // 1. Generate llms.txt
 let llmsTxt = `# Syncraft Labs Documentation
 
 > Local-First State Synchronization Engine for React & Vue. Write instantly, persist automatically, sync eventually.
+> Official Website: https://syncraft-labs.web.id
+> GitHub Repository: https://github.com/denislistiadi/syncraft-labs
+> Sitemap: https://syncraft-labs.web.id/sitemap.xml
 
 `;
 
@@ -122,7 +146,10 @@ for (const cat of categories) {
   llmsTxt += `\n`;
 }
 
-llmsTxt += `## Full Documentation\n- [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.\n`;
+llmsTxt += `## Full Documentation & Sitemaps
+- [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.
+- [sitemap.xml](https://syncraft-labs.web.id/sitemap.xml): Full XML sitemap for search engines and crawlers.
+`;
 
 fs.writeFileSync(path.join(PUBLIC_DIR, 'llms.txt'), llmsTxt, 'utf-8');
 console.log('✓ Generated public/llms.txt');
@@ -133,6 +160,8 @@ let llmsFullTxt = `# Syncraft Labs - Full Documentation
 > Complete documentation for Syncraft Labs (Local-First State Synchronization Engine for React & Vue).
 > Generated automatically for AI Agents and LLMs.
 > Website: https://syncraft-labs.web.id
+> GitHub: https://github.com/denislistiadi/syncraft-labs
+> Sitemap: https://syncraft-labs.web.id/sitemap.xml
 
 ---
 
@@ -150,7 +179,7 @@ for (const p of pages) {
   const filePath = path.join(DOCS_DIR, p.file);
   if (fs.existsSync(filePath)) {
     const rawContent = fs.readFileSync(filePath, 'utf-8');
-    const cleanContent = stripFrontmatter(rawContent);
+    const cleanContent = cleanMarkdown(rawContent);
 
     llmsFullTxt += `<a id="${p.slug.replace(/\//g, '-')}"></a>\n`;
     llmsFullTxt += `# ${p.title}\n\n`;
@@ -162,3 +191,38 @@ for (const p of pages) {
 
 fs.writeFileSync(path.join(PUBLIC_DIR, 'llms-full.txt'), llmsFullTxt, 'utf-8');
 console.log('✓ Generated public/llms-full.txt');
+
+// 3. Generate sitemap.xml
+const now = new Date().toISOString().split('T')[0];
+let sitemapXml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://syncraft-labs.web.id/</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+`;
+
+for (const p of pages) {
+  const priority = p.category === 'Overview & Setup' ? '0.9' : p.category === 'Security & Advisories' ? '0.8' : '0.7';
+  sitemapXml += `  <url>
+    <loc>https://syncraft-labs.web.id/${p.slug}/</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>${priority}</priority>
+  </url>
+`;
+}
+
+sitemapXml += `  <url>
+    <loc>https://syncraft-labs.web.id/playground/</loc>
+    <lastmod>${now}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+</urlset>
+`;
+
+fs.writeFileSync(path.join(PUBLIC_DIR, 'sitemap.xml'), sitemapXml.trim(), 'utf-8');
+console.log('✓ Generated public/sitemap.xml');

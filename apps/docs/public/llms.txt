@@ -1,6 +1,9 @@
 # Syncraft Labs Documentation
 
 > Local-First State Synchronization Engine for React & Vue. Write instantly, persist automatically, sync eventually.
+> Official Website: https://syncraft-labs.web.id
+> GitHub Repository: https://github.com/denislistiadi/syncraft-labs
+> Sitemap: https://syncraft-labs.web.id/sitemap.xml
 
 ## Overview & Setup
 - [Getting Started](https://syncraft-labs.web.id/getting-started/): Installation and quick start guide for Syncraft Labs in React, Vue, and vanilla JS.
@@ -20,5 +23,10 @@
 - [Testing](https://syncraft-labs.web.id/guides/testing/): Unit testing, mocking storage adapters, and testing offline scenarios.
 - [Production Checklist](https://syncraft-labs.web.id/guides/production-checklist/): Security, performance, migration, monitoring, and production readiness.
 
-## Full Documentation
+## Security & Advisories
+- [Security Policy](https://syncraft-labs.web.id/security/policy/): Supported version matrix, vulnerability reporting instructions, response SLAs, and safe harbor policy.
+- [Security Advisory: SYNCRAFT-SEC-2026-001](https://syncraft-labs.web.id/security/advisory-2026-001/): Official post-mortem and remediation advisory regarding the PolinRider supply-chain attack on v0.4.1.
+
+## Full Documentation & Sitemaps
 - [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.
+- [sitemap.xml](https://syncraft-labs.web.id/sitemap.xml): Full XML sitemap for search engines and crawlers.
