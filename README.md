@@ -356,6 +356,11 @@ Syncraft Labs requires **IndexedDB** support, which is available in all modern b
 | iOS Safari | 10+ |
 | Chrome Android | 25+ |
 
+## Security
+
+For vulnerability reporting, responsible disclosure, and past incident post-mortems, please see [SECURITY.md](./SECURITY.md) or read the official advisory on our documentation portal at [Security Advisory SYNCRAFT-SEC-2026-001](https://syncraft-labs.web.id/security/advisory-2026-001/).
+
+
 ## Contributing
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and PR guidelines.
@@ -363,3 +368,4 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for development setup, code style, and 
 ## License
 
 [MIT](./LICENSE) © Denis Listiadi
+
