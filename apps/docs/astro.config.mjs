@@ -57,8 +57,16 @@ export default defineConfig({
             { label: 'Production Checklist', slug: 'guides/production-checklist' },
           ],
         },
+        {
+          label: 'Security & Advisories',
+          items: [
+            { label: 'Security Policy', slug: 'security/policy' },
+            { label: 'Advisory SYNCRAFT-SEC-2026-001', slug: 'security/advisory-2026-001' },
+          ],
+        },
       ],
     }),
+
     react(),
   ],
 });
