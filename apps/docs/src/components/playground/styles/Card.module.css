@@ -1,0 +1,117 @@
+.card {
+  background: var(--sl-color-gray-6, #18181b);
+  border: 1px solid var(--sl-color-gray-5, #27272a);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.inputSection {
+  padding: 1rem;
+  border-bottom: 1px solid var(--sl-color-gray-5, #27272a);
+  background: rgba(24, 24, 27, 0.5);
+}
+
+.inputRow {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.textInput {
+  flex: 1;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  background: #09090b;
+  border: 1px solid #3f3f46;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  color: var(--sl-color-white, #fff);
+  transition: all 0.15s ease;
+  outline: none;
+  font-family: inherit;
+}
+
+.textInput::placeholder {
+  color: #a1a1aa;
+}
+
+.textInput:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.addButton {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fff;
+  background: #2563eb;
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.addButton:hover {
+  background: #1d4ed8;
+}
+
+.addButton:disabled {
+  background: #1e3a5f;
+  color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.errorBanner {
+  padding: 0.75rem 1rem;
+  background: rgba(127, 29, 29, 0.15);
+  border-bottom: 1px solid rgba(127, 29, 29, 0.3);
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.errorIcon {
+  width: 1rem;
+  height: 1rem;
+  color: #f87171;
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+
+.errorTitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #fca5a5;
+  margin: 0;
+}
+
+.errorMessage {
+  font-size: 0.875rem;
+  color: rgba(248, 113, 113, 0.8);
+  margin-top: 0.125rem;
+}
+
+.cardFooter {
+  padding: 0.75rem 1rem;
+  background: rgba(24, 24, 27, 0.5);
+  border-top: 1px solid #27272a;
+  font-size: 0.75rem;
+  color: #888;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cardFooterPowered {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .cardFooterPowered {
+    display: inline;
+  }
+}

@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
+import { sidebarGroups } from './scripts/lib/pages.js';
 
 // https://astro.build/config
 export default defineConfig({
@@ -29,42 +30,7 @@ export default defineConfig({
         },
       ],
       customCss: ['./src/styles/custom.css'],
-      sidebar: [
-        {
-          label: 'Start Here',
-          items: [
-            { label: 'Getting Started', slug: 'getting-started' },
-            { label: 'Core Concepts', slug: 'core-concepts' },
-          ],
-        },
-        {
-          label: 'Packages',
-          items: [
-            { label: 'Core', slug: 'packages/core' },
-            { label: 'React', slug: 'packages/react' },
-            { label: 'Vue', slug: 'packages/vue' },
-          ],
-        },
-        {
-          label: 'Guides',
-          items: [
-            { label: 'Cross-Tab Sync', slug: 'guides/cross-tab-sync' },
-            { label: 'Error Handling', slug: 'guides/error-handling' },
-            { label: 'Testing', slug: 'guides/testing' },
-            { label: 'Sync Strategies', slug: 'guides/sync-strategies' },
-            { label: 'Multi-Store Architecture', slug: 'guides/multi-store-architecture' },
-            { label: 'SSR (Next.js/Nuxt)', slug: 'guides/ssr-nextjs-nuxt' },
-            { label: 'Production Checklist', slug: 'guides/production-checklist' },
-          ],
-        },
-        {
-          label: 'Security & Advisories',
-          items: [
-            { label: 'Security Policy', slug: 'security/policy' },
-            { label: 'Advisory SYNCRAFT-SEC-2026-001', slug: 'security/advisory-2026-001' },
-          ],
-        },
-      ],
+      sidebar: sidebarGroups,
     }),
 
     react(),
