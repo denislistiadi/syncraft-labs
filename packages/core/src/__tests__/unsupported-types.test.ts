@@ -34,14 +34,17 @@ describe("isUnsupportedType utility", () => {
     expect(isUnsupportedType(new Date())).toBe(false);
   });
 
+  it("should return false for Map and Set instances", () => {
+    expect(isUnsupportedType(new Map())).toBe(false);
+    expect(isUnsupportedType(new Set())).toBe(false);
+  });
+
   it("should return true for functions", () => {
     expect(isUnsupportedType(() => {})).toBe(true);
     expect(isUnsupportedType(function named() {})).toBe(true);
   });
 
-  it("should return true for built-in unsupported types", () => {
-    expect(isUnsupportedType(new Map())).toBe(true);
-    expect(isUnsupportedType(new Set())).toBe(true);
+  it("should return true for other built-in unsupported types", () => {
     expect(isUnsupportedType(new WeakMap())).toBe(true);
     expect(isUnsupportedType(new WeakSet())).toBe(true);
     expect(isUnsupportedType(/abc/g)).toBe(true);
@@ -125,26 +128,24 @@ describe("validateStateShape utility", () => {
     );
   });
 
-  it("should throw when encountering a Map with exact path and type name", () => {
+  it("should pass for Map instances", () => {
     const state = {
       cache: {
         entries: new Map(),
       },
     };
 
-    expect(() => validateStateShape(state)).toThrowError(
-      /Unsupported type "Map" detected at path "cache\.entries"/,
-    );
+    expect(() => validateStateShape(state)).not.toThrow();
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
-  it("should throw when encountering a Set inside an array", () => {
+  it("should pass for Set instances inside an array", () => {
     const state = {
       items: [1, new Set([1, 2]), 3],
     };
 
-    expect(() => validateStateShape(state)).toThrowError(
-      /Unsupported type "Set" detected at path "items\.1"/,
-    );
+    expect(() => validateStateShape(state)).not.toThrow();
+    expect(warnSpy).not.toHaveBeenCalled();
   });
 
   it("should throw when encountering a custom class instance", () => {
@@ -199,14 +200,14 @@ describe("produceWithPatches unsupported type detection", () => {
     warnSpy.mockRestore();
   });
 
-  it("should throw when mutating draft to assign a Map", () => {
+  it("should allow Map assignment in draft", () => {
     const base = { cache: {} as Record<string, unknown> };
 
     expect(() => {
       produceWithPatches(base, (draft) => {
         draft.cache.items = new Map();
       });
-    }).toThrowError(/Unsupported type "Map" detected at path "cache\.items"/);
+    }).not.toThrow();
   });
 
   it("should throw when mutating draft to assign a custom class instance", () => {
@@ -240,16 +241,6 @@ describe("produceWithPatches unsupported type detection", () => {
 
     expect(next.updatedAt).toBeInstanceOf(Date);
     expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it("should throw when updater returns a replacement state containing unsupported types", () => {
-    const base = { count: 0 };
-
-    expect(() => {
-      produceWithPatches(base, () => {
-        return { count: 1, invalid: new Set() } as unknown as typeof base;
-      });
-    }).toThrowError(/Unsupported type "Set" detected at path "invalid"/);
   });
 });
 
@@ -297,9 +288,9 @@ describe("createSyncStore unsupported type guards", () => {
 
     await expect(
       store.set((draft) => {
-        draft.data.map = new Map();
+        draft.data.pattern = /test/;
       }),
-    ).rejects.toThrowError(/Unsupported type "Map" detected at path "data\.map"/);
+    ).rejects.toThrowError(/Unsupported type "RegExp" detected at path "data\.pattern"/);
 
     store.destroy();
   });
@@ -321,16 +312,6 @@ describe("production mode gating", () => {
     }
   });
 
-  it("should NOT throw when produceWithPatches assigns a Map in production", () => {
-    const base = { cache: {} as Record<string, unknown> };
-
-    expect(() => {
-      produceWithPatches(base, (draft) => {
-        draft.cache.items = new Map();
-      });
-    }).not.toThrow();
-  });
-
   it("should NOT throw when produceWithPatches assigns a class instance in production", () => {
     const base = { user: null as unknown };
 
@@ -350,22 +331,5 @@ describe("production mode gating", () => {
         },
       });
     }).not.toThrow();
-  });
-
-  it("should NOT reject when store.set() assigns a Map in production", async () => {
-    const store = createSyncStore<{ data: Record<string, unknown> }>({
-      storageKey: "test-prod-gating-set",
-      initialState: { data: {} },
-    });
-
-    await store.hydrate();
-
-    await expect(
-      store.set((draft) => {
-        draft.data.map = new Map();
-      }),
-    ).resolves.toBeUndefined();
-
-    store.destroy();
   });
 });
