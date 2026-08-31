@@ -44,6 +44,7 @@ User Action → Proxy Draft → Memory (instant) → IndexedDB (durable) → Out
 | **SSR-Ready (Next.js/Nuxt)** | Provider pattern guarantees isolated state across requests (no data leaks) |
 | **Dev-mode immutability** | Automatic deep freezing in development to prevent accidental direct state mutations |
 | **Proxy drafts** | Mutate state like plain JS — zero-dependency proxy engine handles immutability |
+| **Map & Set support** | Dedicated proxy handlers for `Map` and `Set` with granular patch generation |
 | **Tiny footprint** | Tree-shakeable, zero-dependency engine for draft mutations |
 | **Type-safe** | Full TypeScript with strict mode, generics, and JSDoc (`T extends Record<string, unknown> \| any[]`) |
 | **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |

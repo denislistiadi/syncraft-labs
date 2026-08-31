@@ -1131,5 +1131,169 @@ describe("createSyncStore", () => {
       store.destroy();
     });
   });
+
+  // ── Map & Set support ──────────────────────────────────────
+
+  describe("Map & Set support", () => {
+    type MapSetState = {
+      counters: Map<string, number>;
+      tags: Set<string>;
+    };
+
+    const MAP_SET_INITIAL: MapSetState = {
+      counters: new Map([["a", 1]]),
+      tags: new Set(["hello"]),
+    };
+
+    it("should initialize store with Map and Set in initialState", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+
+      const state = store.getSnapshot();
+      expect(state?.counters.get("a")).toBe(1);
+      expect(state?.tags.has("hello")).toBe(true);
+
+      store.destroy();
+    });
+
+    it("should update Map via store.set()", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.counters.set("b", 2);
+      });
+
+      const state = store.getSnapshot();
+      expect(state?.counters.get("b")).toBe(2);
+      expect(state?.counters.get("a")).toBe(1);
+
+      store.destroy();
+    });
+
+    it("should update Set via store.set()", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.tags.add("world");
+      });
+
+      const state = store.getSnapshot();
+      expect(state?.tags.has("world")).toBe(true);
+
+      store.destroy();
+    });
+
+    it("should persist Map and Set to IndexedDB", async () => {
+      const key = uniqueKey();
+      const store1 = createSyncStore<MapSetState>({
+        storageKey: key,
+        initialState: MAP_SET_INITIAL,
+      });
+      await store1.hydrate();
+
+      await store1.set((draft) => {
+        draft.counters.set("x", 99);
+        draft.tags.add("persisted");
+      });
+      store1.destroy();
+
+      const store2 = createSyncStore<MapSetState>({ storageKey: key });
+      await store2.hydrate();
+
+      const state = store2.getSnapshot();
+      expect(state?.counters.get("x")).toBe(99);
+      expect(state?.tags.has("persisted")).toBe(true);
+
+      store2.destroy();
+    });
+
+    it("should create outbox entries for Map mutations", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.counters.set("new", 42);
+      });
+
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(1);
+      expect(outbox[0]?.patches.length).toBeGreaterThan(0);
+
+      store.destroy();
+    });
+
+    it("should create outbox entries for Set mutations", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.tags.add("new-tag");
+      });
+
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(1);
+      expect(outbox[0]?.patches.length).toBeGreaterThan(0);
+
+      store.destroy();
+    });
+
+    it("should notify listeners on Map mutations", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+      const listener = vi.fn();
+      store.subscribe(listener);
+
+      await store.set((draft) => {
+        draft.counters.set("notified", 1);
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          counters: expect.any(Map),
+        }),
+      );
+
+      store.destroy();
+    });
+
+    it("should notify listeners on Set mutations", async () => {
+      const store = createSyncStore<MapSetState>({
+        storageKey: uniqueKey(),
+        initialState: MAP_SET_INITIAL,
+      });
+      await store.hydrate();
+      const listener = vi.fn();
+      store.subscribe(listener);
+
+      await store.set((draft) => {
+        draft.tags.add("notified");
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+
+      store.destroy();
+    });
+  });
 });
 

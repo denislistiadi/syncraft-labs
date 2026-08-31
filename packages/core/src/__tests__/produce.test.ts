@@ -197,3 +197,383 @@ describe("applyPatches", () => {
   });
 });
 
+describe("Map support", () => {
+  it("should track map.set() as add for new key", () => {
+    const base = { data: new Map<string, number>() };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.set("a", 1);
+    });
+    expect(next.data.get("a")).toBe(1);
+    expect(patches).toEqual([{ op: "add", path: ["data", "$entries", "a"], value: 1 }]);
+    expect(inverse).toEqual([{ op: "remove", path: ["data", "$entries", "a"] }]);
+  });
+
+  it("should track map.set() as replace for existing key", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.set("a", 2);
+    });
+    expect(next.data.get("a")).toBe(2);
+    expect(patches).toEqual([{ op: "replace", path: ["data", "$entries", "a"], value: 2 }]);
+    expect(inverse).toEqual([{ op: "replace", path: ["data", "$entries", "a"], value: 1 }]);
+  });
+
+  it("should track map.delete()", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.delete("a");
+    });
+    expect(next.data.has("a")).toBe(false);
+    expect(patches).toEqual([{ op: "remove", path: ["data", "$entries", "a"] }]);
+    expect(inverse).toEqual([{ op: "add", path: ["data", "$entries", "a"], value: 1 }]);
+  });
+
+  it("should track map.clear()", () => {
+    const base = { data: new Map([["a", 1], ["b", 2]]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.clear();
+    });
+    expect(next.data.size).toBe(0);
+    expect(patches).toHaveLength(2);
+    expect(patches[0]).toEqual({ op: "remove", path: ["data", "$entries", "a"] });
+    expect(patches[1]).toEqual({ op: "remove", path: ["data", "$entries", "b"] });
+    expect(inverse).toHaveLength(2);
+    expect(inverse[0]).toEqual({ op: "add", path: ["data", "$entries", "a"], value: 1 });
+    expect(inverse[1]).toEqual({ op: "add", path: ["data", "$entries", "b"], value: 2 });
+  });
+
+  it("should preserve immutability on map.set()", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next] = produceWithPatches(base, (d) => {
+      d.data.set("a", 2);
+    });
+    expect(base.data.get("a")).toBe(1);
+    expect(next.data.get("a")).toBe(2);
+    expect(base.data).not.toBe(next.data);
+  });
+
+  it("should handle map.get() in draft", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next] = produceWithPatches(base, (d) => {
+      const val = d.data.get("a");
+      d.data.set("a", val! + 1);
+    });
+    expect(next.data.get("a")).toBe(2);
+  });
+
+  it("should handle map.has() in draft", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [, patches] = produceWithPatches(base, (d) => {
+      if (!d.data.has("b")) {
+        d.data.set("b", 2);
+      }
+    });
+    expect(patches).toEqual([{ op: "add", path: ["data", "$entries", "b"], value: 2 }]);
+  });
+
+  it("should handle map.size in draft", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [, patches] = produceWithPatches(base, (d) => {
+      if (d.data.size === 1) {
+        d.data.set("b", 2);
+      }
+    });
+    expect(patches).toEqual([{ op: "add", path: ["data", "$entries", "b"], value: 2 }]);
+  });
+
+  it("should roundtrip Map patches: applyPatches === nextState", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [, patches] = produceWithPatches(base, (d) => {
+      d.data.set("a", 2);
+      d.data.set("b", 3);
+    });
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed.data.get("a")).toBe(2);
+    expect(reconstructed.data.get("b")).toBe(3);
+  });
+
+  it("should roundtrip inversePatches: applyPatches(nextState, inversePatches) === base", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next, , inversePatches] = produceWithPatches(base, (d) => {
+      d.data.set("a", 2);
+      d.data.set("b", 3);
+    });
+    const reconstructed = applyPatches(next, inversePatches);
+    expect(reconstructed.data.has("a")).toBe(true);
+    expect(reconstructed.data.get("a")).toBe(1);
+    expect(reconstructed.data.has("b")).toBe(false);
+  });
+
+  it("should handle no-op on map without changes", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next, patches, inverse] = produceWithPatches(base, (_d) => {
+      // no op
+    });
+    expect(next).toBe(base);
+    expect(patches).toHaveLength(0);
+    expect(inverse).toHaveLength(0);
+  });
+
+  it("should handle multiple map operations in one produce", () => {
+    const base = { data: new Map<string, number>() };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.set("x", 10);
+      d.data.set("y", 20);
+      d.data.delete("x");
+      d.data.set("z", 30);
+    });
+    expect(next.data.has("x")).toBe(false);
+    expect(next.data.get("y")).toBe(20);
+    expect(next.data.get("z")).toBe(30);
+    expect(patches).toHaveLength(4);
+    expect(inverse).toHaveLength(4);
+  });
+});
+
+describe("Set support", () => {
+  it("should track set.add() as add", () => {
+    const base = { data: new Set<string>() };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.add("a");
+    });
+    expect(next.data.has("a")).toBe(true);
+    expect(patches).toEqual([{ op: "add", path: ["data", "$values", "a"], value: "a" }]);
+    expect(inverse).toEqual([{ op: "remove", path: ["data", "$values", "a"] }]);
+  });
+
+  it("should not emit patch when adding duplicate to set", () => {
+    const base = { data: new Set(["a"]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.add("a");
+    });
+    expect(next.data.has("a")).toBe(true);
+    expect(patches).toHaveLength(0);
+    expect(inverse).toHaveLength(0);
+  });
+
+  it("should track set.delete()", () => {
+    const base = { data: new Set(["a"]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.delete("a");
+    });
+    expect(next.data.has("a")).toBe(false);
+    expect(patches).toEqual([{ op: "remove", path: ["data", "$values", "a"] }]);
+    expect(inverse).toEqual([{ op: "add", path: ["data", "$values", "a"], value: "a" }]);
+  });
+
+  it("should track set.clear()", () => {
+    const base = { data: new Set(["a", "b"]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.clear();
+    });
+    expect(next.data.size).toBe(0);
+    expect(patches).toHaveLength(2);
+    expect(patches[0]).toEqual({ op: "remove", path: ["data", "$values", "a"] });
+    expect(patches[1]).toEqual({ op: "remove", path: ["data", "$values", "b"] });
+    expect(inverse).toHaveLength(2);
+    expect(inverse[0]).toEqual({ op: "add", path: ["data", "$values", "a"], value: "a" });
+    expect(inverse[1]).toEqual({ op: "add", path: ["data", "$values", "b"], value: "b" });
+  });
+
+  it("should preserve immutability on set.add()", () => {
+    const base = { data: new Set(["a"]) };
+    const [next] = produceWithPatches(base, (d) => {
+      d.data.add("b");
+    });
+    expect(base.data.has("b")).toBe(false);
+    expect(next.data.has("b")).toBe(true);
+    expect(base.data).not.toBe(next.data);
+  });
+
+  it("should handle set.has() in draft", () => {
+    const base = { data: new Set(["a"]) };
+    const [, patches] = produceWithPatches(base, (d) => {
+      if (!d.data.has("b")) {
+        d.data.add("b");
+      }
+    });
+    expect(patches).toEqual([{ op: "add", path: ["data", "$values", "b"], value: "b" }]);
+  });
+
+  it("should handle set.size in draft", () => {
+    const base = { data: new Set(["a"]) };
+    const [, patches] = produceWithPatches(base, (d) => {
+      if (d.data.size === 1) {
+        d.data.add("b");
+      }
+    });
+    expect(patches).toEqual([{ op: "add", path: ["data", "$values", "b"], value: "b" }]);
+  });
+
+  it("should roundtrip Set patches: applyPatches === nextState", () => {
+    const base = { data: new Set<string>() };
+    const [, patches] = produceWithPatches(base, (d) => {
+      d.data.add("a");
+      d.data.add("b");
+    });
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed.data.has("a")).toBe(true);
+    expect(reconstructed.data.has("b")).toBe(true);
+  });
+
+  it("should roundtrip inversePatches: applyPatches(nextState, inversePatches) === base", () => {
+    const base = { data: new Set(["a"]) };
+    const [next, , inversePatches] = produceWithPatches(base, (d) => {
+      d.data.add("b");
+    });
+    const reconstructed = applyPatches(next, inversePatches);
+    expect(reconstructed.data.has("a")).toBe(true);
+    expect(reconstructed.data.has("b")).toBe(false);
+  });
+
+  it("should handle no-op on set without changes", () => {
+    const base = { data: new Set(["a"]) };
+    const [next, patches, inverse] = produceWithPatches(base, (_d) => {
+      // no op
+    });
+    expect(next).toBe(base);
+    expect(patches).toHaveLength(0);
+    expect(inverse).toHaveLength(0);
+  });
+
+  it("should handle multiple set operations in one produce", () => {
+    const base = { data: new Set<string>() };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.add("x");
+      d.data.add("y");
+      d.data.delete("x");
+      d.data.add("z");
+    });
+    expect(next.data.has("x")).toBe(false);
+    expect(next.data.has("y")).toBe(true);
+    expect(next.data.has("z")).toBe(true);
+    expect(patches).toHaveLength(4);
+    expect(inverse).toHaveLength(4);
+  });
+});
+
+describe("Map & Set edge cases", () => {
+  it("should not create patch when map.set same value", () => {
+    const base = { data: new Map([["a", 1]]) };
+    const [next, patches, inverse] = produceWithPatches(base, (d) => {
+      d.data.set("a", 1);
+    });
+    expect(next).toBe(base);
+    expect(patches).toHaveLength(0);
+    expect(inverse).toHaveLength(0);
+  });
+
+  it("should handle number keys in Map", () => {
+    const base = { data: new Map<string | number, number>() };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      (d.data as Map<any, number>).set(42, 100);
+    });
+    expect(next.data.get(42 as any)).toBe(100);
+    expect(patches).toEqual([{ op: "add", path: ["data", "$entries", "42"], value: 100 }]);
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed.data.get("42" as any)).toBe(100);
+  });
+
+  it("should throw on object key for Map", () => {
+    const base = { data: new Map<any, number>() };
+    expect(() => {
+      produceWithPatches(base, (d) => {
+        d.data.set({ id: 1 } as any, 99);
+      });
+    }).toThrow(/Map\/Set key must be string or number/);
+  });
+
+  it("should throw on object value for Set", () => {
+    const base = { data: new Set<any>() };
+    expect(() => {
+      produceWithPatches(base, (d) => {
+        d.data.add({ id: 1 } as any);
+      });
+    }).toThrow(/Map\/Set key must be string or number/);
+  });
+
+  it("should handle clear on empty Map as no-op", () => {
+    const base = { data: new Map() };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.data.clear();
+    });
+    expect(next).toBe(base);
+    expect(patches).toHaveLength(0);
+  });
+
+  it("should handle clear on empty Set as no-op", () => {
+    const base = { data: new Set() };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.data.clear();
+    });
+    expect(next).toBe(base);
+    expect(patches).toHaveLength(0);
+  });
+
+  it("should support chaining map.set", () => {
+    const base = { data: new Map<string, number>() };
+    const [next] = produceWithPatches(base, (d) => {
+      d.data.set("a", 1).set("b", 2).set("c", 3);
+    });
+    expect(next.data.get("a")).toBe(1);
+    expect(next.data.get("b")).toBe(2);
+    expect(next.data.get("c")).toBe(3);
+  });
+
+  it("should support chaining set.add", () => {
+    const base = { data: new Set<string>() };
+    const [next] = produceWithPatches(base, (d) => {
+      (d.data.add("a") as unknown as Set<string>).add("b");
+    });
+    expect(next.data.has("a")).toBe(true);
+    expect(next.data.has("b")).toBe(true);
+  });
+
+  it("should handle nested mutation via Map.get", () => {
+    const base = { data: new Map([["user", { count: 1 }]]) };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.data.get("user")!.count = 2;
+    });
+    expect(next.data.get("user")!.count).toBe(2);
+    expect(base.data.get("user")!.count).toBe(1);
+    expect(patches.length).toBeGreaterThan(0);
+  });
+
+  it("should preserve Date values through Map and applyPatches", () => {
+    const date = new Date("2026-01-01T00:00:00.000Z");
+    const base = { data: new Map([["d", date]]) };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.data.set("d2", new Date("2026-02-02T00:00:00.000Z"));
+    });
+    expect(next.data.get("d2")).toBeInstanceOf(Date);
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed.data.get("d2")).toBeInstanceOf(Date);
+    expect((reconstructed.data.get("d2") as Date).toISOString()).toBe("2026-02-02T00:00:00.000Z");
+    expect(reconstructed.data.get("d")!.toISOString()).toBe("2026-01-01T00:00:00.000Z");
+  });
+
+  it("should preserve Date in plain object via hybridClone applyPatches", () => {
+    const base = { createdAt: new Date("2026-01-01T00:00:00.000Z"), count: 1 };
+    const [next, patches] = produceWithPatches(base, (d) => {
+      d.count = 2;
+    });
+    expect(next.createdAt).toBeInstanceOf(Date);
+    const reconstructed = applyPatches(base, patches);
+    expect(reconstructed.createdAt).toBeInstanceOf(Date);
+  });
+
+  it("should handle Symbol.iterator on Map and Set", () => {
+    const base = { m: new Map([["a", 1]]), s: new Set(["x"]) };
+    const [next] = produceWithPatches(base, (d) => {
+      for (const [k, v] of d.m) {
+        if (k === "a") d.m.set("b", v + 1);
+      }
+      for (const v of d.s) {
+        if (v === "x") d.s.add("y");
+      }
+    });
+    expect(next.m.get("b")).toBe(2);
+    expect(next.s.has("y")).toBe(true);
+  });
+});
+

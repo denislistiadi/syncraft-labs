@@ -5,18 +5,9 @@
  * Merges consecutive mutations touching the same path into a single outbox entry.
  */
 
-import type { Patch } from "./produce.js";
-import type { OutboxEntry } from "./types.js";
-
-/**
- * Generate a unique ID for the compacted outbox entry.
- */
-function generateId(): string {
-  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
-    return crypto.randomUUID();
-  }
-  return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
-}
+import type { Patch } from "./produce/index.js";
+import type { OutboxEntry } from "./types/index.js";
+import { generateId } from "./utils/id.js";
 
 /**
  * Result of compacting an array of outbox entries.
