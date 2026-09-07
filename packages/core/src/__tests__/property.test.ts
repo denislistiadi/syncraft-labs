@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import fc from "fast-check";
 import { produceWithPatches, applyPatches } from "../produce.js";
 
 function mutatePath(
@@ -9,22 +8,19 @@ function mutatePath(
 ): void {
   let current = obj;
   for (let i = 0; i < path.length - 1; i++) {
-    const key = path[i];
+    const key = path[i]!;
     if (!(key in current) || typeof current[key] !== "object" || current[key] === null) {
       current[key] = {};
     }
     current = current[key] as Record<string, unknown>;
   }
-  const last = path[path.length - 1];
+  const last = path[path.length - 1]!;
   (current as Record<string | number, unknown>)[last] = value;
 }
 
-// fast-check dev-dependency verification
-const _fastCheckArb = fc.nat();
-
 describe("general property-based tests (plain objects)", () => {
   it("applyPatches(base, patches) equals nextState for nested object mutation", () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const depth = Math.floor(Math.random() * 2);
       const newValue = Math.floor(Math.random() * 10000);
       const base: Record<string, unknown> = { value: depth, nested: { deep: depth } };
@@ -38,7 +34,7 @@ describe("general property-based tests (plain objects)", () => {
   });
 
   it("applyPatches(base, patches) equals nextState for array index mutation", () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const depth = Math.floor(Math.random() * 2);
       const idx = Math.floor(Math.random() * 5);
       const newValue = Math.floor(Math.random() * 10000);
@@ -53,7 +49,7 @@ describe("general property-based tests (plain objects)", () => {
   });
 
   it("multiple sequential mutations are reversible", () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const depth = Math.floor(Math.random() * 2);
       const count = 1 + Math.floor(Math.random() * 5);
       const seed = Math.floor(Math.random() * 10000);
@@ -73,7 +69,7 @@ describe("general property-based tests (plain objects)", () => {
   });
 
   it("patch count matches mutation count", () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const depth = Math.floor(Math.random() * 2);
       const count = 1 + Math.floor(Math.random() * 5);
       const base: Record<string, unknown> = { value: depth };
@@ -91,7 +87,7 @@ describe("general property-based tests (plain objects)", () => {
   });
 
   it("random array inside object is reversible", () => {
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 200; i++) {
       const depth = Math.floor(Math.random() * 2);
       const seed = Math.floor(Math.random() * 10000);
       const arr = Array.from({ length: depth + 1 }, (_, j) => seed + j);
