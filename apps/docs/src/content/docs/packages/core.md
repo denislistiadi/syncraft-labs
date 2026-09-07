@@ -92,14 +92,14 @@ assertNoCycles(state, "Initial state");
 
 #### `validateStateShape(obj: unknown, context?: string): void`
 
-Recursively traverse a state object tree to validate that all values conform to supported state shapes (plain objects, arrays, primitives, and Date leaves). Emits a dev warning for `Date` instances and throws an `Error` for unsupported types like `Map`, `Set`, `RegExp`, functions, or custom class instances.
+Recursively traverse a state object tree to validate that all values conform to supported state shapes (plain objects, arrays, primitives, Date leaves, Map, and Set). Emits a dev warning for `Date` instances and throws an `Error` for unsupported types like `RegExp`, functions, or custom class instances.
 
 ```ts
 import { validateStateShape } from "@syncraft-labs/core";
 
 validateStateShape(state, "hydrate()");
 // Warns: [Syncraft Labs] Date detected at path "user.createdAt" during hydrate() — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated.
-// Throws: [Syncraft Labs] Unsupported type "Map" detected at path "cache.entries" during hydrate(). State must only contain plain objects, arrays, and primitives. Use a plain object instead.
+// Throws: [Syncraft Labs] Unsupported type "RegExp" detected at path "pattern" during hydrate(). State must only contain plain objects, arrays, and primitives. Use a plain object instead.
 ```
 
 #### `isUnsupportedType(value: unknown): boolean`
@@ -109,9 +109,11 @@ Check if a given value is unsupported for state persistence and draft proxying.
 ```ts
 import { isUnsupportedType } from "@syncraft-labs/core";
 
-isUnsupportedType(new Map()); // true
+isUnsupportedType(new Map()); // false (now supported)
+isUnsupportedType(new Set()); // false (now supported)
 isUnsupportedType(new Date()); // false (allowed as leaf)
 isUnsupportedType({ a: 1 });   // false
+isUnsupportedType(/test/);     // true (unsupported)
 ```
 
 #### `compactOutbox<T>(entries: readonly OutboxEntry<T>[]): CompactResult<T> | null`
@@ -147,6 +149,18 @@ interface Patch {
   value?: unknown;
 }
 ```
+
+Patches reuse standard `replace`/`add`/`remove` ops with path conventions for collections. Map and Set keys/values are restricted to `string | number`:
+
+For Map operations, patches use `$entries` in the path:
+- `map.set("key", value)` → `{ op: "add", path: [..., "$entries", "key"], value }` (or `replace` if key existed)
+- `map.delete("key")` → `{ op: "remove", path: [..., "$entries", "key"] }`
+- `map.clear()` → one `remove` per entry
+
+For Set operations, patches use `$values` in the path:
+- `set.add(value)` → `{ op: "add", path: [..., "$values", "value"], value }`
+- `set.delete(value)` → `{ op: "remove", path: [..., "$values", "value"] }`
+- `set.clear()` → one `remove` per value
 
 #### `SyncListener<T>`
 

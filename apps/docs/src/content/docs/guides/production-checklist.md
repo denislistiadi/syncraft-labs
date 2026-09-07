@@ -210,10 +210,11 @@ store.subscribe((state) => {
 
 ## 8. Ensure Supported State Shapes
 
-Syncraft Labs state must be composed of plain objects, arrays, and primitive values:
+Syncraft Labs state must be composed of plain objects, arrays, primitives, and supported collection types:
 
 - **Dates**: Allowed as leaf values only. Never mutate a Date instance's fields in place (e.g. via `date.setFullYear()`); replace it with a new Date or use ISO 8601 strings / Unix millisecond timestamps.
-- **Unsupported Types**: Custom class instances, `Map`, `Set`, `RegExp`, `Error`, and functions are not drafted and will trigger dev-mode errors via `validateStateShape()`.
+- **Map & Set**: Supported with dedicated proxy handlers. Use `map.set()`, `map.delete()`, `set.add()`, `set.delete()`, etc. for mutations.
+- **Unsupported Types**: Custom class instances, `RegExp`, `Error`, and functions are not drafted and will trigger dev-mode errors via `validateStateShape()`.
 
 ---
 
@@ -223,7 +224,7 @@ Syncraft Labs state must be composed of plain objects, arrays, and primitive val
 |------|----------|---------|
 | `maxOutboxSize` | 🔴 Critical | Prevents unbounded outbox growth |
 | Error state UI | 🔴 Critical | Show rollback errors to users |
-| Supported State Shapes | 🔴 Critical | Plain objects, arrays, primitives, Date leaves only |
+| Supported State Shapes | 🔴 Critical | Plain objects, arrays, primitives, Date leaves, Map, Set |
 | Auth in fetcher/pusher | 🔴 Critical | Secure all API calls |
 | HTTPS | 🔴 Critical | Required for persistence APIs |
 | Storage quota monitoring | 🟡 Important | Proactive quota checks |

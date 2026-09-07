@@ -1,0 +1,73 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid;
+}
+
+.badgeSynced {
+  composes: badge;
+  background: rgba(6, 78, 59, 0.3);
+  color: #34d399;
+  border-color: rgba(6, 78, 59, 0.5);
+}
+
+.badgeSyncing {
+  composes: badge;
+  background: #27272a;
+  color: #a1a1aa;
+  border-color: #3f3f46;
+}
+
+.badgeOffline {
+  composes: badge;
+  background: rgba(127, 29, 29, 0.3);
+  color: #f87171;
+  border-color: rgba(127, 29, 29, 0.5);
+}
+
+.badgeDot {
+  width: 0.375rem;
+  height: 0.375rem;
+  border-radius: 9999px;
+}
+
+.badgeDotGreen {
+  composes: badgeDot;
+  background: #10b981;
+}
+
+.badgeDotRed {
+  composes: badgeDot;
+  background: #ef4444;
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+  width: 0.75rem;
+  height: 0.75rem;
+  color: #71717a;
+}
+
+.spinnerTrack {
+  opacity: 0.25;
+}
+
+.spinnerArc {
+  opacity: 0.75;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}

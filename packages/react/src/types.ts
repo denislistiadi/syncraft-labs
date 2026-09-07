@@ -4,12 +4,7 @@
  * Type definitions for the React `useSync` hook.
  */
 
-import type {
-  OutboxEntry,
-  DraftUpdater,
-  OutboxOverflowStrategy,
-  OutboxOverflowInfo,
-} from "@syncraft-labs/core";
+import type { OutboxEntry, DraftUpdater, SyncStoreConfig } from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Hook Options
@@ -17,16 +12,10 @@ import type {
 
 /**
  * Options for the `useSync` hook.
- *
- * @template T - The shape of the state being synchronized.
+ * Extends `SyncStoreConfig` (without `storageKey`) plus fetcher/pusher/syncInterval.
  */
-export interface UseSyncOptions<T extends Record<string, unknown>> {
-  /**
-   * Initial state used when no persisted data exists in IndexedDB.
-   * Falls through to `SyncStoreConfig.initialState`.
-   */
-  readonly initialState?: T | undefined;
-
+export interface UseSyncOptions<T extends Record<string, unknown>>
+  extends Omit<SyncStoreConfig<T>, "storageKey"> {
   /**
    * Async function to fetch the latest state from a remote source.
    * Called once after hydration if IndexedDB is empty.
@@ -57,36 +46,6 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * @default 5000
    */
   readonly syncInterval?: number | undefined;
-
-  /**
-   * Maximum number of outbox entries allowed before `set()` triggers overflow strategy.
-   * @default 1000
-   */
-  readonly maxOutboxSize?: number | undefined;
-
-  /**
-   * Strategy for handling outbox overflow when `maxOutboxSize` is reached.
-   * @default "reject"
-   */
-  readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
-
-  /**
-   * Callback invoked when an outbox overflow event occurs.
-   */
-  readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
-
-  /**
-   * Controls how state is persisted to IndexedDB.
-   *
-   * - `"document"` (default): entire state stored as a single record.
-   * - `"collection"`: state is decomposed per-entity in IndexedDB.
-   */
-  readonly storageMode?: "document" | "collection" | undefined;
-
-  /**
-   * Property name on each entity used as its unique identifier when `storageMode` is `"collection"`.
-   */
-  readonly idField?: string | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────

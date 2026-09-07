@@ -5,12 +5,7 @@
  */
 
 import type { Ref, ShallowRef } from "vue";
-import type {
-  OutboxEntry,
-  DraftUpdater,
-  OutboxOverflowStrategy,
-  OutboxOverflowInfo,
-} from "@syncraft-labs/core";
+import type { OutboxEntry, DraftUpdater, SyncStoreConfig } from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Composable Options
@@ -18,13 +13,10 @@ import type {
 
 /**
  * Options for the `useSync` composable.
- *
- * @template T - The shape of the state being synchronized.
+ * Extends `SyncStoreConfig` (without `storageKey`) plus fetcher/pusher/syncInterval.
  */
-export interface UseSyncOptions<T extends Record<string, unknown>> {
-  /** Initial state when IndexedDB is empty. */
-  readonly initialState?: T | undefined;
-
+export interface UseSyncOptions<T extends Record<string, unknown>>
+  extends Omit<SyncStoreConfig<T>, "storageKey"> {
   /**
    * Async function to fetch latest state from a remote source.
    * Called once after hydration if IndexedDB is empty,
@@ -43,21 +35,6 @@ export interface UseSyncOptions<T extends Record<string, unknown>> {
    * @default 5000
    */
   readonly syncInterval?: number | undefined;
-
-  /** Maximum number of outbox entries before overflow strategy triggers. */
-  readonly maxOutboxSize?: number | undefined;
-
-  /** Strategy for handling outbox overflow when maxOutboxSize is reached. */
-  readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
-
-  /** Callback invoked when an outbox overflow event occurs. */
-  readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
-
-  /** Controls how state is persisted to IndexedDB ("document" | "collection"). */
-  readonly storageMode?: "document" | "collection" | undefined;
-
-  /** Property name on each entity used as unique ID when storageMode is "collection". */
-  readonly idField?: string | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────

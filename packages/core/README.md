@@ -94,9 +94,10 @@ To prevent accidental direct mutations that silently desynchronize memory state 
 ### Supported State Shapes & Type Detection
 Syncraft Labs stores state in plain serializable structures. In development mode, `validateStateShape()` automatically guards your state:
 - **Plain Objects & Arrays**: Full deep drafting and patch generation support.
+- **Map & Set**: Supported with dedicated proxy handlers. Map operations (`set`, `delete`, `clear`) and Set operations (`add`, `delete`, `clear`) generate granular patches.
 - **Primitives**: Numbers, strings, booleans, null, undefined.
 - **Dates**: Allowed as immutable leaf values. Must be replaced wholesale (not mutated via `.setFullYear()`, etc.). Emits a dev warning recommending ISO strings or timestamps.
-- **Unsupported Types**: Custom class instances, `Map`, `Set`, `RegExp`, `Error`, and functions throw an explicit `Error` with the property path (e.g., `Unsupported type "Map" detected at path "cache.entries"`).
+- **Unsupported Types**: Custom class instances, `RegExp`, `Error`, and functions throw an explicit `Error` with the property path.
 
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
@@ -126,7 +127,7 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy`) |
 | `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`) |
 | `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
-| `Patch` | Interface | RFC 6902 compatible JSON patch object (`op`, `path`, `value?`) |
+| `Patch` | Interface | RFC6902 patch (`op`, `path`, `value?`) — Map uses `$entries/<key>`, Set uses `$values/<value>`, keys/values `string\|number` only |
 
 ## Framework Integrations
 

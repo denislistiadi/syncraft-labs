@@ -19,19 +19,21 @@
  */
 
 // ── Factory & Utilities ───────────────────────────────────────
-export { createSyncStore } from "./store.js";
-export { applyPatches } from "./produce.js";
+export { createSyncStore } from "./store/index.js";
+export { applyPatches } from "./produce/index.js";
 export { compactOutbox } from "./compact.js";
 export {
   deepFreeze,
   assertNoCycles,
   validateStateShape,
   isUnsupportedType,
-} from "./guards.js";
+} from "./guards/index.js";
 export {
   SyncraftError,
   toSyncraftError,
 } from "./errors.js";
+export { BASE_RETRY_DELAY, MAX_RETRY_DELAY, DEFAULT_SYNC_INTERVAL } from "./controller/constants.js";
+export { BaseStoreController, type BaseControllerOptions, type ControllerSnapshot } from "./controller/base.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
@@ -50,5 +52,5 @@ export type {
   SyncraftErrorOptions,
 } from "./errors.js";
 
-export type { Patch } from "./produce.js";
+export type { Patch } from "./produce/index.js";
 export type { CompactResult } from "./compact.js";
