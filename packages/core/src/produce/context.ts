@@ -25,13 +25,12 @@ export function createDraftContext(devMode: boolean): DraftContext {
 function shallowCopy(target: any): any {
   if (target instanceof Map) return new Map(target);
   if (target instanceof Set) return new Set(target);
-  if (Array.isArray(target)) return [...target];
+  if (Array.isArray(target)) return target.slice();
   return { ...target };
 }
 
 export function markChanged(ctx: DraftContext, target: any): void {
-  if (ctx.copies.has(target)) return;
-  const copy = shallowCopy(target);
+  const copy = ctx.copies.get(target) ?? shallowCopy(target);
   ctx.copies.set(target, copy);
   const parentInfo = ctx.parents.get(target);
   if (parentInfo) {
@@ -42,7 +41,7 @@ export function markChanged(ctx: DraftContext, target: any): void {
     } else if (parentInfo.parent instanceof Set) {
       parentCopy.delete(parentInfo.prop);
       parentCopy.add(copy);
-    } else {
+    } else if (parentCopy) {
       parentCopy[parentInfo.prop] = copy;
     }
   }
