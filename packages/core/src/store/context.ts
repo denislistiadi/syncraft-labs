@@ -7,7 +7,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   config: SyncStoreConfig<T>;
   initialState: T | undefined;
   storageMode: "document" | "collection";
-  idField?: string;
+  idField?: string | undefined;
   maxOutboxSize: number;
   overflowStrategy: "reject" | "dropOldest" | "forceFlush";
   onOverflow: SyncStoreConfig<T>["onOverflow"];
@@ -30,10 +30,10 @@ export function createStoreContext<T extends Record<string, unknown>>(
     storageKey: config.storageKey,
     config,
     initialState: config.initialState,
-    storageMode: (config.storageMode ?? "document") as "document" | "collection",
-    idField: (config as any).idField,
+    storageMode: config.storageMode ?? "document",
+    idField: config.storageMode === "collection" ? config.idField : undefined,
     maxOutboxSize: config.maxOutboxSize ?? 1000,
-    overflowStrategy: (config.overflowStrategy ?? "reject") as any,
+    overflowStrategy: config.overflowStrategy ?? "reject",
     onOverflow: config.onOverflow,
     memoryState: undefined,
     listeners: new Set(),

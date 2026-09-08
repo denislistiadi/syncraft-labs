@@ -20,10 +20,10 @@ cd syncraft-labs
 npm install
 
 # Build all packages (core → react/vue dependency order handled by Turbo)
-npm run build:all
+npm run build
 
 # Run all tests
-npm run test:all
+npm test
 ```
 
 ### Project Structure
@@ -45,11 +45,12 @@ syncraft-labs/
 
 | Command | Description |
 |---------|-------------|
-| `npm run build:all` | Build all packages (via Turbo) |
-| `npm run dev:all` | Start dev mode (watch + playground) |
-| `npm run test:all` | Run all tests once |
-| `npm run test:watch:all` | Run tests in watch mode |
-| `npm run clean:all` | Remove all `dist/` and `node_modules/` |
+| `npm run build` | Build all packages (via Turbo) |
+| `npm run dev` | Start dev mode (watch + playground) |
+| `npm test` | Run all tests once |
+| `npm run test:watch` | Run tests in watch mode |
+| `npm run typecheck` | Run TypeScript checks across all packages |
+| `npm run clean` | Remove all `dist/` and `node_modules/` |
 
 ### Working on a Specific Package
 
@@ -116,23 +117,23 @@ test(core): add outbox overflow test cases
 
 ```bash
 # Run all tests
-npm run test:all
+npm test
 
 # Run tests for a specific package
 cd packages/core && npm run test
 
 # Watch mode
-npm run test:watch:all
+npm run test:watch
 ```
 
 **Before submitting a PR, make sure:**
 
 ```bash
 # All tests pass
-npm run test:all
+npm test
 
 # All packages build cleanly
-npm run build:all
+npm run build
 ```
 
 ## Pull Request Process

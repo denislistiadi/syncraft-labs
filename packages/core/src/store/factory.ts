@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
@@ -17,20 +16,17 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     assertNoCycles(config.initialState, `initialState for store "${storageKey}"`);
     validateStateShape(config.initialState, `initialState for store "${storageKey}"`);
   }
-  // @ts-ignore
-  let processedInitialState: T | undefined = (config.initialState as unknown) as T | undefined;
+  let processedInitialState: T | undefined = config.initialState;
   if (processedInitialState !== undefined && isDevMode()) {
-    // @ts-ignore
-    processedInitialState = deepFreeze(processedInitialState as unknown as T);
+    processedInitialState = deepFreeze(processedInitialState);
   }
-  const ctx = createStoreContext(config, createMonotonicClock());
-  // @ts-ignore
+  const ctx = createStoreContext<T>(config, createMonotonicClock());
   ctx.initialState = processedInitialState;
 
   if (ctx.storageMode === "collection" && !ctx.idField) throw new Error(`[Syncraft Labs] idField is required when storageMode is "collection" for store "${storageKey}".`);
 
   // Broadcast channel
-  ctx.channel = createBroadcaster(storageKey, (s) => { ctx.memoryState = s; }, (s) => notifyListeners(s));
+  ctx.channel = createBroadcaster<T>(storageKey, (s) => { ctx.memoryState = s; }, (s) => notifyListeners(s));
 
   function notifyListeners(state: T): void {
     ctx.listeners.forEach((listener) => listener(state));
@@ -87,7 +83,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         inversePatches = producedInverse;
       }
       if (nextState === baseState) return;
-      await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy as any, ctx.onOverflow);
+      await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy, ctx.onOverflow);
       const previousState = baseState;
       ctx.memoryState = isDevMode() ? deepFreeze(nextState) : nextState;
       notifyListeners(ctx.memoryState);

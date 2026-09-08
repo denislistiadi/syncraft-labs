@@ -10,13 +10,13 @@
     "apps/*"
   ],
   "scripts": {
-    "build:all": "turbo run build",
-    "dev:all": "turbo run dev",
-    "test:all": "turbo run test",
-    "test:watch:all": "turbo run test:watch",
-    "lint:all": "turbo run lint",
-    "typecheck:all": "turbo run typecheck",
-    "clean:all": "turbo run clean && rm -rf node_modules"
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {
     "turbo": "^2.5.0",
@@ -27,4 +27,3 @@
   },
   "packageManager": "npm@10.0.0"
 }
-

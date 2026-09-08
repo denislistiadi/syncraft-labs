@@ -1,7 +1,7 @@
 {
   "name": "@syncraft-labs/vue",
   "version": "0.5.0",
-  "description": "Vue 3 composables for Syncraft Labs â€” local-first state synchronization.",
+  "description": "Vue 3 composables for Syncraft Labs — local-first state synchronization.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",

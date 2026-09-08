@@ -1,5 +1,6 @@
 [build]
-  command = "npm run build"
   publish = "apps/docs/dist"
-  ignore = "exit 0"
+  command = "/bin/true"
+  ignore = "/bin/true"
+
 
