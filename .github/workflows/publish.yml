@@ -24,10 +24,10 @@ jobs:
       - run: npm ci
 
       - name: Build all packages
-        run: npm run build
+        run: npm run build:all
 
       - name: Run tests
-        run: npm run test
+        run: npm run test:all
 
       - name: Verify package contents
         run: |
