@@ -71,7 +71,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Deploy Docs to Netlify
-        run: npx netlify-cli deploy --prod --dir=apps/docs/dist --site "$NETLIFY_SITE_ID"
+        run: cd apps/docs && npx netlify-cli deploy --prod --dir=dist --site "$NETLIFY_SITE_ID"
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
