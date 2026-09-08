@@ -17,7 +17,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
           registry-url: "https://registry.npmjs.org"
           cache: "npm"
 
@@ -41,22 +41,37 @@ jobs:
           cd ../vue && npm pack --dry-run
 
       - name: Publish @syncraft-labs/core
-        run: cd packages/core && npm publish --access public --provenance
+        run: |
+          if npm view @syncraft-labs/core@0.5.0 version 2>/dev/null; then
+            echo "@syncraft-labs/core@0.5.0 already published, skipping"
+          else
+            cd packages/core && npm publish --access public --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @syncraft-labs/react
-        run: cd packages/react && npm publish --access public --provenance
+        run: |
+          if npm view @syncraft-labs/react@0.5.0 version 2>/dev/null; then
+            echo "@syncraft-labs/react@0.5.0 already published, skipping"
+          else
+            cd packages/react && npm publish --access public --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish @syncraft-labs/vue
-        run: cd packages/vue && npm publish --access public --provenance
+        run: |
+          if npm view @syncraft-labs/vue@0.5.0 version 2>/dev/null; then
+            echo "@syncraft-labs/vue@0.5.0 already published, skipping"
+          else
+            cd packages/vue && npm publish --access public --provenance
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Deploy Docs to Netlify
-        run: npx netlify-cli deploy --prod --dir=apps/docs/dist
+        run: npx netlify-cli deploy --prod --dir=apps/docs/dist --site "$NETLIFY_SITE_ID"
         env:
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
