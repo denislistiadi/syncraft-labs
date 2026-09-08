@@ -1,5 +1,6 @@
 [build]
-  publish = "apps/docs/dist"
+  base = "apps/docs"
+  publish = "dist"
   command = "/bin/true"
   ignore = "/bin/true"
 
