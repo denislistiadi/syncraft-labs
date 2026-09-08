@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core**: Added `validateStateShape()` utility for explicit detection of unsupported types (Date, Map, Set, custom class instances, RegExp, etc.) in state trees. Date objects emit a development-mode warning guiding developers toward ISO strings or timestamps; all other unsupported types throw an explicit Error with the exact property path and constructor name. Integrated into `createSyncStore`, `produceWithPatches`, `hydrate()`, and `BroadcastChannel` synchronization in development mode (zero production overhead).
 - **Core**: Added and exported `isUnsupportedType()` utility for querying whether a value is unsupported for state persistence and proxy drafting.
 - **Core**: Exported `validateStateShape` and `isUnsupportedType` from `@syncraft-labs/core`.
+- **Core**: Added general property-based test suite (`property.test.ts`) asserting `applyPatches(base, patches)` equals `nextState` and inverse-patch reversibility over 1,000 randomized iterations per run. Fixed `markChanged` parent propagation for repeated mutations to the same path. (#15)
+- **Core**: Optimized array `shallowCopy` to use `target.slice()` with benchmark coverage and `ADR-001` decision record; added `Map`/`Set` parent-copy guards in `markChanged`. (#16)
 
 ## [0.4.2] - 2026-08-22
 
