@@ -1,4 +1,4 @@
-import type { Patch } from "./types.js";
+﻿import type { Patch } from "./types.js";
 
 export interface DraftContext {
   copies: Map<any, any>;
@@ -36,9 +36,9 @@ export function markChanged(ctx: DraftContext, target: any): void {
   if (parentInfo) {
     markChanged(ctx, parentInfo.parent);
     const parentCopy = ctx.copies.get(parentInfo.parent);
-    if (parentInfo.parent instanceof Map) {
+    if (parentInfo.parent instanceof Map && parentCopy) {
       parentCopy.set(parentInfo.prop, copy);
-    } else if (parentInfo.parent instanceof Set) {
+    } else if (parentInfo.parent instanceof Set && parentCopy) {
       parentCopy.delete(parentInfo.prop);
       parentCopy.add(copy);
     } else if (parentCopy) {
