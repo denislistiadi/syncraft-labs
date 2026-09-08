@@ -1,4 +1,4 @@
-﻿import type { Patch } from "./types.js";
+import type { Patch } from "./types.js";
 
 export interface DraftContext {
   copies: Map<any, any>;

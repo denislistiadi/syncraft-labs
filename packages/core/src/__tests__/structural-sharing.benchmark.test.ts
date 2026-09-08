@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 
 function createLargeArray(size: number): number[] {
   return Array.from({ length: size }, (_, i) => i);
