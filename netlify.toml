@@ -1,7 +1,5 @@
 [build]
-  base = "apps/docs"
-  publish = "dist"
+  packagePath = "apps/docs"
+  publish = "apps/docs/dist"
   command = "/bin/true"
   ignore = "/bin/true"
-
-
