@@ -1,7 +1,7 @@
-{
+﻿{
   "name": "@syncraft-labs/react",
-  "version": "0.4.2",
-  "description": "React hooks for Syncraft Labs — local-first state synchronization.",
+  "version": "0.5.0",
+  "description": "React hooks for Syncraft Labs â€” local-first state synchronization.",
   "license": "MIT",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -31,7 +31,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@syncraft-labs/core": "0.4.2"
+    "@syncraft-labs/core": "0.5.0"
   },
   "peerDependencies": {
     "react": ">=18.0.0"
@@ -77,3 +77,4 @@
     "typescript"
   ]
 }
+
