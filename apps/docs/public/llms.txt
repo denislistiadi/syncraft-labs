@@ -28,6 +28,9 @@
 - [Security Policy](https://syncraft-labs.web.id/security/policy/): Supported version matrix, vulnerability reporting instructions, response SLAs, and safe harbor policy.
 - [Security Advisory: SYNCRAFT-SEC-2026-001](https://syncraft-labs.web.id/security/advisory-2026-001/): Official post-mortem and remediation advisory regarding the PolinRider supply-chain attack on v0.4.1.
 
+## Architecture & RFCs
+- [RFC-001: CRDT Evaluation](https://syncraft-labs.web.id/reference/crdt-evaluation/): Architectural evaluation of CRDTs versus JSON Patches in Syncraft Labs, and future plugin roadmap.
+
 ## Full Documentation & Sitemaps
 - [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.
 - [sitemap.xml](https://syncraft-labs.web.id/sitemap.xml): Full XML sitemap for search engines and crawlers.
