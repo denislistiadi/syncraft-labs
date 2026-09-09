@@ -59,8 +59,10 @@ interface ComposableResult<T> {
   isSyncing: Ref<boolean>;
   isOffline: Ref<boolean>;
   error: ShallowRef<Error | null>;
+  applyRemoteState: (remote: T) => Promise<void>;
   destroyStore: () => void;
 }
+
 
 function mountComposable<T extends Record<string, unknown>>(
   key: string,
@@ -309,4 +311,49 @@ describe("useSync (Vue)", () => {
       expect(result.error.value?.message).toContain("Vue Fetch Error");
     });
   });
+
+  describe("Conflict Resolution & applyRemoteState", () => {
+    it("should apply remote state with lastWriteWins strategy", async () => {
+      const key = uniqueKey();
+      const { result } = mountComposable<TestState>(key, {
+        initialState: { count: 10, items: ["vue-local"] },
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      await result.applyRemoteState({ count: 99, items: ["vue-remote"] });
+
+      expect(result.data.value).toEqual({ count: 99, items: ["vue-remote"] });
+    });
+
+    it("should apply custom conflict resolution and trigger onConflictResolved", async () => {
+      const key = uniqueKey();
+      const onConflictResolved = vi.fn();
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: { count: 2, items: ["v1"] },
+        conflictStrategy: "custom",
+        resolver: ({ local, remote }) => ({
+          count: local.count + remote.count,
+          items: [...local.items, ...remote.items],
+        }),
+        onConflictResolved,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      await result.applyRemoteState({ count: 8, items: ["v2"] });
+
+      expect(result.data.value).toEqual({ count: 10, items: ["v1", "v2"] });
+      expect(onConflictResolved).toHaveBeenCalledWith({
+        strategy: "custom",
+        storageKey: key,
+      });
+    });
+  });
 });
+
