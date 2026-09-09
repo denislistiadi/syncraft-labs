@@ -62,6 +62,9 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     this.storageKey = storageKey;
     this.store = store;
     this.latestOptions = initialOptions;
+    if (this.store.getSnapshot() !== undefined) {
+      this.lastSyncedBase = this.store.getSnapshot();
+    }
   }
 
   registerConsumer(options: BaseControllerOptions<T>): () => void {
@@ -94,6 +97,9 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         const hydrated = await this.store.hydrate();
         this.isHydrated = true;
         this.isHydrating = false;
+        if (this.lastSyncedBase === undefined && hydrated !== undefined) {
+          this.lastSyncedBase = hydrated;
+        }
         const effectiveFetcher = fetcher ?? this.latestOptions.fetcher;
         if (hydrated === undefined && effectiveFetcher && !this.initialFetchDone) {
           if (!this.initialFetchPromise) {
@@ -101,6 +107,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
               try {
                 const freshData = await effectiveFetcher();
                 await this.store.set(() => freshData);
+                this.lastSyncedBase = freshData;
               } catch (fetchErr) {
                 const syncraftErr = toSyncraftError(fetchErr, "fetch", true);
                 this.error = syncraftErr;
@@ -118,6 +125,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         }
         this.notify();
         return this.store.getSnapshot();
+
       } catch (err) {
         const syncraftErr = toSyncraftError(err, "hydration", false);
         this.hydrationError = syncraftErr;
