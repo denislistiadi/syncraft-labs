@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-
 - **Core**: Added pluggable conflict resolution engine (`resolveConflict`) supporting `"lastWriteWins"` (default) and `"custom"` three-way merge algorithms. (#17)
 - **Core**: Added `applyRemoteState(remote)` method on `BaseStoreController` for applying server push, WebSocket, or polling updates with automatic local patch reconciliation. (#17)
 - **Core**: Added conflict resolution types: `ConflictStrategy`, `ConflictInfo<T>`, `ConflictResolver<T>`, and `ConflictResolvedInfo`.
@@ -16,8 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **React**: Exposed `conflictStrategy`, `resolver`, and `onConflictResolved` options in `UseSyncOptions<T>`, and exposed `applyRemoteState(remote)` action in `UseSyncReturn<T>`.
 - **Vue**: Exposed `conflictStrategy`, `resolver`, and `onConflictResolved` options in `UseSyncOptions<T>`, and exposed `applyRemoteState(remote)` action in `UseSyncReturn<T>`.
 - **Docs**: Added dedicated "Conflict Resolution" guide with comprehensive three-way merge, WebSocket, and real-time synchronization patterns.
+- **Docs**: Published RFC-001 evaluating CRDTs vs JSON Patches and specifying the post-v1.0 optional plugin architecture. (#18)
+
+### Removed
+- **Core**: Removed misleading `"crdt"` keyword from `packages/core/package.json` package metadata. (#18)
 
 ## [0.5.0] - 2026-09-08
+
 
 
 ### Added
