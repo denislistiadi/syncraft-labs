@@ -111,9 +111,13 @@ export function getOrCreateController<T extends Record<string, unknown>>(
       maxOutboxSize: options.maxOutboxSize,
       overflowStrategy: options.overflowStrategy,
       onOverflow: options.onOverflow,
+      conflictStrategy: options.conflictStrategy,
+      resolver: options.resolver,
+      onConflictResolved: options.onConflictResolved,
       storageMode: options.storageMode,
       idField: options.idField,
     } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
+
     registry.set(key, store as unknown as SyncStore<never>);
   }
 
@@ -279,6 +283,16 @@ export function useSync<T extends Record<string, unknown>>(
     await controller.refetch();
   }, [controller]);
 
+  /**
+   * Apply incoming authoritative remote state directly (e.g. from WebSocket or SSE).
+   */
+  const applyRemoteState = useCallback(
+    async (remote: T) => {
+      await controller.applyRemoteState(remote);
+    },
+    [controller],
+  );
+
   const destroyStoreCallback = useCallback(() => {
     destroyStore(registry, key);
   }, [registry, key]);
@@ -287,6 +301,7 @@ export function useSync<T extends Record<string, unknown>>(
     data,
     update,
     refetch,
+    applyRemoteState,
     isHydrating: lifecycleSnapshot.isHydrating,
     isSyncing: lifecycleSnapshot.isSyncing,
     isOffline,
@@ -294,6 +309,7 @@ export function useSync<T extends Record<string, unknown>>(
     destroyStore: destroyStoreCallback,
   };
 }
+
 
 /**
  * React hook for local-first state synchronization with React Suspense.

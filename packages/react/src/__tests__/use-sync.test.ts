@@ -388,4 +388,60 @@ describe("useSync", () => {
       });
     });
   });
+
+  describe("Conflict Resolution & applyRemoteState", () => {
+    it("should apply remote state with lastWriteWins strategy", async () => {
+      const key = uniqueKey();
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: { count: 10, items: ["local"] },
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.applyRemoteState({ count: 99, items: ["remote"] });
+      });
+
+      expect(result.current.data).toEqual({ count: 99, items: ["remote"] });
+    });
+
+    it("should apply custom conflict resolution and fire onConflictResolved", async () => {
+      const key = uniqueKey();
+      const onConflictResolved = vi.fn();
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: { count: 1, items: ["a"] },
+            conflictStrategy: "custom",
+            resolver: ({ local, remote }) => ({
+              count: local.count + remote.count,
+              items: [...local.items, ...remote.items],
+            }),
+            onConflictResolved,
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      await act(async () => {
+        await result.current.applyRemoteState({ count: 5, items: ["b"] });
+      });
+
+      expect(result.current.data).toEqual({ count: 6, items: ["a", "b"] });
+      expect(onConflictResolved).toHaveBeenCalledWith({
+        strategy: "custom",
+        storageKey: key,
+      });
+    });
+  });
 });
+

@@ -30,4 +30,12 @@ export { SyncraftProvider, useStoreRegistry } from "./provider.js";
 export { SyncraftError, toSyncraftError } from "@syncraft-labs/core";
 export type { SyncraftProviderProps } from "./provider.js";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
-export type { SyncraftErrorSource, SyncraftErrorOptions } from "@syncraft-labs/core";
+export type {
+  SyncraftErrorSource,
+  SyncraftErrorOptions,
+  ConflictStrategy,
+  ConflictInfo,
+  ConflictResolver,
+  ConflictResolvedInfo,
+} from "@syncraft-labs/core";
+
