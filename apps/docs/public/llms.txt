@@ -16,6 +16,7 @@
 
 ## Guides
 - [Cross-Tab Sync](https://syncraft-labs.web.id/guides/cross-tab-sync/): Real-time multi-tab synchronization using BroadcastChannel and storage events.
+- [Conflict Resolution](https://syncraft-labs.web.id/guides/conflict-resolution/): Pluggable conflict resolution with Last-Write-Wins, 3-way merge resolvers, and real-time remote state application.
 - [Error Handling](https://syncraft-labs.web.id/guides/error-handling/): Error types, error listeners, retry mechanisms, and fallback strategies.
 - [Sync Strategies](https://syncraft-labs.web.id/guides/sync-strategies/): Optimistic, pessimistic, background, and custom sync strategies.
 - [Multi-Store Architecture](https://syncraft-labs.web.id/guides/multi-store-architecture/): Managing multiple stores, domain isolation, and modular state.
