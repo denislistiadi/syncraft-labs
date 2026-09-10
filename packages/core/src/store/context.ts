@@ -11,6 +11,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   maxOutboxSize: number;
   overflowStrategy: "reject" | "dropOldest" | "forceFlush";
   onOverflow: SyncStoreConfig<T>["onOverflow"];
+  onQuotaExceeded: SyncStoreConfig<T>["onQuotaExceeded"];
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
   db: IDBPDatabase<unknown> | null;
@@ -35,6 +36,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     maxOutboxSize: config.maxOutboxSize ?? 1000,
     overflowStrategy: config.overflowStrategy ?? "reject",
     onOverflow: config.onOverflow,
+    onQuotaExceeded: config.onQuotaExceeded,
     memoryState: undefined,
     listeners: new Set(),
     db: null,
@@ -46,3 +48,4 @@ export function createStoreContext<T extends Record<string, unknown>>(
     getMonotonicTimestamp,
   };
 }
+
