@@ -92,6 +92,13 @@ export const pages = [
     desc: "Security, performance, migration, monitoring, and production readiness.",
   },
   {
+    category: "Guides",
+    file: "guides/storage-quota.md",
+    slug: "guides/storage-quota",
+    title: "Storage Quota Handling",
+    desc: "Detect, handle, and mitigate browser IndexedDB storage quota limits (QuotaExceededError).",
+  },
+  {
     category: "Security & Advisories",
     file: "security/policy.md",
     slug: "security/policy",
@@ -114,7 +121,6 @@ export const pages = [
   },
 ];
 
-
 export const sidebarGroups = [
   {
     label: "Start Here",
@@ -136,6 +142,7 @@ export const sidebarGroups = [
     items: [
       { label: "Cross-Tab Sync", slug: "guides/cross-tab-sync" },
       { label: "Conflict Resolution", slug: "guides/conflict-resolution" },
+      { label: "Storage Quota Handling", slug: "guides/storage-quota" },
       { label: "Error Handling", slug: "guides/error-handling" },
       { label: "Testing", slug: "guides/testing" },
       { label: "Sync Strategies", slug: "guides/sync-strategies" },
@@ -158,4 +165,5 @@ export const sidebarGroups = [
     ],
   },
 ];
+
 
