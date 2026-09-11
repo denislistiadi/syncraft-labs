@@ -16,11 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Vue**: Exposed `conflictStrategy`, `resolver`, and `onConflictResolved` options in `UseSyncOptions<T>`, and exposed `applyRemoteState(remote)` action in `UseSyncReturn<T>`.
 - **Docs**: Added dedicated "Conflict Resolution" guide with comprehensive three-way merge, WebSocket, and real-time synchronization patterns.
 - **Docs**: Published RFC-001 evaluating CRDTs vs JSON Patches and specifying the post-v1.0 optional plugin architecture. (#18)
+- **Core**: Added `onQuotaExceeded` configuration callback option to `BaseSyncStoreConfig` for receiving storage quota exhaustion telemetry. (#19)
+- **Core**: Added `isQuotaExceededError()` cross-browser utility and `withQuotaGuard` storage wrapper to automatically detect IndexedDB quota limits and rollback optimistic state. (#19)
+- **Core**: Added `QuotaExceededInfo` and `QuotaExceededHandler` type definitions. (#19)
+- **React**: Exposed `onQuotaExceeded` option in `UseSyncOptions<T>`, and exported `isQuotaExceededError` utility. (#19)
+- **Vue**: Exposed `onQuotaExceeded` option in `UseSyncOptions<T>`, and exported `isQuotaExceededError` utility. (#19)
+- **Docs**: Added dedicated "Storage Quota Handling" guide covering browser disk thresholds, error handling, telemetry, and mitigation strategies. (#19)
+
+### Fixed
+- **Core**: Raw `QuotaExceededError` DOMExceptions during IndexedDB writes or outbox pushes are now gracefully intercepted, optimistic in-memory state is automatically rolled back, and errors are normalized into typed `SyncraftError` (`source: "store"`, `retryable: false`). (#19)
 
 ### Removed
 - **Core**: Removed misleading `"crdt"` keyword from `packages/core/package.json` package metadata. (#18)
 
 ## [0.5.0] - 2026-09-08
+
 
 
 
