@@ -7,6 +7,7 @@
 [![npm version](https://img.shields.io/npm/v/@syncraft-labs/core?color=brightgreen&label=core)](https://www.npmjs.com/package/@syncraft-labs/core)
 [![npm version](https://img.shields.io/npm/v/@syncraft-labs/react?color=61dafb&label=react)](https://www.npmjs.com/package/@syncraft-labs/react)
 [![npm version](https://img.shields.io/npm/v/@syncraft-labs/vue?color=42b883&label=vue)](https://www.npmjs.com/package/@syncraft-labs/vue)
+[![npm downloads](https://img.shields.io/npm/dt/@syncraft-labs/core?color=blue&label=downloads)](https://www.npmjs.com/package/@syncraft-labs/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 

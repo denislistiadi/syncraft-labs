@@ -31,9 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.5.0] - 2026-09-08
 
-
-
-
 ### Added
 - **Core**: Added Map and Set support in draft state with dedicated proxy handlers. Map operations (`set`, `delete`, `clear`) and Set operations (`add`, `delete`, `clear`) now generate granular patches reusing `replace`/`add`/`remove` with `$entries` and `$values` path conventions (keys/values restricted to `string | number`). Hybrid `structuredClone` + fallback preserves `Date`/`Map`/`Set` for `applyPatches`. (#13)
 - **Core**: Added `fast-check` for property-based testing of Map and Set patch reversibility.

@@ -4,6 +4,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@syncraft-labs/react"><img src="https://img.shields.io/npm/v/@syncraft-labs/react?style=flat-square&color=61dafb" alt="npm version"></a>
+  <a href="https://www.npmjs.com/package/@syncraft-labs/react"><img src="https://img.shields.io/npm/dt/@syncraft-labs/react?style=flat-square" alt="total downloads"></a>
   <a href="https://bundlephobia.com/package/@syncraft-labs/react"><img src="https://img.shields.io/bundlephobia/minzip/@syncraft-labs/react?style=flat-square" alt="size"></a>
   <a href="https://github.com/denislistiadi/syncraft-labs/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-strict-blue.svg?style=flat-square" alt="TypeScript"></a>
