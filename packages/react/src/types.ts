@@ -76,6 +76,12 @@ export interface UseSyncReturn<T> {
    */
   refetch: () => Promise<void>;
 
+  /**
+   * Applies incoming authoritative remote state (e.g. from WebSocket or server push),
+   * reconciling with local uncommitted changes according to the configured conflict resolution strategy.
+   */
+  applyRemoteState: (remote: T) => Promise<void>;
+
   /** `true` while loading state from IndexedDB on first mount. */
   isHydrating: boolean;
 
@@ -94,3 +100,4 @@ export interface UseSyncReturn<T> {
    */
   destroyStore: () => void;
 }
+

@@ -34,6 +34,7 @@ export {
 } from "./errors.js";
 export { BASE_RETRY_DELAY, MAX_RETRY_DELAY, DEFAULT_SYNC_INTERVAL } from "./controller/constants.js";
 export { BaseStoreController, type BaseControllerOptions, type ControllerSnapshot } from "./controller/base.js";
+export { resolveConflict, type ConflictResolutionConfig } from "./controller/conflict.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
@@ -45,6 +46,10 @@ export type {
   OutboxEntry,
   OutboxOverflowStrategy,
   OutboxOverflowInfo,
+  ConflictStrategy,
+  ConflictInfo,
+  ConflictResolver,
+  ConflictResolvedInfo,
 } from "./types.js";
 
 export type {
@@ -54,3 +59,4 @@ export type {
 
 export type { Patch } from "./produce/index.js";
 export type { CompactResult } from "./compact.js";
+

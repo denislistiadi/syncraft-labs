@@ -47,6 +47,7 @@ export class SyncraftError extends Error {
   readonly source: SyncraftErrorSource;
   readonly retryable: boolean;
   readonly originalError?: unknown;
+  readonly cause?: unknown;
 
   constructor(
     messageOrError: string | Error | unknown,
@@ -65,9 +66,7 @@ export class SyncraftError extends Error {
 
     super(message);
 
-    if (cause !== undefined) {
-      (this as { cause?: unknown }).cause = cause;
-    }
+    this.cause = cause;
 
     this.name = "SyncraftError";
     this.source =

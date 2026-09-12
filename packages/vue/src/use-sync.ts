@@ -70,10 +70,14 @@ export function getOrCreateController<T extends Record<string, unknown>>(
       maxOutboxSize: options.maxOutboxSize,
       overflowStrategy: options.overflowStrategy,
       onOverflow: options.onOverflow,
+      conflictStrategy: options.conflictStrategy,
+      resolver: options.resolver,
+      onConflictResolved: options.onConflictResolved,
       storageMode: options.storageMode,
       idField: options.idField,
     } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
     registry.set(key, store as unknown as SyncStore<never>);
+
   }
 
   let controller = vueControllerRegistry.get(store) as
@@ -234,6 +238,10 @@ export function useSync<T extends Record<string, unknown>>(
     await controller.refetch();
   };
 
+  const applyRemoteState = async (remote: T) => {
+    await controller.applyRemoteState(remote);
+  };
+
   const destroyStoreCallback = () => {
     destroyStore(registry, key);
   };
@@ -242,6 +250,7 @@ export function useSync<T extends Record<string, unknown>>(
     data,
     update,
     refetch,
+    applyRemoteState,
     isHydrating,
     isSyncing,
     isOffline,
@@ -249,3 +258,4 @@ export function useSync<T extends Record<string, unknown>>(
     destroyStore: destroyStoreCallback,
   };
 }
+

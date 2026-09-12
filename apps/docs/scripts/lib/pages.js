@@ -43,11 +43,19 @@ export const pages = [
   },
   {
     category: "Guides",
+    file: "guides/conflict-resolution.md",
+    slug: "guides/conflict-resolution",
+    title: "Conflict Resolution",
+    desc: "Pluggable conflict resolution with Last-Write-Wins, 3-way merge resolvers, and real-time remote state application.",
+  },
+  {
+    category: "Guides",
     file: "guides/error-handling.md",
     slug: "guides/error-handling",
     title: "Error Handling",
     desc: "Error types, error listeners, retry mechanisms, and fallback strategies.",
   },
+
   {
     category: "Guides",
     file: "guides/sync-strategies.md",
@@ -119,6 +127,7 @@ export const sidebarGroups = [
     label: "Guides",
     items: [
       { label: "Cross-Tab Sync", slug: "guides/cross-tab-sync" },
+      { label: "Conflict Resolution", slug: "guides/conflict-resolution" },
       { label: "Error Handling", slug: "guides/error-handling" },
       { label: "Testing", slug: "guides/testing" },
       { label: "Sync Strategies", slug: "guides/sync-strategies" },
@@ -127,6 +136,7 @@ export const sidebarGroups = [
       { label: "Production Checklist", slug: "guides/production-checklist" },
     ],
   },
+
   {
     label: "Security & Advisories",
     items: [

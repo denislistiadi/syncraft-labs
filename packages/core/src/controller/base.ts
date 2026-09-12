@@ -5,6 +5,7 @@ import type { DraftUpdater } from "../types/updater.js";
 import type { OutboxEntry } from "../types/outbox.js";
 import type { SyncStoreConfig } from "../types/config.js";
 import { BASE_RETRY_DELAY, DEFAULT_SYNC_INTERVAL, MAX_RETRY_DELAY } from "./constants.js";
+import { resolveConflict } from "./conflict.js";
 
 export type BaseControllerOptions<T extends Record<string, unknown>> = Omit<SyncStoreConfig<T>, "storageKey"> & {
   fetcher?: (() => Promise<T>) | undefined;
@@ -37,8 +38,14 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
   private syncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private retryCount = 0;
 
+  /**
+   * Snapshot of the most recently synchronized common base state.
+   */
+  lastSyncedBase: T | undefined = undefined;
+
   latestOptions: BaseControllerOptions<T>;
   private readonly listeners = new Set<() => void>();
+
 
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
@@ -55,6 +62,9 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     this.storageKey = storageKey;
     this.store = store;
     this.latestOptions = initialOptions;
+    if (this.store.getSnapshot() !== undefined) {
+      this.lastSyncedBase = this.store.getSnapshot();
+    }
   }
 
   registerConsumer(options: BaseControllerOptions<T>): () => void {
@@ -87,6 +97,9 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         const hydrated = await this.store.hydrate();
         this.isHydrated = true;
         this.isHydrating = false;
+        if (this.lastSyncedBase === undefined && hydrated !== undefined) {
+          this.lastSyncedBase = hydrated;
+        }
         const effectiveFetcher = fetcher ?? this.latestOptions.fetcher;
         if (hydrated === undefined && effectiveFetcher && !this.initialFetchDone) {
           if (!this.initialFetchPromise) {
@@ -94,6 +107,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
               try {
                 const freshData = await effectiveFetcher();
                 await this.store.set(() => freshData);
+                this.lastSyncedBase = freshData;
               } catch (fetchErr) {
                 const syncraftErr = toSyncraftError(fetchErr, "fetch", true);
                 this.error = syncraftErr;
@@ -111,6 +125,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         }
         this.notify();
         return this.store.getSnapshot();
+
       } catch (err) {
         const syncraftErr = toSyncraftError(err, "hydration", false);
         this.hydrationError = syncraftErr;
@@ -153,6 +168,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
       this.notify();
       await pusher([compactResult.compacted]);
       await this.store.clearOutbox(compactResult.originalIds);
+      this.lastSyncedBase = this.store.getSnapshot();
       this.retryCount = 0;
       this.isSyncing = false;
       if (this.error instanceof SyncraftError && this.error.source === "sync") this.error = null;
@@ -204,6 +220,56 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     });
   }
 
+  /**
+   * Applies authoritative remote state received from a server push, WebSocket,
+   * polling mechanism, or external event, automatically reconciling local modifications
+   * according to the configured conflict resolution strategy.
+   *
+   * @param remote - The remote state to reconcile and apply.
+   */
+  async applyRemoteState(remote: T): Promise<void> {
+    const local = this.store.getSnapshot();
+    if (local === undefined) {
+      // Local state is not yet initialized; adopt remote directly
+      await this.store.set(() => remote);
+      this.lastSyncedBase = remote;
+      return;
+    }
+
+    const base = this.lastSyncedBase ?? local;
+    const outbox = await this.store.getOutbox();
+    const allPatches = outbox.flatMap((entry) => entry.patches);
+
+    const strategy = this.latestOptions.conflictStrategy ?? "lastWriteWins";
+
+    let resolved: T;
+    try {
+      resolved = resolveConflict(local, remote, base, allPatches, {
+        strategy,
+        resolver: this.latestOptions.resolver,
+      });
+    } catch (err) {
+      const typedErr = toSyncraftError(err, "sync", false);
+      this.error = typedErr;
+      this.notify();
+      throw typedErr;
+    }
+
+    await this.store.set(() => resolved);
+    this.lastSyncedBase = resolved;
+
+    if (this.latestOptions.onConflictResolved) {
+      try {
+        this.latestOptions.onConflictResolved({
+          strategy,
+          storageKey: this.storageKey,
+        });
+      } catch (cbErr) {
+        console.warn("[Syncraft Labs] Error in onConflictResolved callback:", cbErr);
+      }
+    }
+  }
+
   async refetch(fetcherOverride?: () => Promise<T>): Promise<void> {
     const fetcher = fetcherOverride ?? this.latestOptions.fetcher;
     if (!fetcher) {
@@ -218,6 +284,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     try {
       const freshData = await fetcher();
       await this.store.set(() => freshData);
+      this.lastSyncedBase = freshData;
       if (this.error instanceof SyncraftError && this.error.source === "fetch") this.error = null;
     } catch (fetchErr) {
       const typedError = toSyncraftError(fetchErr, "fetch", true);
@@ -238,3 +305,4 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     this.listeners.clear();
   }
 }
+

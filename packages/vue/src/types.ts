@@ -57,6 +57,12 @@ export interface UseSyncReturn<T> {
   /** Force re-fetch from the remote source. */
   refetch: () => Promise<void>;
 
+  /**
+   * Applies incoming authoritative remote state (e.g. from WebSocket or server push),
+   * reconciling with local uncommitted changes according to the configured conflict resolution strategy.
+   */
+  applyRemoteState: (remote: T) => Promise<void>;
+
   /** `true` while loading state from IndexedDB on first mount. */
   isHydrating: Ref<boolean>;
 
@@ -72,3 +78,4 @@ export interface UseSyncReturn<T> {
   /** Destroy the singleton store for this key. */
   destroyStore: () => void;
 }
+
