@@ -105,7 +105,15 @@ export const pages = [
     title: "Security Advisory: SYNCRAFT-SEC-2026-001",
     desc: "Official post-mortem and remediation advisory regarding the PolinRider supply-chain attack on v0.4.1.",
   },
+  {
+    category: "Architecture & RFCs",
+    file: "reference/crdt-evaluation.md",
+    slug: "reference/crdt-evaluation",
+    title: "RFC-001: CRDT Evaluation",
+    desc: "Architectural evaluation of CRDTs versus JSON Patches in Syncraft Labs, and future plugin roadmap.",
+  },
 ];
+
 
 export const sidebarGroups = [
   {
@@ -136,7 +144,12 @@ export const sidebarGroups = [
       { label: "Production Checklist", slug: "guides/production-checklist" },
     ],
   },
-
+  {
+    label: "Architecture & RFCs",
+    items: [
+      { label: "RFC-001: CRDT Evaluation", slug: "reference/crdt-evaluation" },
+    ],
+  },
   {
     label: "Security & Advisories",
     items: [
@@ -145,3 +158,4 @@ export const sidebarGroups = [
     ],
   },
 ];
+
