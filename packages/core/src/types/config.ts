@@ -41,6 +41,10 @@ export interface ConflictResolvedInfo {
   readonly storageKey: string;
 }
 
+import type { QuotaExceededHandler, QuotaExceededInfo } from "../storage/withQuotaGuard.js";
+
+export type { QuotaExceededHandler, QuotaExceededInfo };
+
 export interface BaseSyncStoreConfig<T> {
   readonly storageKey: string;
   readonly initialState?: T | undefined;
@@ -60,7 +64,12 @@ export interface BaseSyncStoreConfig<T> {
    * Optional callback invoked whenever a state conflict is resolved.
    */
   readonly onConflictResolved?: ((info: ConflictResolvedInfo) => void) | undefined;
+  /**
+   * Optional callback invoked whenever IndexedDB storage quota is exceeded.
+   */
+  readonly onQuotaExceeded?: QuotaExceededHandler | undefined;
 }
+
 
 export type OutboxOverflowStrategy = "reject" | "dropOldest" | "forceFlush";
 

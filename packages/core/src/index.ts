@@ -35,6 +35,8 @@ export {
 export { BASE_RETRY_DELAY, MAX_RETRY_DELAY, DEFAULT_SYNC_INTERVAL } from "./controller/constants.js";
 export { BaseStoreController, type BaseControllerOptions, type ControllerSnapshot } from "./controller/base.js";
 export { resolveConflict, type ConflictResolutionConfig } from "./controller/conflict.js";
+export { isQuotaExceededError } from "./storage/quota.js";
+export { withQuotaGuard } from "./storage/withQuotaGuard.js";
 
 // ── Types ─────────────────────────────────────────────────────
 export type {
@@ -50,7 +52,10 @@ export type {
   ConflictInfo,
   ConflictResolver,
   ConflictResolvedInfo,
+  QuotaExceededInfo,
+  QuotaExceededHandler,
 } from "./types.js";
+
 
 export type {
   SyncraftErrorSource,
