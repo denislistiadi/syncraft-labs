@@ -114,9 +114,11 @@ export function getOrCreateController<T extends Record<string, unknown>>(
       conflictStrategy: options.conflictStrategy,
       resolver: options.resolver,
       onConflictResolved: options.onConflictResolved,
+      onQuotaExceeded: options.onQuotaExceeded,
       storageMode: options.storageMode,
       idField: options.idField,
     } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
+
 
     registry.set(key, store as unknown as SyncStore<never>);
   }

@@ -8,7 +8,9 @@ import { enforceOutboxLimit } from "./outboxGuard.js";
 import { persistState } from "./persistence.js";
 import { createStoreContext } from "./context.js";
 import { createBroadcaster } from "./broadcast.js";
+import { withQuotaGuard } from "../storage/withQuotaGuard.js";
 import type { IDBPDatabase } from "idb";
+
 
 export function createSyncStore<T extends Record<string, unknown>>(config: SyncStoreConfig<T>): SyncStore<T> {
   const { storageKey } = config;
@@ -89,9 +91,13 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       notifyListeners(ctx.memoryState);
       if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
       try {
-        await persistState(currentDB, ctx.storageMode, nextState, patches);
+        await persistState(currentDB, ctx.storageMode, nextState, patches, storageKey, ctx.onQuotaExceeded);
         const outboxEntry: OutboxEntry<T> = { id: generateId(), timestamp: ctx.getMonotonicTimestamp(), patches, inversePatches };
-        await pushOutbox(currentDB, outboxEntry);
+        await withQuotaGuard(
+          () => pushOutbox(currentDB, outboxEntry),
+          { storageKey, operation: "pushOutbox" },
+          ctx.onQuotaExceeded,
+        );
       } catch (error) {
         ctx.memoryState = previousState;
         if (previousState !== undefined) notifyListeners(previousState);
@@ -141,13 +147,25 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
             validateStateShape(ctx.initialState, `initialState for store "${storageKey}"`);
           }
           ctx.memoryState = isDevMode() ? deepFreeze(ctx.initialState) : ctx.initialState;
-          if (ctx.storageMode === "collection") await writeCollectionState(ctx.db, ctx.initialState);
-          else await writeState(ctx.db, ctx.initialState);
+          if (ctx.storageMode === "collection") {
+            await withQuotaGuard(
+              () => writeCollectionState(ctx.db!, ctx.initialState),
+              { storageKey, operation: "writeCollectionState" },
+              ctx.onQuotaExceeded,
+            );
+          } else {
+            await withQuotaGuard(
+              () => writeState(ctx.db!, ctx.initialState),
+              { storageKey, operation: "writeState" },
+              ctx.onQuotaExceeded,
+            );
+          }
         }
         ctx.isHydrated = true;
         if (ctx.memoryState !== undefined) notifyListeners(ctx.memoryState);
         return ctx.memoryState;
       })();
+
       try {
         return await ctx.hydrationPromise;
       } finally {

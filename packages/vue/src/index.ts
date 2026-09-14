@@ -17,7 +17,7 @@
 
 export { useSync, destroyStore, _resetRegistry } from "./use-sync.js";
 export { createSyncraft } from "./plugin.js";
-export { SyncraftError, toSyncraftError } from "@syncraft-labs/core";
+export { SyncraftError, toSyncraftError, isQuotaExceededError } from "@syncraft-labs/core";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
 export type {
   SyncraftErrorSource,
@@ -26,5 +26,8 @@ export type {
   ConflictInfo,
   ConflictResolver,
   ConflictResolvedInfo,
+  QuotaExceededInfo,
+  QuotaExceededHandler,
 } from "@syncraft-labs/core";
+
 

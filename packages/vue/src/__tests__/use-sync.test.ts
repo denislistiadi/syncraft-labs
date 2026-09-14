@@ -355,5 +355,32 @@ describe("useSync (Vue)", () => {
       });
     });
   });
+
+
+  describe("Storage Quota Handling", () => {
+    it("should accept onQuotaExceeded option in useSync composable", async () => {
+      const key = uniqueKey();
+      const onQuotaExceeded = vi.fn();
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+        onQuotaExceeded,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      result.update((d) => {
+        d.count = 42;
+      });
+
+      await waitFor(() => {
+        expect(result.data.value?.count).toBe(42);
+      });
+      expect(result.error.value).toBeNull();
+    });
+  });
 });
+
 

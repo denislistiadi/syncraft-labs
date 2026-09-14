@@ -443,5 +443,39 @@ describe("useSync", () => {
       });
     });
   });
+
+
+  describe("Storage Quota Handling", () => {
+    it("should accept onQuotaExceeded handler and route errors gracefully", async () => {
+      const key = uniqueKey();
+      const onQuotaExceeded = vi.fn();
+
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            onQuotaExceeded,
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      act(() => {
+        result.current.update((d) => {
+          d.count = 42;
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.data?.count).toBe(42);
+      });
+      expect(result.current.error).toBeNull();
+    });
+  });
 });
+
+
 

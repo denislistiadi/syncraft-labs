@@ -1,8 +1,16 @@
 import type { Patch } from "../produce/index.js";
 import { writeState, writeCollectionState, writeCollectionEntities } from "../storage.js";
 import type { SyncDB } from "../storage/db.js";
+import { withQuotaGuard, type QuotaExceededHandler } from "../storage/withQuotaGuard.js";
 
-export async function persistState<T>(db: SyncDB, storageMode: string, nextState: T, patches: Patch[]): Promise<void> {
+export async function persistState<T>(
+  db: SyncDB,
+  storageMode: string,
+  nextState: T,
+  patches: Patch[],
+  storageKey: string,
+  onQuotaExceeded?: QuotaExceededHandler,
+): Promise<void> {
   if (storageMode === "collection") {
     let isFullRewrite = false;
     const updatedEntities: Record<string, unknown> = {};
@@ -23,9 +31,25 @@ export async function persistState<T>(db: SyncDB, storageMode: string, nextState
         }
       }
     }
-    if (isFullRewrite) await writeCollectionState(db, nextState);
-    else if (Object.keys(updatedEntities).length > 0 || deletedKeysSet.size > 0) await writeCollectionEntities(db, updatedEntities, Array.from(deletedKeysSet));
+    if (isFullRewrite) {
+      await withQuotaGuard(
+        () => writeCollectionState(db, nextState),
+        { storageKey, operation: "writeCollectionState" },
+        onQuotaExceeded,
+      );
+    } else if (Object.keys(updatedEntities).length > 0 || deletedKeysSet.size > 0) {
+      await withQuotaGuard(
+        () => writeCollectionEntities(db, updatedEntities, Array.from(deletedKeysSet)),
+        { storageKey, operation: "writeCollectionEntities" },
+        onQuotaExceeded,
+      );
+    }
   } else {
-    await writeState(db, nextState);
+    await withQuotaGuard(
+      () => writeState(db, nextState),
+      { storageKey, operation: "writeState" },
+      onQuotaExceeded,
+    );
   }
 }
+
