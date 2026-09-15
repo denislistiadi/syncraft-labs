@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-09-15
+
 ### Added
 - **Core**: Added pluggable conflict resolution engine (`resolveConflict`) supporting `"lastWriteWins"` (default) and `"custom"` three-way merge algorithms. (#17)
 - **Core**: Added `applyRemoteState(remote)` method on `BaseStoreController` for applying server push, WebSocket, or polling updates with automatic local patch reconciliation. (#17)
@@ -131,7 +133,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 #### @syncraft-labs/core
-- `createSyncStore<T>()` factory â€” the heart of Syncraft Labs
+- `createSyncStore<T>()` factory — the heart of Syncraft Labs
 - IndexedDB persistence layer with `idb` (separate `state` and `outbox` stores)
 - Immer-powered mutations via `produceWithPatches` (captures patches + inverse patches)
 - Optimistic updates with automatic rollback on persistence failure
@@ -143,10 +145,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `destroy()` for clean resource cleanup
 
 #### @syncraft-labs/react
-- `useSync<T>(key, options)` hook â€” primary React integration
+- `useSync<T>(key, options)` hook — primary React integration
 - `useSyncExternalStore` for tearing-safe subscriptions
 - Auto-hydration from IndexedDB on mount
-- Background sync loop with exponential backoff (1s â†’ 60s max)
+- Background sync loop with exponential backoff (1s → 60s max)
 - `fetcher` support for initial remote data loading
 - `pusher` support for background outbox draining
 - `refetch()` for pull-to-refresh
@@ -156,7 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `destroyStore(key)` for manual cleanup
 
 #### @syncraft-labs/vue
-- `useSync<T>(key, options)` composable â€” primary Vue 3 integration
+- `useSync<T>(key, options)` composable — primary Vue 3 integration
 - `shallowRef` for state (avoids deep reactivity on Immer-managed objects)
 - Auto-hydration from IndexedDB on mount via `onMounted`
 - Background sync loop with exponential backoff

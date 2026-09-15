@@ -119,6 +119,13 @@ export const pages = [
     title: "RFC-001: CRDT Evaluation",
     desc: "Architectural evaluation of CRDTs versus JSON Patches in Syncraft Labs, and future plugin roadmap.",
   },
+  {
+    category: "Releases",
+    file: "reference/changelog.md",
+    slug: "reference/changelog",
+    title: "Changelog",
+    desc: "Release history, version migration notes, and upgrades for Syncraft Labs across all packages.",
+  },
 ];
 
 export const sidebarGroups = [
@@ -155,6 +162,12 @@ export const sidebarGroups = [
     label: "Architecture & RFCs",
     items: [
       { label: "RFC-001: CRDT Evaluation", slug: "reference/crdt-evaluation" },
+    ],
+  },
+  {
+    label: "Releases",
+    items: [
+      { label: "Changelog", slug: "reference/changelog" },
     ],
   },
   {

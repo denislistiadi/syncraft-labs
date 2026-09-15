@@ -32,6 +32,9 @@
 ## Architecture & RFCs
 - [RFC-001: CRDT Evaluation](https://syncraft-labs.web.id/reference/crdt-evaluation/): Architectural evaluation of CRDTs versus JSON Patches in Syncraft Labs, and future plugin roadmap.
 
+## Releases
+- [Changelog](https://syncraft-labs.web.id/reference/changelog/): Release history, version migration notes, and upgrades for Syncraft Labs across all packages.
+
 ## Full Documentation & Sitemaps
 - [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.
 - [sitemap.xml](https://syncraft-labs.web.id/sitemap.xml): Full XML sitemap for search engines and crawlers.
