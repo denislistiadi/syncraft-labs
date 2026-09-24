@@ -76,6 +76,10 @@ export interface BaseSyncStoreConfig<T> {
    */
   readonly onQuotaExceeded?: QuotaExceededHandler | undefined;
   /**
+   * Optional callback invoked when an optimistic update is rolled back due to local persistence failure.
+   */
+  readonly onRollback?: ((error: Error, previousState: T | undefined) => void) | undefined;
+  /**
    * Injectable logger to replace hardcoded console logs.
    * @default console
    */

@@ -11,6 +11,9 @@ export type BaseControllerOptions<T extends Record<string, unknown>> = Omit<Sync
   fetcher?: (() => Promise<T>) | undefined;
   pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
   syncInterval?: number | undefined;
+  onSyncStart?: (() => void) | undefined;
+  onSyncSuccess?: (() => void) | undefined;
+  onSyncError?: ((error: Error) => void) | undefined;
 };
 
 export interface ControllerSnapshot {
@@ -167,12 +170,14 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         return;
       }
       this.isSyncing = true;
+      this.latestOptions.onSyncStart?.();
       this.notify();
       await pusher([compactResult.compacted]);
       await this.store.clearOutbox(compactResult.originalIds);
       this.lastSyncedBase = this.store.getSnapshot();
       this.retryCount = 0;
       this.isSyncing = false;
+      this.latestOptions.onSyncSuccess?.();
       if (this.error instanceof SyncraftError && this.error.source === "sync") this.error = null;
       else if (this.error && !(this.error instanceof SyncraftError)) this.error = null;
       this.notify();
@@ -184,6 +189,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
       logger.warn(`[Syncraft Labs] Sync failed (attempt ${this.retryCount}), retrying in ${delay}ms`, syncErr);
       this.error = toSyncraftError(syncErr, "sync", true);
       this.isSyncing = false;
+      this.latestOptions.onSyncError?.(err);
       this.notify();
       this.scheduleNextSync(delay);
     } finally {
