@@ -189,7 +189,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
       logger.warn(`[Syncraft Labs] Sync failed (attempt ${this.retryCount}), retrying in ${delay}ms`, syncErr);
       this.error = toSyncraftError(syncErr, "sync", true);
       this.isSyncing = false;
-      this.latestOptions.onSyncError?.(err);
+      this.latestOptions.onSyncError?.(syncErr instanceof Error ? syncErr : new Error(String(syncErr)));
       this.notify();
       this.scheduleNextSync(delay);
     } finally {
