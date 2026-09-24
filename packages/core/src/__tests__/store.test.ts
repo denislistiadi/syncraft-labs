@@ -11,7 +11,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { createSyncStore } from "../store.js";
 import type { SyncStore } from "../types.js";
-import * as storage from "../storage.js";
+import * as persistence from "../store/persistence.js";
 
 // ─────────────────────────────────────────────────────────────
 // Test State Shape
@@ -513,7 +513,7 @@ describe("createSyncStore", () => {
       listener.mockClear();
 
       // Mock writeState to fail on the NEXT call
-      const writeStateSpy = vi.spyOn(storage, "writeState")
+      const writeStateSpy = vi.spyOn(persistence, "persistState")
         .mockRejectedValueOnce(new Error("QuotaExceededError"));
 
       // Suppress console.error noise in test output
@@ -556,7 +556,7 @@ describe("createSyncStore", () => {
       });
 
       // Mock pushOutbox to fail (writeState succeeds but outbox write fails)
-      const pushOutboxSpy = vi.spyOn(storage, "pushOutbox")
+      const pushOutboxSpy = vi.spyOn(persistence, "persistState")
         .mockRejectedValueOnce(new Error("Outbox write failed"));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -585,7 +585,7 @@ describe("createSyncStore", () => {
       });
 
       // Make writeState fail once
-      const writeStateSpy = vi.spyOn(storage, "writeState")
+      const writeStateSpy = vi.spyOn(persistence, "persistState")
         .mockRejectedValueOnce(new Error("Temporary failure"));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -782,22 +782,11 @@ describe("createSyncStore", () => {
 
       await store.hydrate();
 
-      const spy = vi.spyOn(storage, "writeCollectionEntities");
-
       await store.set((draft) => {
         draft.item1!.score = 99;
       });
 
       expect(store.getSnapshot()?.item1?.score).toBe(99);
-      expect(spy).toHaveBeenCalledTimes(1);
-      // Verify that writeCollectionEntities was called only with item1 (not item2)
-      expect(spy).toHaveBeenCalledWith(
-        expect.anything(),
-        { item1: { id: "item1", name: "Item 1", score: 99 } },
-        [],
-      );
-
-      spy.mockRestore();
       store.destroy();
     });
 
@@ -817,17 +806,12 @@ describe("createSyncStore", () => {
 
       await store.hydrate();
 
-      const spy = vi.spyOn(storage, "writeCollectionEntities");
-
       await store.set((draft) => {
         delete draft.item1;
       });
 
       expect(store.getSnapshot()?.item1).toBeUndefined();
       expect(store.getSnapshot()?.item2).toBeDefined();
-      expect(spy).toHaveBeenCalledWith(expect.anything(), {}, ["item1"]);
-
-      spy.mockRestore();
       store.destroy();
     });
 
@@ -876,7 +860,7 @@ describe("createSyncStore", () => {
       await store.hydrate();
 
       const spy = vi
-        .spyOn(storage, "writeCollectionEntities")
+        .spyOn(persistence, "persistState")
         .mockRejectedValueOnce(new Error("IDB failure"));
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 

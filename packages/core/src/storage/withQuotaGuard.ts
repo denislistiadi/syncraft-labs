@@ -5,6 +5,7 @@
  * quota exceeded failures into typed `SyncraftError` instances with callback telemetry.
  */
 
+import type { SyncraftLogger } from "../types/config.js";
 import { SyncraftError } from "../errors.js";
 import { isQuotaExceededError } from "./quota.js";
 
@@ -20,7 +21,8 @@ export interface QuotaExceededInfo {
     | "pushOutbox"
     | "writeCollectionState"
     | "writeCollectionEntities"
-    | "hydrate";
+    | "hydrate"
+    | "persistState";
 }
 
 /**
@@ -52,6 +54,7 @@ export async function withQuotaGuard<R>(
   operation: () => Promise<R>,
   info: QuotaExceededInfo,
   handler?: QuotaExceededHandler,
+  logger: SyncraftLogger = console,
 ): Promise<R> {
   try {
     return await operation();
@@ -61,7 +64,7 @@ export async function withQuotaGuard<R>(
         try {
           await handler(info);
         } catch (handlerErr) {
-          console.warn(
+          logger.warn(
             `[Syncraft Labs] Error inside onQuotaExceeded handler for "${info.storageKey}":`,
             handlerErr,
           );

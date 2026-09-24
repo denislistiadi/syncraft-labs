@@ -106,12 +106,13 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
             this.initialFetchPromise = (async () => {
               try {
                 const freshData = await effectiveFetcher();
-                await this.store.set(() => freshData);
+                await this.store.setServerState(freshData);
                 this.lastSyncedBase = freshData;
               } catch (fetchErr) {
                 const syncraftErr = toSyncraftError(fetchErr, "fetch", true);
                 this.error = syncraftErr;
-                console.error("[Syncraft Labs] Initial fetch failed:", fetchErr);
+                const logger = this.latestOptions.logger ?? console;
+                logger.error("[Syncraft Labs] Initial fetch failed:", fetchErr);
               } finally {
                 this.initialFetchDone = true;
                 this.initialFetchPromise = null;
@@ -132,7 +133,8 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         this.error = syncraftErr;
         this.isHydrating = false;
         this.notify();
-        console.error("[Syncraft Labs] Hydration failed:", err);
+        const logger = this.latestOptions.logger ?? console;
+        logger.error("[Syncraft Labs] Hydration failed:", err);
         throw syncraftErr;
       } finally {
         this.hydrationPromise = null;
@@ -152,7 +154,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     }
     this.syncInFlight = true;
     try {
-      const rawOutbox = await this.store.getOutbox();
+      const rawOutbox = await this.store.getOutbox(100);
       if (rawOutbox.length === 0) {
         this.retryCount = 0;
         this.scheduleNextSync(this.latestOptions.syncInterval ?? DEFAULT_SYNC_INTERVAL);
@@ -178,10 +180,20 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     } catch (syncErr) {
       this.retryCount++;
       const delay = Math.min(BASE_RETRY_DELAY * Math.pow(2, this.retryCount), MAX_RETRY_DELAY);
-      console.warn(`[Syncraft Labs] Sync failed (attempt ${this.retryCount}), retrying in ${delay}ms`, syncErr);
-      this.error = toSyncraftError(syncErr, "sync", true);
+      const logger = this.latestOptions.logger ?? console;
+      logger.warn(`[Syncraft Labs] Sync failed (attempt ${this.retryCount}), retrying in ${delay}ms`, syncErr);
+      const err = toSyncraftError(syncErr, "sync", true);
+      this.error = err;
       this.isSyncing = false;
       this.notify();
+      
+      if (!err.retryable) {
+        const logger = this.latestOptions.logger ?? console;
+        logger.error(`[Syncraft Labs] Sync failed with non-retryable error. Halting sync queue until manually triggered.`);
+        this.syncInFlight = false;
+        return;
+      }
+      
       this.scheduleNextSync(delay);
     } finally {
       this.syncInFlight = false;
@@ -211,7 +223,8 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
 
   update(updater: DraftUpdater<T>): void {
     if (this.isHydrating) {
-      console.warn("[Syncraft Labs] Cannot update while hydrating. Wait for hydration to complete.");
+      const logger = this.latestOptions.logger ?? console;
+      logger.warn("[Syncraft Labs] Cannot update while hydrating. Wait for hydration to complete.");
       return;
     }
     this.store.set(updater).catch((err: unknown) => {
@@ -231,7 +244,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     const local = this.store.getSnapshot();
     if (local === undefined) {
       // Local state is not yet initialized; adopt remote directly
-      await this.store.set(() => remote);
+      await this.store.setServerState(remote);
       this.lastSyncedBase = remote;
       return;
     }
@@ -255,7 +268,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
       throw typedErr;
     }
 
-    await this.store.set(() => resolved);
+    await this.store.setServerState(resolved);
     this.lastSyncedBase = resolved;
 
     if (this.latestOptions.onConflictResolved) {
@@ -265,7 +278,8 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
           storageKey: this.storageKey,
         });
       } catch (cbErr) {
-        console.warn("[Syncraft Labs] Error in onConflictResolved callback:", cbErr);
+        const logger = this.latestOptions.logger ?? console;
+        logger.warn("[Syncraft Labs] Error in onConflictResolved callback:", cbErr);
       }
     }
   }
@@ -274,7 +288,8 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     const fetcher = fetcherOverride ?? this.latestOptions.fetcher;
     if (!fetcher) {
       const err = new SyncraftError("[Syncraft Labs] refetch() called but no fetcher provided.", { source: "fetch", retryable: false });
-      console.warn(err.message);
+      const logger = this.latestOptions.logger ?? console;
+      logger.warn(err.message);
       this.error = err;
       this.notify();
       throw err;
@@ -283,13 +298,14 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     this.notify();
     try {
       const freshData = await fetcher();
-      await this.store.set(() => freshData);
+      await this.store.setServerState(freshData);
       this.lastSyncedBase = freshData;
       if (this.error instanceof SyncraftError && this.error.source === "fetch") this.error = null;
     } catch (fetchErr) {
       const typedError = toSyncraftError(fetchErr, "fetch", true);
       this.error = typedError;
-      console.error("[Syncraft Labs] Refetch failed:", typedError);
+      const logger = this.latestOptions.logger ?? console;
+      logger.error("[Syncraft Labs] Refetch failed:", typedError);
       throw typedError;
     } finally {
       this.isSyncing = false;

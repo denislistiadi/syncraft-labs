@@ -1,5 +1,5 @@
 import type { SyncListener } from "../types/index.js";
-import type { SyncStoreConfig } from "../types/config.js";
+import type { SyncStoreConfig, SyncraftLogger } from "../types/config.js";
 import type { IDBPDatabase } from "idb";
 
 export interface StoreContext<T extends Record<string, unknown>> {
@@ -12,6 +12,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   overflowStrategy: "reject" | "dropOldest" | "forceFlush";
   onOverflow: SyncStoreConfig<T>["onOverflow"];
   onQuotaExceeded: SyncStoreConfig<T>["onQuotaExceeded"];
+  logger: SyncraftLogger;
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
   db: IDBPDatabase<unknown> | null;
@@ -37,6 +38,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     overflowStrategy: config.overflowStrategy ?? "reject",
     onOverflow: config.onOverflow,
     onQuotaExceeded: config.onQuotaExceeded,
+    logger: config.logger ?? console,
     memoryState: undefined,
     listeners: new Set(),
     db: null,
