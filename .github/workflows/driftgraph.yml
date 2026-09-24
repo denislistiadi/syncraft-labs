@@ -1,0 +1,26 @@
+name: "Architecture Check (Driftgraph)"
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  analyze:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      pull-requests: write
+      contents: read
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Run Driftgraph
+        uses: denislistiadi/driftgraph@v1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          rules-file: .driftgraph.yml
