@@ -15,8 +15,13 @@ import type { OutboxEntry, DraftUpdater, SyncStoreConfig } from "@syncraft-labs/
  * Options for the `useSync` composable.
  * Extends `SyncStoreConfig` (without `storageKey`) plus fetcher/pusher/syncInterval.
  */
-export interface UseSyncOptions<T extends Record<string, unknown>>
+export interface UseSyncOptions<T extends Record<string, unknown>, R = T>
   extends Omit<SyncStoreConfig<T>, "storageKey"> {
+  /**
+   * Optional selector function to extract a specific slice of state.
+   * Helps prevent unnecessary reactivity triggers when other parts of the state change.
+   */
+  readonly selector?: (state: T | undefined) => R;
   /**
    * Async function to fetch latest state from a remote source.
    * Called once after hydration if IndexedDB is empty,
@@ -47,9 +52,9 @@ export interface UseSyncOptions<T extends Record<string, unknown>>
  *
  * @template T - The shape of the state.
  */
-export interface UseSyncReturn<T> {
-  /** Reactive state, or `undefined` during initial hydration. */
-  data: ShallowRef<T | undefined>;
+export interface UseSyncReturn<T, R = T> {
+  /** Reactive state, or selected slice, or `undefined` during initial hydration. */
+  data: ShallowRef<R>;
 
   /** Mutate state using an Immer draft function. Fire-and-forget. */
   update: (updater: DraftUpdater<T>) => void;
