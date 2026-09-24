@@ -3,7 +3,7 @@ import { isQuotaExceededError } from "../storage/quota.js";
 import { withQuotaGuard, type QuotaExceededInfo } from "../storage/withQuotaGuard.js";
 import { SyncraftError } from "../errors.js";
 import { createSyncStore } from "../store/index.js";
-import * as storage from "../storage.js";
+import * as persistence from "../store/persistence.js";
 
 describe("Storage Quota Handling", () => {
   describe("isQuotaExceededError", () => {
@@ -151,20 +151,23 @@ describe("Storage Quota Handling", () => {
       await store.hydrate();
 
       const writeStateSpy = vi
-        .spyOn(storage, "writeState")
-        .mockRejectedValueOnce(new DOMException("Disk full", "QuotaExceededError"));
+        .spyOn(persistence, "persistState")
+        .mockImplementationOnce(async (_db, _mode, _state, _patches, key, onQuota) => {
+          if (onQuota) await onQuota({ storageKey: key, operation: "persistState" });
+          throw new DOMException("Disk full", "QuotaExceededError");
+        });
       const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
       await expect(
         store.set((draft) => {
           draft.count = 100;
         }),
-      ).rejects.toThrow(SyncraftError);
+      ).rejects.toThrow("Disk full");
 
       expect(onQuotaExceeded).toHaveBeenCalledTimes(1);
       expect(onQuotaExceeded).toHaveBeenCalledWith({
         storageKey: key,
-        operation: "writeState",
+        operation: "persistState",
       });
 
       // Rollback verified
