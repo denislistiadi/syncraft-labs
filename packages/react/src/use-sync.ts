@@ -35,7 +35,7 @@
  * - Stores outlive components (never auto-destroyed unless destroyStore is called)
  */
 
-import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore, useRef } from "react";
 import { createSyncStore, BaseStoreController, SyncraftError, type SyncStore } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
 import { useStoreRegistry, type StoreRegistry } from "./provider.js";
@@ -66,7 +66,7 @@ export class ReactStoreController<T extends Record<string, unknown>> extends Bas
     registry: StoreRegistry,
     storageKey: string,
     store: SyncStore<T>,
-    initialOptions: UseSyncOptions<T>,
+    initialOptions: UseSyncOptions<T, any>,
   ) {
     super(storageKey, store, initialOptions);
     this.registry = registry;
@@ -101,7 +101,7 @@ const controllerRegistry = new WeakMap<
 export function getOrCreateController<T extends Record<string, unknown>>(
   registry: StoreRegistry,
   key: string,
-  options: UseSyncOptions<T>,
+  options: UseSyncOptions<T, any>,
 ): ReactStoreController<T> {
   let store = registry.get(key) as SyncStore<T> | undefined;
   if (!store) {
@@ -199,10 +199,10 @@ export function _resetRegistry(registry: StoreRegistry): void {
  * });
  * ```
  */
-export function useSync<T extends Record<string, unknown>>(
+export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   key: string,
-  options: UseSyncOptions<T>,
-): UseSyncReturn<T> {
+  options: UseSyncOptions<T, R>,
+): UseSyncReturn<T, R> {
   const registry = useStoreRegistry();
   const controller = getOrCreateController<T>(registry, key, options);
   const store = controller.store;
@@ -210,12 +210,38 @@ export function useSync<T extends Record<string, unknown>>(
   // Keep controller options updated on re-renders
   controller.updateOptions(options);
 
-  // ── State binding via useSyncExternalStore ─────────────
+  // ── State binding via useSyncExternalStore with Selector ─────────────
   const subscribeStore = useCallback(
     (onStoreChange: () => void) => store.subscribe(() => onStoreChange()),
     [store],
   );
-  const getSnapshot = useCallback(() => store.getSnapshot(), [store]);
+
+  const selectorRef = useRef(options.selector);
+  // Keep selector ref fresh without triggering re-renders itself
+  useEffect(() => {
+    selectorRef.current = options.selector;
+  }, [options.selector]);
+
+  const lastSnapshotRef = useRef<T | undefined>(undefined);
+  const lastSelectionRef = useRef<R | undefined>(undefined);
+  // Initialize with a unique symbol to bypass first-time undefined comparison
+  const isFirstRender = useRef(true);
+
+  const getSnapshot = useCallback((): R => {
+    const currentSnapshot = store.getSnapshot();
+    if (!isFirstRender.current && currentSnapshot === lastSnapshotRef.current && lastSelectionRef.current !== undefined) {
+      return lastSelectionRef.current;
+    }
+    const selection = selectorRef.current 
+      ? selectorRef.current(currentSnapshot) 
+      : (currentSnapshot as unknown as R);
+      
+    lastSnapshotRef.current = currentSnapshot;
+    lastSelectionRef.current = selection;
+    isFirstRender.current = false;
+    return selection;
+  }, [store]);
+
   const data = useSyncExternalStore(subscribeStore, getSnapshot);
 
   // ── Lifecycle state binding via useSyncExternalStore ───
@@ -331,10 +357,10 @@ export function useSync<T extends Record<string, unknown>>(
  * @throws {SyncraftError} Throws synchronously if hydration or initial fetch failed.
  * @throws {Error} Throws if no data exists and no fetcher is provided.
  */
-export function useSyncSuspense<T extends Record<string, unknown>>(
+export function useSyncSuspense<T extends Record<string, unknown>, R = T>(
   key: string,
-  options: UseSyncOptions<T>,
-): Omit<UseSyncReturn<T>, "data" | "isHydrating"> & { data: T } {
+  options: UseSyncOptions<T, R>,
+): Omit<UseSyncReturn<T, R>, "data" | "isHydrating"> & { data: R } {
   const registry = useStoreRegistry();
   const controller = getOrCreateController<T>(registry, key, options);
 
@@ -368,6 +394,6 @@ export function useSyncSuspense<T extends Record<string, unknown>>(
 
   return {
     ...result,
-    data: result.data as T,
+    data: result.data as R,
   };
 }

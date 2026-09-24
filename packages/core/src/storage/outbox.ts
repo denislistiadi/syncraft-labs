@@ -6,8 +6,8 @@ export async function pushOutbox<T>(db: SyncDB, entry: OutboxEntry<T>): Promise<
   await db.put(OUTBOX_STORE, entry);
 }
 
-export async function readOutbox<T>(db: SyncDB): Promise<readonly OutboxEntry<T>[]> {
-  const entries = (await db.getAll(OUTBOX_STORE)) as OutboxEntry<T>[];
+export async function readOutbox<T>(db: SyncDB, limit?: number): Promise<readonly OutboxEntry<T>[]> {
+  const entries = (await db.getAll(OUTBOX_STORE, undefined, limit)) as OutboxEntry<T>[];
   return entries.sort((a, b) => a.timestamp - b.timestamp);
 }
 
