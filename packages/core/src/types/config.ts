@@ -45,6 +45,13 @@ import type { QuotaExceededHandler, QuotaExceededInfo } from "../storage/withQuo
 
 export type { QuotaExceededHandler, QuotaExceededInfo };
 
+export interface SyncraftLogger {
+  warn(message: string, ...args: unknown[]): void;
+  error(message: string, ...args: unknown[]): void;
+  info?(message: string, ...args: unknown[]): void;
+  debug?(message: string, ...args: unknown[]): void;
+}
+
 export interface BaseSyncStoreConfig<T> {
   readonly storageKey: string;
   readonly initialState?: T | undefined;
@@ -68,6 +75,11 @@ export interface BaseSyncStoreConfig<T> {
    * Optional callback invoked whenever IndexedDB storage quota is exceeded.
    */
   readonly onQuotaExceeded?: QuotaExceededHandler | undefined;
+  /**
+   * Injectable logger to replace hardcoded console logs.
+   * @default console
+   */
+  readonly logger?: SyncraftLogger | undefined;
 }
 
 

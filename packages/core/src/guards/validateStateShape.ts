@@ -1,3 +1,5 @@
+import type { SyncraftLogger } from "../types/config.js";
+
 const warnedDates = new WeakSet<object>();
 
 export function validateStateShape(
@@ -5,6 +7,7 @@ export function validateStateShape(
   context?: string,
   path: (string | number)[] = [],
   seen: WeakSet<object> = new WeakSet(),
+  logger: SyncraftLogger = console,
 ): void {
   if (obj === null || typeof obj !== "object") {
     if (typeof obj === "function") {
@@ -26,24 +29,24 @@ export function validateStateShape(
   if (target instanceof Date || Object.prototype.toString.call(target) === "[object Date]") {
     if (!warnedDates.has(target)) {
       warnedDates.add(target);
-      console.warn(
+      logger.warn(
         `[Syncraft Labs] Date detected at path "${pathStr}"${contextStr} — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated. Consider using ISO strings or timestamps instead.`,
       );
     }
     return;
   }
   if (Array.isArray(target)) {
-    for (let i = 0; i < target.length; i++) validateStateShape(target[i], context, [...path, i], seen);
+    for (let i = 0; i < target.length; i++) validateStateShape(target[i], context, [...path, i], seen, logger);
     return;
   }
   if (target instanceof Map) {
-    for (const [key, value] of target) validateStateShape(value, context, [...path, "$entries", String(key)], seen);
+    for (const [key, value] of target) validateStateShape(value, context, [...path, "$entries", String(key)], seen, logger);
     return;
   }
   if (target instanceof Set) {
     let idx = 0;
     for (const value of target) {
-      if (value !== null && typeof value === "object") validateStateShape(value, context, [...path, "$values", String(idx)], seen);
+      if (value !== null && typeof value === "object") validateStateShape(value, context, [...path, "$values", String(idx)], seen, logger);
       idx++;
     }
     return;
@@ -59,5 +62,5 @@ export function validateStateShape(
       `[Syncraft Labs] Unsupported type "${constructorName}" detected at path "${pathStr}"${contextStr}. State must only contain plain objects, arrays, and primitives. Use a plain object instead.`,
     );
   }
-  for (const key of Object.keys(target)) validateStateShape((target as Record<string, unknown>)[key], context, [...path, key], seen);
+  for (const key of Object.keys(target)) validateStateShape((target as Record<string, unknown>)[key], context, [...path, key], seen, logger);
 }

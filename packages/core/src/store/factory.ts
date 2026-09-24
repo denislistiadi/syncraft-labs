@@ -16,7 +16,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
   const { storageKey } = config;
   if (config.initialState !== undefined && isDevMode()) {
     assertNoCycles(config.initialState, `initialState for store "${storageKey}"`);
-    validateStateShape(config.initialState, `initialState for store "${storageKey}"`);
+    validateStateShape(config.initialState, `initialState for store "${storageKey}"`, [], new WeakSet(), config.logger ?? console);
   }
   let processedInitialState: T | undefined = config.initialState;
   if (processedInitialState !== undefined && isDevMode()) {
@@ -57,7 +57,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     getSnapshot(): T | undefined {
       if (!ctx.isHydrated && !ctx.isDestroyed && !ctx.hasWarnedPreHydration && isDevMode()) {
         ctx.hasWarnedPreHydration = true;
-        console.warn(`[Syncraft Labs] getSnapshot() called on store "${storageKey}" before hydrate() completed. This usually means the store hasn't finished loading from IndexedDB yet. Did you forget to await store.hydrate() or use the isHydrating state in your UI?`);
+        ctx.logger.warn(`[Syncraft Labs] getSnapshot() called on store "${storageKey}" before hydrate() completed. This usually means the store hasn't finished loading from IndexedDB yet. Did you forget to await store.hydrate() or use the isHydrating state in your UI?`);
       }
       return ctx.memoryState;
     },
@@ -85,7 +85,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         inversePatches = producedInverse;
       }
       if (nextState === baseState) return;
-      await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy, ctx.onOverflow);
+      await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy, ctx.onOverflow, ctx.logger);
       const previousState = baseState;
       ctx.memoryState = isDevMode() ? deepFreeze(nextState) : nextState;
       notifyListeners(ctx.memoryState);
@@ -97,12 +97,13 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
           () => pushOutbox(currentDB, outboxEntry),
           { storageKey, operation: "pushOutbox" },
           ctx.onQuotaExceeded,
+          ctx.logger
         );
       } catch (error) {
         ctx.memoryState = previousState;
         if (previousState !== undefined) notifyListeners(previousState);
         else ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
-        console.error(`[Syncraft Labs] Persistence failed for store "${storageKey}". Optimistic update has been rolled back.`, error);
+        ctx.logger.error(`[Syncraft Labs] Persistence failed for store "${storageKey}". Optimistic update has been rolled back.`, error);
         throw error;
       }
     },
@@ -138,13 +139,13 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         if (persisted !== undefined) {
           if (isDevMode()) {
             assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
-            validateStateShape(persisted, `hydrate() for store "${storageKey}"`);
+            validateStateShape(persisted, `hydrate() for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
           }
           ctx.memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
         } else if (ctx.initialState !== undefined) {
           if (isDevMode()) {
             assertNoCycles(ctx.initialState, `initialState for store "${storageKey}"`);
-            validateStateShape(ctx.initialState, `initialState for store "${storageKey}"`);
+            validateStateShape(ctx.initialState, `initialState for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
           }
           ctx.memoryState = isDevMode() ? deepFreeze(ctx.initialState) : ctx.initialState;
           if (ctx.storageMode === "collection") {
@@ -152,12 +153,14 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
               () => writeCollectionState(ctx.db!, ctx.initialState),
               { storageKey, operation: "writeCollectionState" },
               ctx.onQuotaExceeded,
+              ctx.logger
             );
           } else {
             await withQuotaGuard(
               () => writeState(ctx.db!, ctx.initialState),
               { storageKey, operation: "writeState" },
               ctx.onQuotaExceeded,
+              ctx.logger
             );
           }
         }
