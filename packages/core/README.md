@@ -122,7 +122,7 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `isUnsupportedType(val)` | Function | Check if a value is an unsupported type for state drafting/persistence |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
-| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `OutboxOverflowStrategy` | Type | Strategy enum (`"reject"`, `"dropOldest"`, `"forceFlush"`) |
 | `OutboxOverflowInfo` | Interface | Event details (`storageKey`, `outboxSize`, `maxOutboxSize`, `strategy`) |
 | `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy`) |

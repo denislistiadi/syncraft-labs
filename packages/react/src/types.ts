@@ -51,6 +51,15 @@ export interface UseSyncOptions<T extends Record<string, unknown>, R = T>
    * @default 5000
    */
   readonly syncInterval?: number | undefined;
+
+  /** Callback fired when a background sync attempt starts. */
+  readonly onSyncStart?: (() => void) | undefined;
+  /** Callback fired when a background sync attempt succeeds. */
+  readonly onSyncSuccess?: (() => void) | undefined;
+  /** Callback fired when a background sync attempt fails. */
+  readonly onSyncError?: ((error: Error) => void) | undefined;
+  /** Callback fired when an optimistic update is rolled back. */
+  readonly onRollback?: ((error: Error, previousState: T | undefined) => void) | undefined;
 }
 
 // ─────────────────────────────────────────────────────────────

@@ -109,6 +109,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
           else ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
           if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
           ctx.logger.error(`[Syncraft Labs] Persistence failed for store "${storageKey}". Optimistic update has been rolled back.`, error);
+          ctx.onRollback?.(error instanceof Error ? error : new Error(String(error)), previousState);
           throw error;
         }
       } finally {
@@ -214,7 +215,21 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         ctx.channel.close();
         ctx.channel = null;
       }
+      if (typeof window !== "undefined") {
+        const win = window as any;
+        if (win.__SYNCRAFT_DEVTOOLS__?.stores) {
+          win.__SYNCRAFT_DEVTOOLS__.stores.delete(storageKey);
+        }
+      }
     },
   };
+  if (typeof window !== "undefined") {
+    const win = window as any;
+    if (!win.__SYNCRAFT_DEVTOOLS__) {
+      win.__SYNCRAFT_DEVTOOLS__ = { stores: new Map() };
+    }
+    win.__SYNCRAFT_DEVTOOLS__.stores.set(storageKey, store);
+  }
+
   return store;
 }

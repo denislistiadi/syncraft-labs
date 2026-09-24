@@ -131,7 +131,21 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
     {{ isSyncing ? "Syncing…" : "Refresh" }}
   </button>
 </template>
+</template>
 ```
+
+## Performance & Optimization
+
+**Selector-based Reactivity**: Prevent over-rendering by passing a `selector` function. The composable will only trigger reactivity if the selected slice of data changes (using `shallowRef` internally).
+```ts
+const { data: doneTodos } = useSync("todos", {
+  selector: (state) => state?.todos.filter((t) => t.done),
+});
+```
+
+## Developer Tools
+
+Syncraft Labs exposes a global object `window.__SYNCRAFT_DEVTOOLS__` in the browser. You can inspect all active local stores via `window.__SYNCRAFT_DEVTOOLS__.stores`.
 
 ## API Reference
 
@@ -140,7 +154,7 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 | `createSyncraft()` | Plugin | Vue plugin guaranteeing app-level store registry isolation across SSR requests |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 composable returning reactive `shallowRef` state and updater |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
 
 ## License

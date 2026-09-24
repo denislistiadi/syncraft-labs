@@ -295,7 +295,7 @@ store.destroy();
 | `isUnsupportedType(val)` | Function | Check if a value is unsupported for state persistence and proxy drafting |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Compact outbox entries by merging same-path mutations |
-| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
+| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
 | `OutboxOverflowStrategy` | Type | Strategy enum: `"reject"` \| `"dropOldest"` \| `"forceFlush"` |
 | `OutboxOverflowInfo` | Type | Event details: `storageKey`, `outboxSize`, `maxOutboxSize`, `strategy` |
 | `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy` |
@@ -312,7 +312,7 @@ store.destroy();
 | `useSync<T>(key, options)` | Hook | Primary React integration |
 | `useSyncSuspense<T>(key, options)` | Hook | React Suspense integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
 | `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`, `destroyStore` |
 
 ### `@syncraft-labs/vue`
@@ -322,7 +322,7 @@ store.destroy();
 | `createSyncraft()` | Plugin | MUST be installed via `app.use()` to provide isolated state (SSR safe) |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
 | `UseSyncReturn<T>` | Type | Return: `data` (ShallowRef), `update`, `refetch`, `isHydrating` (Ref), `isSyncing` (Ref), `isOffline` (Ref), `error` (ShallowRef), `destroyStore` |
 
 ## Packages

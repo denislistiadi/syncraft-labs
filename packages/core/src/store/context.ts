@@ -12,6 +12,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   overflowStrategy: "reject" | "dropOldest" | "forceFlush";
   onOverflow: SyncStoreConfig<T>["onOverflow"];
   onQuotaExceeded: SyncStoreConfig<T>["onQuotaExceeded"];
+  onRollback: SyncStoreConfig<T>["onRollback"];
   logger: SyncraftLogger;
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
@@ -22,6 +23,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   hydrationPromise: Promise<T | undefined> | null;
   channel: BroadcastChannel | null;
   getMonotonicTimestamp: () => number;
+  writeMutex: Promise<void>;
 }
 
 export function createStoreContext<T extends Record<string, unknown>>(
@@ -38,6 +40,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     overflowStrategy: config.overflowStrategy ?? "reject",
     onOverflow: config.onOverflow,
     onQuotaExceeded: config.onQuotaExceeded,
+    onRollback: config.onRollback,
     logger: config.logger ?? console,
     memoryState: undefined,
     listeners: new Set(),
@@ -48,6 +51,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     hydrationPromise: null,
     channel: null,
     getMonotonicTimestamp,
+    writeMutex: Promise.resolve(),
   };
 }
 
