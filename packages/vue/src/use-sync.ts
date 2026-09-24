@@ -12,7 +12,7 @@
  * - Deduplicated hydration and initial fetch
  */
 
-import { shallowRef, ref, onMounted, onUnmounted, inject, type ShallowRef, type Ref } from "vue";
+import { shallowRef, ref, onMounted, onScopeDispose, inject, type ShallowRef, type Ref } from "vue";
 import { createSyncStore, BaseStoreController, type SyncStore, type DraftUpdater } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
 import { SyncraftRegistryKey, type StoreRegistry } from "./plugin.js";
@@ -34,7 +34,7 @@ export class VueStoreController<T extends Record<string, unknown>> extends BaseS
     registry: StoreRegistry,
     storageKey: string,
     store: SyncStore<T>,
-    initialOptions: UseSyncOptions<T>,
+    initialOptions: UseSyncOptions<T, any>,
   ) {
     super(storageKey, store, initialOptions);
     this.registry = registry;
@@ -60,7 +60,7 @@ const vueControllerRegistry = new WeakMap<
 export function getOrCreateController<T extends Record<string, unknown>>(
   registry: StoreRegistry,
   key: string,
-  options: UseSyncOptions<T>,
+  options: UseSyncOptions<T, any>,
 ): VueStoreController<T> {
   let store = registry.get(key) as SyncStore<T> | undefined;
   if (!store) {
@@ -150,10 +150,10 @@ export function _resetRegistry(registry: StoreRegistry): void {
  * </script>
  * ```
  */
-export function useSync<T extends Record<string, unknown>>(
+export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   key: string,
-  options: UseSyncOptions<T>,
-): UseSyncReturn<T> {
+  options: UseSyncOptions<T, R>,
+): UseSyncReturn<T, R> {
   const registry = inject(SyncraftRegistryKey);
   if (!registry) {
     throw new Error(
@@ -168,8 +168,12 @@ export function useSync<T extends Record<string, unknown>>(
   controller.updateOptions(options);
 
   // ── Reactive state ─────────────────────────────────────────
-  const data: ShallowRef<T | undefined> = shallowRef<T | undefined>(
-    store.getSnapshot(),
+  const getSelectedState = (state: T | undefined): R => {
+    return options.selector ? options.selector(state) : (state as unknown as R);
+  };
+
+  const data: ShallowRef<R> = shallowRef<R>(
+    getSelectedState(store.getSnapshot()),
   );
   const isHydrating: Ref<boolean> = ref(controller.isHydrating);
   const isSyncing: Ref<boolean> = ref(controller.isSyncing);
@@ -182,7 +186,10 @@ export function useSync<T extends Record<string, unknown>>(
 
   // ── Subscriptions ──────────────────────────────────────────
   const unsubscribeStore = store.subscribe((state: T) => {
-    data.value = state;
+    const newValue = getSelectedState(state);
+    if (data.value !== newValue) {
+      data.value = newValue;
+    }
   });
 
   const syncControllerState = () => {
@@ -216,7 +223,7 @@ export function useSync<T extends Record<string, unknown>>(
     void controller.ensureHydrated(options.fetcher);
   });
 
-  onUnmounted(() => {
+  onScopeDispose(() => {
     unsubscribeStore();
     unsubscribeController();
 
