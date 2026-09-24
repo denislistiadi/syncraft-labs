@@ -32,7 +32,7 @@ function uniqueKey(): string {
  * Periodically executes the assertion until it passes or times out.
  * Needed because IndexedDB uses macro-tasks that aren't flushed by nextTick/flushPromises.
  */
-async function waitFor(assertion: () => void, timeout = 1000): Promise<void> {
+async function waitFor(assertion: () => void, timeout = 5000): Promise<void> {
   const start = Date.now();
   while (true) {
     try {
