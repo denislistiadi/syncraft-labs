@@ -21,7 +21,8 @@ export interface QuotaExceededInfo {
     | "pushOutbox"
     | "writeCollectionState"
     | "writeCollectionEntities"
-    | "hydrate";
+    | "hydrate"
+    | "persistState";
 }
 
 /**

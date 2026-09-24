@@ -5,8 +5,9 @@ export interface SyncStore<T> {
   get(): Promise<T | undefined>;
   getSnapshot(): T | undefined;
   set(updater: DraftUpdater<T>): Promise<void>;
+  setServerState(state: T): Promise<void>;
   subscribe(listener: SyncListener<T>): Unsubscribe;
-  getOutbox(): Promise<readonly OutboxEntry<T>[]>;
+  getOutbox(limit?: number): Promise<readonly OutboxEntry<T>[]>;
   clearOutbox(ids: readonly string[]): Promise<void>;
   compactOutbox(): Promise<readonly OutboxEntry<T>[]>;
   hydrate(): Promise<T | undefined>;

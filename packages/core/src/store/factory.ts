@@ -2,10 +2,10 @@ import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
 import type { DraftUpdater, OutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
-import { closeDB, openSyncDB, pushOutbox, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage } from "../storage.js";
+import { closeDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage } from "../storage.js";
 import { createMonotonicClock, generateId } from "../utils/id.js";
 import { enforceOutboxLimit } from "./outboxGuard.js";
-import { persistState } from "./persistence.js";
+import * as persistence from "./persistence.js";
 import { createStoreContext } from "./context.js";
 import { createBroadcaster } from "./broadcast.js";
 import { withQuotaGuard } from "../storage/withQuotaGuard.js";
@@ -41,6 +41,14 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     return ctx.db;
   }
 
+  const acquireLock = (): Promise<() => void> => {
+    let resolver: () => void;
+    const next = new Promise<void>((r) => { resolver = r; });
+    const current = ctx.writeMutex;
+    ctx.writeMutex = ctx.writeMutex.then(() => next);
+    return current.then(() => resolver);
+  };
+
   const store: SyncStore<T> = {
     async get(): Promise<T | undefined> {
       assertNotDestroyed();
@@ -63,48 +71,62 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     },
     async set(updater: DraftUpdater<T>): Promise<void> {
       assertNotDestroyed();
-      const currentDB = assertDB();
-      const baseState = ctx.memoryState ?? ctx.initialState;
-      let nextState: T;
-      let patches: Patch[];
-      let inversePatches: Patch[];
-      if (baseState === undefined) {
-        try {
-          const result = updater(undefined as unknown as T);
-          if (result === undefined) throw new Error("No replacement state returned");
-          nextState = result;
-        } catch {
-          throw new Error(`[Syncraft Labs] Cannot call set() on store "${storageKey}" — no state exists. Either provide an initialState in the config, call hydrate() first, or ensure the store has been populated via a fetcher.`);
-        }
-        patches = [{ op: "replace", path: [], value: nextState }];
-        inversePatches = [{ op: "replace", path: [], value: undefined }];
-      } else {
-        const [producedState, producedPatches, producedInverse] = produceWithPatches(baseState, updater) as [T, Patch[], Patch[]];
-        nextState = producedState;
-        patches = producedPatches;
-        inversePatches = producedInverse;
-      }
-      if (nextState === baseState) return;
-      await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy, ctx.onOverflow, ctx.logger);
-      const previousState = baseState;
-      ctx.memoryState = isDevMode() ? deepFreeze(nextState) : nextState;
-      notifyListeners(ctx.memoryState);
-      if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
+      const release = await acquireLock();
       try {
-        await persistState(currentDB, ctx.storageMode, nextState, patches, storageKey, ctx.onQuotaExceeded);
-        const outboxEntry: OutboxEntry<T> = { id: generateId(), timestamp: ctx.getMonotonicTimestamp(), patches, inversePatches };
-        await withQuotaGuard(
-          () => pushOutbox(currentDB, outboxEntry),
-          { storageKey, operation: "pushOutbox" },
-          ctx.onQuotaExceeded,
-          ctx.logger
-        );
-      } catch (error) {
-        ctx.memoryState = previousState;
-        if (previousState !== undefined) notifyListeners(previousState);
-        else ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
-        ctx.logger.error(`[Syncraft Labs] Persistence failed for store "${storageKey}". Optimistic update has been rolled back.`, error);
-        throw error;
+        const currentDB = assertDB();
+        const baseState = ctx.memoryState ?? ctx.initialState;
+        let nextState: T;
+        let patches: Patch[];
+        let inversePatches: Patch[];
+        if (baseState === undefined) {
+          try {
+            const result = updater(undefined as unknown as T);
+            if (result === undefined) throw new Error("No replacement state returned");
+            nextState = result;
+          } catch {
+            throw new Error(`[Syncraft Labs] Cannot call set() on store "${storageKey}" — no state exists. Either provide an initialState in the config, call hydrate() first, or ensure the store has been populated via a fetcher.`);
+          }
+          patches = [{ op: "replace", path: [], value: nextState }];
+          inversePatches = [{ op: "replace", path: [], value: undefined }];
+        } else {
+          const [producedState, producedPatches, producedInverse] = produceWithPatches(baseState, updater) as [T, Patch[], Patch[]];
+          nextState = producedState;
+          patches = producedPatches;
+          inversePatches = producedInverse;
+        }
+        if (nextState === baseState) return;
+        await enforceOutboxLimit(currentDB, storageKey, ctx.maxOutboxSize, ctx.overflowStrategy, ctx.onOverflow, ctx.logger);
+        const previousState = baseState;
+        ctx.memoryState = isDevMode() ? deepFreeze(nextState) : nextState;
+        notifyListeners(ctx.memoryState);
+        if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
+        try {
+          const outboxEntry: OutboxEntry<T> = { id: generateId(), timestamp: ctx.getMonotonicTimestamp(), patches, inversePatches };
+          await persistence.persistState(currentDB, ctx.storageMode, nextState, patches, storageKey, ctx.onQuotaExceeded, outboxEntry);
+        } catch (error) {
+          ctx.memoryState = previousState;
+          if (previousState !== undefined) notifyListeners(previousState);
+          else ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
+          if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
+          ctx.logger.error(`[Syncraft Labs] Persistence failed for store "${storageKey}". Optimistic update has been rolled back.`, error);
+          throw error;
+        }
+      } finally {
+        release();
+      }
+    },
+    async setServerState(newState: T): Promise<void> {
+      assertNotDestroyed();
+      const release = await acquireLock();
+      try {
+        const currentDB = assertDB();
+        ctx.memoryState = isDevMode() ? deepFreeze(newState) : newState;
+        notifyListeners(ctx.memoryState);
+        if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
+        
+        await persistence.persistState(currentDB, ctx.storageMode, newState, [], storageKey, ctx.onQuotaExceeded);
+      } finally {
+        release();
       }
     },
     subscribe(listener: SyncListener<T>): Unsubscribe {
@@ -112,10 +134,10 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       ctx.listeners.add(listener);
       return () => ctx.listeners.delete(listener);
     },
-    async getOutbox(): Promise<readonly OutboxEntry<T>[]> {
+    async getOutbox(limit?: number): Promise<readonly OutboxEntry<T>[]> {
       assertNotDestroyed();
       const currentDB = assertDB();
-      return readOutbox<T>(currentDB);
+      return readOutbox<T>(currentDB, limit);
     },
     async clearOutbox(ids: readonly string[]): Promise<void> {
       assertNotDestroyed();
