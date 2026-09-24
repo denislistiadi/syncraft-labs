@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Core**: Added `onSyncStart`, `onSyncSuccess`, and `onSyncError` lifecycle hooks to track background synchronization events. (#20)
+- **Core**: Added `onRollback` callback to track local persistence failures that trigger state rollbacks.
+- **Core**: Exposed `window.__SYNCRAFT_DEVTOOLS__` globally for active store inspection in developer extensions. (#21)
+- **React & Vue**: Added `selector` parameter to `useSync` configuration for fine-grained reactivity and memoization, resolving over-rendering issues on large state trees.
+
+### Fixed
+- **Core**: Refactored IndexedDB persistence layer (`persistState`) to execute `state` and `outbox` updates within a single atomic transaction, preventing storage race conditions.
+- **Core**: Background sync polling loops now cleanly halt without infinite exponential backoff when receiving non-retryable 4xx Client Errors.
+- **Vue**: Replaced `onUnmounted` with `onScopeDispose` for safer listener cleanup, preventing memory leaks in SSR and suspense boundaries.
+
+
 ## [0.6.0] - 2026-09-15
 
 ### Added
