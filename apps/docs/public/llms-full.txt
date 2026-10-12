@@ -346,6 +346,12 @@ Create a new store instance. Each store manages one slice of state identified by
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached: `"reject"` throws Error, `"dropOldest"` drops oldest entry with warning, `"forceFlush"` invokes `onOverflow` callback to attempt sync before write |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
+| `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Callback invoked when local persistence fails and optimistic draft reverts |
+| `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
+| `conflictStrategy` | `"lastWriteWins" \| "custom"` | `"lastWriteWins"` | Strategy when reconciling incoming remote state |
+| `resolver` | `ConflictResolver<T>` | `undefined` | Custom three-way merge function (required when `conflictStrategy` is `"custom"`) |
+| `onConflictResolved` | `(info: ConflictResolvedInfo) => void` | `undefined` | Callback invoked when a conflict is resolved |
+| `onQuotaExceeded` | `(info: QuotaExceededInfo) => void` | `undefined` | Callback invoked on storage quota exhaustion |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
 | `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
 
@@ -499,6 +505,14 @@ type Unsubscribe = () => void;
 
 ---
 
+### DevTools Inspection
+
+In browser environments (`typeof window !== "undefined"`), active stores are automatically registered into `window.__SYNCRAFT_DEVTOOLS__.stores` (a `Map<string, SyncStore<any>>`).
+
+This allows browser developer extensions or developer console scripts to inspect snapshots, monitor outbox queues, and interact directly with active store instances during debugging. When a store is destroyed via `store.destroy()`, it is automatically unregistered from the DevTools registry to prevent memory leaks.
+
+---
+
 <a id="packages-react"></a>
 # React Package (@syncraft-labs/react)
 
@@ -619,6 +633,12 @@ Standard React hook for subscribing to a SyncStore.
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `selector` | `(state: T \| undefined) => R` | `undefined` | Extract specific slice to prevent over-rendering |
+| `onSyncStart` | `() => void` | `undefined` | Fired when background sync starts |
+| `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
+| `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
+| `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
@@ -776,6 +796,12 @@ Primary composable for Syncraft Labs in Vue.
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
 | `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
+| `selector` | `(state: T \| undefined) => R` | `undefined` | Extract specific slice to prevent over-rendering |
+| `onSyncStart` | `() => void` | `undefined` | Fired when background sync starts |
+| `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
+| `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
+| `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
@@ -2650,6 +2676,32 @@ graph TD
 All notable changes to Syncraft Labs across core libraries and framework adapters (`@syncraft-labs/core`, `@syncraft-labs/react`, `@syncraft-labs/vue`).
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+---
+
+## [0.7.0] — 2026-10-12
+
+> **Focus**: Observability lifecycle hooks, DevTools inspection hook, selector-based reactivity, atomic IndexedDB persistence, and structured logging. Zero breaking changes.
+
+### Added
+
+- **Core**: Added `onSyncStart`, `onSyncSuccess`, and `onSyncError` lifecycle hooks to `BaseControllerOptions` to track background synchronization events. ([#20](https://github.com/denislistiadi/syncraft-labs/issues/20), [#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Added `onRollback` callback to `SyncStoreConfig` and `UseSyncOptions` to track local persistence failures that trigger state rollbacks. ([#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Exposed `window.__SYNCRAFT_DEVTOOLS__` globally for active store inspection in developer extensions with automatic cleanup on store destroy. ([#21](https://github.com/denislistiadi/syncraft-labs/issues/21), [#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Structured redirectable logging via `logger` in `SyncStoreConfig` and `BaseControllerOptions`, replacing hardcoded console logs. ([#22](https://github.com/denislistiadi/syncraft-labs/issues/22))
+- **React & Vue**: Added `selector` parameter to `useSync` configuration for fine-grained reactivity and memoization, resolving over-rendering issues on large state trees. ([#59](https://github.com/denislistiadi/syncraft-labs/pull/59))
+
+### Fixed
+
+- **Core**: Refactored IndexedDB persistence layer (`persistState`) to execute `state` and `outbox` updates within a single atomic transaction, preventing storage race conditions. ([#58](https://github.com/denislistiadi/syncraft-labs/pull/58))
+- **Core**: Background sync polling loops now cleanly halt without infinite exponential backoff when receiving non-retryable 4xx Client Errors. ([#58](https://github.com/denislistiadi/syncraft-labs/pull/58))
+- **Vue**: Replaced `onUnmounted` with `onScopeDispose` for safer listener cleanup, preventing memory leaks in SSR and suspense boundaries. ([#59](https://github.com/denislistiadi/syncraft-labs/pull/59))
+
+### Upgrade
+
+```bash
+npm install @syncraft-labs/core@0.7.0 @syncraft-labs/react@0.7.0 @syncraft-labs/vue@0.7.0
+```
 
 ---
 

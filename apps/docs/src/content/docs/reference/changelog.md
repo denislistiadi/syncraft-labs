@@ -14,6 +14,32 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.7.0] — 2026-10-12
+
+> **Focus**: Observability lifecycle hooks, DevTools inspection hook, selector-based reactivity, atomic IndexedDB persistence, and structured logging. Zero breaking changes.
+
+### Added
+
+- **Core**: Added `onSyncStart`, `onSyncSuccess`, and `onSyncError` lifecycle hooks to `BaseControllerOptions` to track background synchronization events. ([#20](https://github.com/denislistiadi/syncraft-labs/issues/20), [#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Added `onRollback` callback to `SyncStoreConfig` and `UseSyncOptions` to track local persistence failures that trigger state rollbacks. ([#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Exposed `window.__SYNCRAFT_DEVTOOLS__` globally for active store inspection in developer extensions with automatic cleanup on store destroy. ([#21](https://github.com/denislistiadi/syncraft-labs/issues/21), [#60](https://github.com/denislistiadi/syncraft-labs/pull/60))
+- **Core**: Structured redirectable logging via `logger` in `SyncStoreConfig` and `BaseControllerOptions`, replacing hardcoded console logs. ([#22](https://github.com/denislistiadi/syncraft-labs/issues/22))
+- **React & Vue**: Added `selector` parameter to `useSync` configuration for fine-grained reactivity and memoization, resolving over-rendering issues on large state trees. ([#59](https://github.com/denislistiadi/syncraft-labs/pull/59))
+
+### Fixed
+
+- **Core**: Refactored IndexedDB persistence layer (`persistState`) to execute `state` and `outbox` updates within a single atomic transaction, preventing storage race conditions. ([#58](https://github.com/denislistiadi/syncraft-labs/pull/58))
+- **Core**: Background sync polling loops now cleanly halt without infinite exponential backoff when receiving non-retryable 4xx Client Errors. ([#58](https://github.com/denislistiadi/syncraft-labs/pull/58))
+- **Vue**: Replaced `onUnmounted` with `onScopeDispose` for safer listener cleanup, preventing memory leaks in SSR and suspense boundaries. ([#59](https://github.com/denislistiadi/syncraft-labs/pull/59))
+
+### Upgrade
+
+```bash
+npm install @syncraft-labs/core@0.7.0 @syncraft-labs/react@0.7.0 @syncraft-labs/vue@0.7.0
+```
+
+---
+
 ## [0.6.0] — 2026-09-15
 
 > **Focus**: Pluggable conflict resolution strategies, cross-browser storage quota recovery, and long-term CRDT architectural roadmap. Zero breaking changes.

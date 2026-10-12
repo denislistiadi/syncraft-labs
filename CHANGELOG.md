@@ -5,18 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.7.0] - 2026-10-12
 
 ### Added
 - **Core**: Added `onSyncStart`, `onSyncSuccess`, and `onSyncError` lifecycle hooks to track background synchronization events. (#20)
-- **Core**: Added `onRollback` callback to track local persistence failures that trigger state rollbacks.
+- **Core**: Added `onRollback` callback to track local persistence failures that trigger state rollbacks. (#60)
 - **Core**: Exposed `window.__SYNCRAFT_DEVTOOLS__` globally for active store inspection in developer extensions. (#21)
-- **React & Vue**: Added `selector` parameter to `useSync` configuration for fine-grained reactivity and memoization, resolving over-rendering issues on large state trees.
+- **Core**: Structured redirectable logging via `logger` in `SyncStoreConfig` and `BaseControllerOptions`, replacing hardcoded console logs. (#22)
+- **React & Vue**: Added `selector` parameter to `useSync` configuration for fine-grained reactivity and memoization, resolving over-rendering issues on large state trees. (#59)
 
 ### Fixed
-- **Core**: Refactored IndexedDB persistence layer (`persistState`) to execute `state` and `outbox` updates within a single atomic transaction, preventing storage race conditions.
-- **Core**: Background sync polling loops now cleanly halt without infinite exponential backoff when receiving non-retryable 4xx Client Errors.
-- **Vue**: Replaced `onUnmounted` with `onScopeDispose` for safer listener cleanup, preventing memory leaks in SSR and suspense boundaries.
+- **Core**: Refactored IndexedDB persistence layer (`persistState`) to execute `state` and `outbox` updates within a single atomic transaction, preventing storage race conditions. (#58)
+- **Core**: Background sync polling loops now cleanly halt without infinite exponential backoff when receiving non-retryable 4xx Client Errors. (#58)
+- **Vue**: Replaced `onUnmounted` with `onScopeDispose` for safer listener cleanup, preventing memory leaks in SSR and suspense boundaries. (#59)
 
 
 ## [0.6.0] - 2026-09-15

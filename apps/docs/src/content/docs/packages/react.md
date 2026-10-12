@@ -128,6 +128,7 @@ Standard React hook for subscribing to a SyncStore.
 | `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
 | `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
 | `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |

@@ -23,6 +23,12 @@ Create a new store instance. Each store manages one slice of state identified by
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached: `"reject"` throws Error, `"dropOldest"` drops oldest entry with warning, `"forceFlush"` invokes `onOverflow` callback to attempt sync before write |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
+| `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Callback invoked when local persistence fails and optimistic draft reverts |
+| `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
+| `conflictStrategy` | `"lastWriteWins" \| "custom"` | `"lastWriteWins"` | Strategy when reconciling incoming remote state |
+| `resolver` | `ConflictResolver<T>` | `undefined` | Custom three-way merge function (required when `conflictStrategy` is `"custom"`) |
+| `onConflictResolved` | `(info: ConflictResolvedInfo) => void` | `undefined` | Callback invoked when a conflict is resolved |
+| `onQuotaExceeded` | `(info: QuotaExceededInfo) => void` | `undefined` | Callback invoked on storage quota exhaustion |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
 | `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
 
@@ -173,3 +179,11 @@ type SyncListener<T> = (state: T) => void;
 ```ts
 type Unsubscribe = () => void;
 ```
+
+---
+
+### DevTools Inspection
+
+In browser environments (`typeof window !== "undefined"`), active stores are automatically registered into `window.__SYNCRAFT_DEVTOOLS__.stores` (a `Map<string, SyncStore<any>>`).
+
+This allows browser developer extensions or developer console scripts to inspect snapshots, monitor outbox queues, and interact directly with active store instances during debugging. When a store is destroyed via `store.destroy()`, it is automatically unregistered from the DevTools registry to prevent memory leaks.
