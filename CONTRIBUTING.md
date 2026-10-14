@@ -152,6 +152,11 @@ npm run build
 - Include reproduction steps for bugs
 - For security issues, email directly instead of opening a public issue
 
+## Code of Conduct
+
+Please note that this project is released with a [Code of Conduct](./CODE_OF_CONDUCT.md). By participating in this project, you agree to abide by its terms.
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the [MIT License](./LICENSE).
+
