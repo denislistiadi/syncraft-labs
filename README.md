@@ -23,13 +23,6 @@ Syncraft Labs is a **local-first state management engine** that gives your app i
 
 Your users get **zero-latency updates** that survive page refreshes, network outages, and app restarts. When connectivity returns, pending changes sync automatically in the background.
 
-```
-User Action → Proxy Draft → Memory (instant) → IndexedDB (durable) → Outbox (sync)
-                                    ↓                                       ↓
-                              UI re-renders                        Background pusher
-                              immediately                          syncs to server
-```
-
 ## Features
 
 | Feature | Description |
