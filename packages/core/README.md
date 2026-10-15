@@ -55,7 +55,7 @@ const store = createSyncStore<AppState>({
 // 2. Hydrate from IndexedDB
 await store.hydrate();
 
-// 3. Mutate with proxy drafts — optimistic & durable
+// 3. Mutate with proxy drafts - optimistic & durable
 await store.set((draft) => {
   draft.count += 1;
 });
@@ -128,14 +128,14 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy`) |
 | `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`) |
 | `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
-| `Patch` | Interface | RFC6902 patch (`op`, `path`, `value?`) — Map uses `$entries/<key>`, Set uses `$values/<value>`, keys/values `string\|number` only |
+| `Patch` | Interface | RFC6902 patch (`op`, `path`, `value?`) - Map uses `$entries/<key>`, Set uses `$values/<value>`, keys/values `string\|number` only |
 
 ## Framework Integrations
 
 While you can use `@syncraft-labs/core` directly in vanilla JavaScript, we provide official bindings for popular frameworks:
 
-- [**React**](https://syncraft-labs.web.id/docs/packages/react): [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) — `useSync` and `useSyncSuspense` hooks built on `useSyncExternalStore`.
-- [**Vue 3**](https://syncraft-labs.web.id/docs/packages/vue): [`@syncraft-labs/vue`](https://www.npmjs.com/package/@syncraft-labs/vue) — `useSync` composable built with `shallowRef`.
+- [**React**](https://syncraft-labs.web.id/docs/packages/react): [`@syncraft-labs/react`](https://www.npmjs.com/package/@syncraft-labs/react) - `useSync` and `useSyncSuspense` hooks built on `useSyncExternalStore`.
+- [**Vue 3**](https://syncraft-labs.web.id/docs/packages/vue): [`@syncraft-labs/vue`](https://www.npmjs.com/package/@syncraft-labs/vue) - `useSync` composable built with `shallowRef`.
 
 ## License
 
