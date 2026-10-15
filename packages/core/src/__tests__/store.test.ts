@@ -136,7 +136,7 @@ describe("createSyncStore", () => {
         draft.todos.push({ id: "1", text: "Test", done: false });
       });
 
-      // Hydrate again — should NOT reset to initialState
+      // Hydrate again - should NOT reset to initialState
       await store.hydrate();
 
       const state = store.getSnapshot();
@@ -178,7 +178,7 @@ describe("createSyncStore", () => {
       });
       store1.destroy();
 
-      // Create a new store with the same key — it should read the persisted state
+      // Create a new store with the same key - it should read the persisted state
       const store2 = createSyncStore<TodoState>({ storageKey: key });
       await store2.hydrate();
 
@@ -239,7 +239,7 @@ describe("createSyncStore", () => {
 
       // This updater doesn't actually change anything
       await store.set((_draft) => {
-        // intentionally empty — no mutations
+        // intentionally empty - no mutations
       });
 
       // Listener should NOT have been called (no change)
@@ -327,7 +327,7 @@ describe("createSyncStore", () => {
       await store.set((draft) => {
         draft.lastUpdated = 2;
       });
-      // Should still be 1 — listener was removed
+      // Should still be 1 - listener was removed
       expect(listener).toHaveBeenCalledTimes(1);
 
       store.destroy();
@@ -410,7 +410,7 @@ describe("createSyncStore", () => {
       });
       store1.destroy();
 
-      // Session 2: Create new store with same key — simulates page reload
+      // Session 2: Create new store with same key - simulates page reload
       const store2 = createSyncStore<TodoState>({ storageKey: key });
       await store2.hydrate();
 
@@ -505,7 +505,7 @@ describe("createSyncStore", () => {
       const listener = vi.fn();
       store.subscribe(listener);
 
-      // First mutation — succeeds, establishes baseline
+      // First mutation - succeeds, establishes baseline
       await store.set((draft) => {
         draft.todos.push({ id: "1", text: "Baseline", done: false });
       });
@@ -550,7 +550,7 @@ describe("createSyncStore", () => {
     it("should rollback in-memory state when pushOutbox throws", async () => {
       const store = await createHydratedStore();
 
-      // First mutation — succeeds
+      // First mutation - succeeds
       await store.set((draft) => {
         draft.todos.push({ id: "1", text: "Baseline", done: false });
       });
@@ -579,7 +579,7 @@ describe("createSyncStore", () => {
     it("should allow normal operations after a rollback", async () => {
       const store = await createHydratedStore();
 
-      // First mutation — succeeds
+      // First mutation - succeeds
       await store.set((draft) => {
         draft.todos.push({ id: "1", text: "First", done: false });
       });
@@ -599,7 +599,7 @@ describe("createSyncStore", () => {
       writeStateSpy.mockRestore();
       consoleSpy.mockRestore();
 
-      // The store should still be functional — this should succeed
+      // The store should still be functional - this should succeed
       await store.set((draft) => {
         draft.todos.push({ id: "3", text: "Recovery", done: false });
       });
@@ -627,7 +627,7 @@ describe("createSyncStore", () => {
         initialState: INITIAL_STATE,
       });
 
-      // Call getSnapshot() before hydrate() — should trigger warning
+      // Call getSnapshot() before hydrate() - should trigger warning
       store.getSnapshot();
 
       expect(warnSpy).toHaveBeenCalledTimes(1);
@@ -667,7 +667,7 @@ describe("createSyncStore", () => {
 
       const store = await createHydratedStore();
 
-      // Call getSnapshot() after hydration — should NOT warn
+      // Call getSnapshot() after hydration - should NOT warn
       store.getSnapshot();
 
       expect(warnSpy).not.toHaveBeenCalled();
@@ -1010,7 +1010,7 @@ describe("createSyncStore", () => {
       expect(initialOutbox).toHaveLength(2);
       const firstEntryId = initialOutbox[0]!.id;
 
-      // 3rd mutation — should drop oldest (firstEntryId) and succeed
+      // 3rd mutation - should drop oldest (firstEntryId) and succeed
       await store.set((draft) => {
         draft.lastUpdated = 300;
       });
