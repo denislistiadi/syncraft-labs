@@ -35,5 +35,5 @@ export function generateSitemap(publicDir) {
 `;
 
   fs.writeFileSync(path.join(publicDir, "sitemap.xml"), sitemapXml.trim(), "utf-8");
-  console.log("✓ Generated public/sitemap.xml");
+  console.log("[docs:sitemap] Generated public/sitemap.xml");
 }

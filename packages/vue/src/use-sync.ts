@@ -1,135 +1,48 @@
 /**
  * @module @syncraft-labs/vue/use-sync
  *
- * The `useSync` composable — the primary entry point for Syncraft Labs in Vue.
+ * The `useSync` composable - the primary entry point for Syncraft Labs in Vue.
  *
  * Same architecture as the React hook, using Vue 3 Composition API:
- * - `shallowRef()` for state (avoids deep reactivity on Immer-managed objects)
+ * - `shallowRef()` for state (avoids deep reactivity on draft-managed objects)
  * - `ref()` for boolean flags
- * - `onMounted()` / `onUnmounted()` for lifecycle
+ * - `onMounted()` / `onScopeDispose()` for lifecycle
  * - Module-level singleton controller registry shared per store key
  * - In-flight sync loop mutex and single-snapshot compaction
  * - Deduplicated hydration and initial fetch
  */
 
-import { shallowRef, ref, onMounted, onScopeDispose, inject, type ShallowRef, type Ref } from "vue";
-import { createSyncStore, BaseStoreController, type SyncStore, type DraftUpdater } from "@syncraft-labs/core";
+import {
+  shallowRef,
+  ref,
+  onMounted,
+  onScopeDispose,
+  inject,
+  type ShallowRef,
+  type Ref,
+} from "vue";
+import type { DraftUpdater } from "@syncraft-labs/core";
 import type { UseSyncOptions, UseSyncReturn } from "./types.js";
-import { SyncraftRegistryKey, type StoreRegistry } from "./plugin.js";
+import { SyncraftRegistryKey } from "./plugin.js";
+import {
+  getOrCreateController,
+  destroyStore,
+} from "./controller.js";
+import { useNetworkStatus } from "./use-network.js";
 
-// ─────────────────────────────────────────────────────────────
-// Store Lifecycle Controller
-// ─────────────────────────────────────────────────────────────
+export {
+  VueStoreController,
+  vueControllerRegistry,
+  getOrCreateController,
+  destroyStore,
+  _resetRegistry,
+  type VueControllerState,
+} from "./controller.js";
 
-export interface VueControllerState {
-  readonly isHydrating: boolean;
-  readonly isSyncing: boolean;
-  readonly error: Error | null;
-}
-
-export class VueStoreController<T extends Record<string, unknown>> extends BaseStoreController<T> {
-  private readonly registry: StoreRegistry;
-
-  constructor(
-    registry: StoreRegistry,
-    storageKey: string,
-    store: SyncStore<T>,
-    initialOptions: UseSyncOptions<T, any>,
-  ) {
-    super(storageKey, store, initialOptions);
-    this.registry = registry;
-  }
-
-  protected override notify(): void {
-    this.notifyListeners();
-  }
-
-  override destroy(): void {
-    super.destroy();
-    this.store.destroy();
-    this.registry.delete(this.storageKey);
-    vueControllerRegistry.delete(this.store);
-  }
-}
-
-const vueControllerRegistry = new WeakMap<
-  SyncStore<any>,
-  VueStoreController<any>
->();
-
-export function getOrCreateController<T extends Record<string, unknown>>(
-  registry: StoreRegistry,
-  key: string,
-  options: UseSyncOptions<T, any>,
-): VueStoreController<T> {
-  let store = registry.get(key) as SyncStore<T> | undefined;
-  if (!store) {
-    store = createSyncStore<T>({
-      storageKey: key,
-      initialState: options.initialState,
-      maxOutboxSize: options.maxOutboxSize,
-      overflowStrategy: options.overflowStrategy,
-      onOverflow: options.onOverflow,
-      conflictStrategy: options.conflictStrategy,
-      resolver: options.resolver,
-      onConflictResolved: options.onConflictResolved,
-      onQuotaExceeded: options.onQuotaExceeded,
-      storageMode: options.storageMode,
-      idField: options.idField,
-    } as unknown as import("@syncraft-labs/core").SyncStoreConfig<T>);
-    registry.set(key, store as unknown as SyncStore<never>);
-
-
-  }
-
-  let controller = vueControllerRegistry.get(store) as
-    | VueStoreController<T>
-    | undefined;
-
-  if (!controller) {
-    controller = new VueStoreController<T>(registry, key, store, options);
-    vueControllerRegistry.set(store, controller as VueStoreController<any>);
-  } else {
-    controller.updateOptions(options);
-  }
-
-  return controller;
-}
-
-/**
- * Destroy a store and remove it from the registry.
- */
-export function destroyStore(registry: StoreRegistry, key: string): void {
-  const store = registry.get(key);
-  if (store) {
-    const controller = vueControllerRegistry.get(store);
-    if (controller) {
-      controller.destroy();
-    } else {
-      store.destroy();
-      registry.delete(key);
-    }
-  }
-}
-
-/**
- * Reset the entire registry. **For testing only.**
- */
-export function _resetRegistry(registry: StoreRegistry): void {
-  for (const store of Array.from(registry.values())) {
-    const controller = vueControllerRegistry.get(store);
-    if (controller) {
-      controller.destroy();
-    } else {
-      store.destroy();
-    }
-  }
-  registry.clear();
-}
-
-// ─────────────────────────────────────────────────────────────
-// Composable
-// ─────────────────────────────────────────────────────────────
+export {
+  useNetworkStatus,
+  type UseNetworkStatusReturn,
+} from "./use-network.js";
 
 /**
  * Vue 3 composable for local-first state synchronization.
@@ -177,12 +90,12 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   );
   const isHydrating: Ref<boolean> = ref(controller.isHydrating);
   const isSyncing: Ref<boolean> = ref(controller.isSyncing);
-  const isOffline: Ref<boolean> = ref(
-    typeof navigator !== "undefined" ? !navigator.onLine : false,
-  );
   const error: ShallowRef<Error | null> = shallowRef<Error | null>(
     controller.error,
   );
+
+  // ── Network status tracking ────────────────────────────────
+  const { isOffline } = useNetworkStatus(controller);
 
   // ── Subscriptions ──────────────────────────────────────────
   const unsubscribeStore = store.subscribe((state: T) => {
@@ -200,25 +113,10 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
 
   const unsubscribeController = controller.subscribe(syncControllerState);
 
-  // ── Network status handlers ────────────────────────────────
-  const handleOnline = () => {
-    isOffline.value = false;
-    controller.triggerSync();
-  };
-
-  const handleOffline = () => {
-    isOffline.value = true;
-  };
-
-  // ── Mount & Unmount ────────────────────────────────────────
+  // ── Mount & Unmount Lifecycle ──────────────────────────────
   let unregisterConsumer: (() => void) | null = null;
 
   onMounted(() => {
-    if (typeof window !== "undefined") {
-      window.addEventListener("online", handleOnline);
-      window.addEventListener("offline", handleOffline);
-    }
-
     unregisterConsumer = controller.registerConsumer(options);
     void controller.ensureHydrated(options.fetcher);
   });
@@ -230,11 +128,6 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     if (unregisterConsumer) {
       unregisterConsumer();
       unregisterConsumer = null;
-    }
-
-    if (typeof window !== "undefined") {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
     }
   });
 
@@ -267,4 +160,3 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     destroyStore: destroyStoreCallback,
   };
 }
-

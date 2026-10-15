@@ -195,6 +195,37 @@ describe("applyPatches", () => {
     const reconstructed = applyPatches(next, inversePatches);
     expect(reconstructed).toEqual(base);
   });
+
+  it("should reject prototype pollution attempts via __proto__ in applyPatches", () => {
+    const base = { user: { name: "alice" } };
+    const patches = [
+      { op: "replace" as const, path: ["__proto__", "polluted"], value: true },
+      { op: "add" as const, path: ["user", "__proto__", "polluted"], value: true },
+    ];
+    const result = applyPatches(base, patches);
+    expect((Object.prototype as any).polluted).toBeUndefined();
+    expect((result as any).polluted).toBeUndefined();
+    expect((result.user as any).polluted).toBeUndefined();
+  });
+
+  it("should reject prototype pollution attempts via constructor.prototype in applyPatches", () => {
+    const base = { a: 1 };
+    const patches = [
+      { op: "replace" as const, path: ["constructor", "prototype", "polluted"], value: "bad" },
+    ];
+    const result = applyPatches(base, patches);
+    expect((Object.prototype as any).polluted).toBeUndefined();
+    expect((result as any).polluted).toBeUndefined();
+  });
+
+  it("should safely ignore patches targeting invalid non-object intermediate paths", () => {
+    const base = { num: 42 };
+    const patches = [
+      { op: "replace" as const, path: ["num", "nonexistent", "deep"], value: 99 },
+    ];
+    const result = applyPatches(base, patches);
+    expect(result).toEqual({ num: 42 });
+  });
 });
 
 describe("Map support", () => {

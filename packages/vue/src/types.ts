@@ -65,7 +65,7 @@ export interface UseSyncReturn<T, R = T> {
   /** Reactive state, or selected slice, or `undefined` during initial hydration. */
   data: ShallowRef<R>;
 
-  /** Mutate state using an Immer draft function. Fire-and-forget. */
+  /** Mutate state using a draft updater function. Fire-and-forget. */
   update: (updater: DraftUpdater<T>) => void;
 
   /** Force re-fetch from the remote source. */

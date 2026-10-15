@@ -1,5 +1,6 @@
 import { hybridClone } from "./clone.js";
 import type { Patch } from "./types.js";
+import { isDangerousProperty } from "./utils.js";
 
 export function applyPatches<T>(baseState: T, patches: readonly Patch[]): T {
   if (patches.length === 0) return baseState;
@@ -11,6 +12,7 @@ export function applyPatches<T>(baseState: T, patches: readonly Patch[]): T {
       continue;
     }
     let target = state;
+    let safe = true;
     for (let i = 0; i < path.length - 1; i++) {
       const seg = path[i]!;
       if (seg === "$entries" && target instanceof Map) {
@@ -22,7 +24,18 @@ export function applyPatches<T>(baseState: T, patches: readonly Patch[]): T {
         continue;
       }
       if (seg === "$values" && target instanceof Set) continue;
+      if (target == null || (typeof target !== "object" && typeof target !== "function")) {
+        safe = false;
+        break;
+      }
+      if (isDangerousProperty(seg)) {
+        safe = false;
+        break;
+      }
       target = target[seg];
+    }
+    if (!safe || target == null || (typeof target !== "object" && typeof target !== "function") || target === Object.prototype) {
+      continue;
     }
     const lastKey = path[path.length - 1]!;
     if (target instanceof Map) {
@@ -46,6 +59,9 @@ export function applyPatches<T>(baseState: T, patches: readonly Patch[]): T {
           break;
       }
     } else {
+      if (isDangerousProperty(lastKey)) {
+        continue;
+      }
       switch (op) {
         case "replace":
           target[lastKey] = hybridClone(value);

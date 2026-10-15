@@ -35,10 +35,10 @@ export function generateLlmsFull(publicDir, docsDir) {
       llmsFullTxt += cleanContent;
       llmsFullTxt += `\n\n---\n\n`;
     } else {
-      console.warn(`⚠ Skipping missing doc: ${p.file}`);
+      console.warn(`[docs:llms] Warning: Skipping missing doc: ${p.file}`);
     }
   }
 
   fs.writeFileSync(path.join(publicDir, "llms-full.txt"), llmsFullTxt, "utf-8");
-  console.log("✓ Generated public/llms-full.txt");
+  console.log("[docs:llms] Generated public/llms-full.txt");
 }

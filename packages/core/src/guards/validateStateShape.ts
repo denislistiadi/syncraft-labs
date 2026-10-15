@@ -30,7 +30,7 @@ export function validateStateShape(
     if (!warnedDates.has(target)) {
       warnedDates.add(target);
       logger.warn(
-        `[Syncraft Labs] Date detected at path "${pathStr}"${contextStr} — Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated. Consider using ISO strings or timestamps instead.`,
+        `[Syncraft Labs] Date detected at path "${pathStr}"${contextStr} - Dates are allowed as leaf values but must be replaced wholesale rather than having their fields mutated. Consider using ISO strings or timestamps instead.`,
       );
     }
     return;

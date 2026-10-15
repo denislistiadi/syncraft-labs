@@ -84,7 +84,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
             if (result === undefined) throw new Error("No replacement state returned");
             nextState = result;
           } catch {
-            throw new Error(`[Syncraft Labs] Cannot call set() on store "${storageKey}" — no state exists. Either provide an initialState in the config, call hydrate() first, or ensure the store has been populated via a fetcher.`);
+            throw new Error(`[Syncraft Labs] Cannot call set() on store "${storageKey}" - no state exists. Either provide an initialState in the config, call hydrate() first, or ensure the store has been populated via a fetcher.`);
           }
           patches = [{ op: "replace", path: [], value: nextState }];
           inversePatches = [{ op: "replace", path: [], value: undefined }];

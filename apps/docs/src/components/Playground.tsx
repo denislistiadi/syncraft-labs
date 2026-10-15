@@ -1,5 +1,9 @@
 export { default } from "./playground/index.js";
 export { PlaygroundInner } from "./playground/PlaygroundInner.js";
+export { TaskHeader } from "./playground/TaskHeader.js";
+export { TaskInput } from "./playground/TaskInput.js";
+export { TaskItem } from "./playground/TaskItem.js";
+export { TaskList } from "./playground/TaskList.js";
 export { StatusBadge } from "./playground/StatusBadge.js";
 export { DevTools } from "./playground/DevTools.js";
 export { PlaygroundFallback } from "./playground/Fallback.js";

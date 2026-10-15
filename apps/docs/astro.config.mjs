@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import react from '@astrojs/react';
+import mermaid from 'astro-mermaid';
 import { sidebarGroups } from './scripts/lib/pages.js';
 
 // https://astro.build/config
@@ -14,9 +15,9 @@ export default defineConfig({
       logo: {
         src: './src/assets/logo.png',
       },
-      social: {
-        github: 'https://github.com/denislistiadi/syncraft-labs',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/denislistiadi/syncraft-labs' },
+      ],
       editLink: {
         baseUrl: 'https://github.com/denislistiadi/syncraft-labs/tree/main/apps/docs/',
       },
@@ -33,6 +34,7 @@ export default defineConfig({
       sidebar: sidebarGroups,
     }),
 
+    mermaid(),
     react(),
   ],
 });

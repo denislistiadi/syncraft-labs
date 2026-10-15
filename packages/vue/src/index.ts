@@ -15,10 +15,18 @@
  * ```
  */
 
-export { useSync, destroyStore, _resetRegistry } from "./use-sync.js";
+export {
+  useSync,
+  destroyStore,
+  _resetRegistry,
+  VueStoreController,
+  useNetworkStatus,
+} from "./use-sync.js";
 export { createSyncraft } from "./plugin.js";
 export { SyncraftError, toSyncraftError, isQuotaExceededError } from "@syncraft-labs/core";
 export type { UseSyncOptions, UseSyncReturn } from "./types.js";
+export type { VueControllerState } from "./controller.js";
+export type { UseNetworkStatusReturn } from "./use-network.js";
 export type {
   SyncraftErrorSource,
   SyncraftErrorOptions,

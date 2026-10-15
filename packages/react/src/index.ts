@@ -12,7 +12,7 @@
  *     initialState: { todos: [] },
  *   });
  *
- *   if (isHydrating) return <p>Loading…</p>;
+ *   if (isHydrating) return <p>Loading...</p>;
  *
  *   return (
  *     <ul>

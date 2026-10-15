@@ -9,7 +9,6 @@ export default defineConfig({
   clean: true,
   treeshake: false,
   minify: false,
-  // Keep idb and immer as external in dev, but bundle them for the final package.
-  // Users install @syncraft-labs/core which brings idb + immer as dependencies.
+  // External dependencies (idb) remain external, core modules are bundled for distribution.
   external: [],
 });

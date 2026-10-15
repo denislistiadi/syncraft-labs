@@ -1,6 +1,6 @@
 # <p align="center">@syncraft-labs/react</p>
 
-**<p align="center">The official React bindings for Syncraft Labs — local-first state synchronization.</p>**
+**<p align="center">The official React bindings for Syncraft Labs - local-first state synchronization.</p>**
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@syncraft-labs/react"><img src="https://img.shields.io/npm/v/@syncraft-labs/react?style=flat-square&color=61dafb" alt="npm version"></a>
@@ -58,7 +58,7 @@ function TodoApp() {
   );
 
   // 1. Wait for IndexedDB hydration
-  if (isHydrating) return <p>Loading from cache…</p>;
+  if (isHydrating) return <p>Loading from cache...</p>;
 
   // 2. Handle network and errors gracefully
   if (isOffline) console.log("Working offline!");
@@ -123,7 +123,7 @@ function TodoList() {
 export function App() {
   return (
     <SyncraftProvider>
-      <Suspense fallback={<p>Loading from cache…</p>}>
+      <Suspense fallback={<p>Loading from cache...</p>}>
         <TodoList />
       </Suspense>
     </SyncraftProvider>
@@ -153,7 +153,6 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 
   // Polling interval in ms (default: 5000)
   syncInterval: 3000,
-});
 });
 ```
 

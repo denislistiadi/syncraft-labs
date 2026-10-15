@@ -47,7 +47,7 @@ describe("useSync", () => {
       });
       directStore.destroy();
 
-      // Now use the hook — should read persisted data from IDB
+      // Now use the hook - should read persisted data from IDB
       const { result } = renderHook(
         () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
         { wrapper: SyncraftProvider },
@@ -131,7 +131,7 @@ describe("useSync", () => {
         expect(result.current.isHydrating).toBe(false);
       });
 
-      // Fetcher should NOT be called — IDB had data
+      // Fetcher should NOT be called - IDB had data
       expect(fetcher).not.toHaveBeenCalled();
       expect(result.current.data?.count).toBe(10);
     });

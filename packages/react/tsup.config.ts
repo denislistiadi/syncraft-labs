@@ -9,6 +9,6 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   minify: false,
-  // React and core are peer/external — don't bundle them
+  // React and core are peer/external - do not bundle them
   external: ["react", "react-dom", "@syncraft-labs/core"],
 });

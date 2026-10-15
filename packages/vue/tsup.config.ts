@@ -9,6 +9,6 @@ export default defineConfig({
   clean: true,
   treeshake: true,
   minify: false,
-  // Vue and core are peer/external — don't bundle them
+  // Vue and core are peer/external - don't bundle them
   external: ["vue", "@syncraft-labs/core"],
 });
