@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2026-10-15
+
+### Security
+- **Core**: Hardened `applyPatches` and proxy object/array handlers against prototype pollution vulnerabilities by strictly validating and rejecting `__proto__`, `constructor`, and `prototype` keys during state mutation.
+
+### Refactored
+- **React**: Decomposed `use-sync.ts` into modular, single-responsibility modules: `controller.ts`, `use-network.ts`, `use-sync-suspense.ts`, and streamlined `use-sync.ts` (all source files < 150 LOC).
+- **Vue**: Decomposed `use-sync.ts` into modular subcomponents: `controller.ts`, `use-network.ts`, and streamlined `use-sync.ts` (all source files < 150 LOC).
+- **Docs**: Modularized `PlaygroundInner.tsx` into isolated subcomponents (`TaskHeader.tsx`, `TaskInput.tsx`, `TaskItem.tsx`, `TaskList.tsx`) with scoped CSS modules.
+
+### Documentation & Infrastructure
+- **Docs**: Upgraded documentation framework to Astro v7 and Starlight v0.42.
+- **Docs**: Integrated client-side Mermaid diagram rendering via `astro-mermaid` and inline SVG rendering.
+- **Chore**: Sanitized typography across documentation, build configs, and test suites (standardized to hyphens and aligned draft updater JSDoc references).
+
 ## [0.7.0] - 2026-10-12
 
 ### Added

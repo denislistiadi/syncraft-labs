@@ -2679,6 +2679,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.7.1] - 2026-10-15
+
+> **Focus**: Security hardening against prototype pollution, modular decomposition of React and Vue adapters (< 150 LOC per file), Astro v7 and Starlight v0.42 docs upgrade with Mermaid diagram support. Zero breaking changes.
+
+### Security
+
+- **Core**: Hardened `applyPatches` and proxy object/array handlers against prototype pollution vulnerabilities by strictly validating and rejecting `__proto__`, `constructor`, and `prototype` keys during state mutation.
+
+### Refactored
+
+- **React**: Decomposed `use-sync.ts` into modular, single-responsibility modules: `controller.ts`, `use-network.ts`, `use-sync-suspense.ts`, and streamlined `use-sync.ts` (all source files < 150 LOC).
+- **Vue**: Decomposed `use-sync.ts` into modular subcomponents: `controller.ts`, `use-network.ts`, and streamlined `use-sync.ts` (all source files < 150 LOC).
+- **Docs**: Modularized `PlaygroundInner.tsx` into isolated subcomponents (`TaskHeader.tsx`, `TaskInput.tsx`, `TaskItem.tsx`, `TaskList.tsx`) with scoped CSS modules.
+
+### Documentation & Infrastructure
+
+- **Docs**: Upgraded documentation framework to Astro v7 and Starlight v0.42.
+- **Docs**: Integrated client-side Mermaid diagram rendering via `astro-mermaid` and inline SVG rendering.
+- **Chore**: Sanitized typography across documentation, build configs, and test suites (standardized to hyphens and aligned draft updater JSDoc references).
+
+### Upgrade
+
+```bash
+npm install @syncraft-labs/core@0.7.1 @syncraft-labs/react@0.7.1 @syncraft-labs/vue@0.7.1
+```
+
+---
+
 ## [0.7.0] — 2026-10-12
 
 > **Focus**: Observability lifecycle hooks, DevTools inspection hook, selector-based reactivity, atomic IndexedDB persistence, and structured logging. Zero breaking changes.
