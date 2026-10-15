@@ -28,5 +28,5 @@ export function generateLlmsTxt(publicDir) {
 `;
 
   fs.writeFileSync(path.join(publicDir, "llms.txt"), llmsTxt, "utf-8");
-  console.log("✓ Generated public/llms.txt");
+  console.log("[docs:llms] Generated public/llms.txt");
 }

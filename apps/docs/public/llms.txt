@@ -7,7 +7,7 @@
 
 ## Overview & Setup
 - [Getting Started](https://syncraft-labs.web.id/getting-started/): Installation and quick start guide for Syncraft Labs in React, Vue, and vanilla JS.
-- [Core Concepts](https://syncraft-labs.web.id/core-concepts/): Learn the mental model behind Syncraft Labs — Architecture, Data Flow, Optimistic Updates, and Storage Schema.
+- [Core Concepts](https://syncraft-labs.web.id/core-concepts/): Learn the mental model behind Syncraft Labs - Architecture, Data Flow, Optimistic Updates, and Storage Schema.
 
 ## Packages
 - [Core Package (@syncraft-labs/core)](https://syncraft-labs.web.id/packages/core/): Framework-agnostic store engine, storage adapters, and outbox queue management.

@@ -11,7 +11,7 @@ export const pages = [
     file: "core-concepts.md",
     slug: "core-concepts",
     title: "Core Concepts",
-    desc: "Learn the mental model behind Syncraft Labs — Architecture, Data Flow, Optimistic Updates, and Storage Schema.",
+    desc: "Learn the mental model behind Syncraft Labs - Architecture, Data Flow, Optimistic Updates, and Storage Schema.",
   },
   {
     category: "Packages",
