@@ -1,6 +1,6 @@
 # <p align="center">@syncraft-labs/vue</p>
 
-**<p align="center">The official Vue 3 bindings for Syncraft Labs — local-first state synchronization.</p>**
+**<p align="center">The official Vue 3 bindings for Syncraft Labs - local-first state synchronization.</p>**
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@syncraft-labs/vue"><img src="https://img.shields.io/npm/v/@syncraft-labs/vue?style=flat-square&color=42b883" alt="npm version"></a>
@@ -81,10 +81,10 @@ function addTodo() {
 </script>
 
 <template>
-  <p v-if="isHydrating">Loading from cache…</p>
+  <p v-if="isHydrating">Loading from cache...</p>
 
   <div v-else>
-    <p v-if="isOffline">You're offline — changes saved locally</p>
+    <p v-if="isOffline">You're offline - changes saved locally</p>
     <p v-if="error">Error: {{ error.message }}</p>
 
     <button @click="addTodo">Add Todo</button>
@@ -128,9 +128,8 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 
 <template>
   <button @click="refetch" :disabled="isSyncing">
-    {{ isSyncing ? "Syncing…" : "Refresh" }}
+    {{ isSyncing ? "Syncing..." : "Refresh" }}
   </button>
-</template>
 </template>
 ```
 

@@ -201,7 +201,7 @@ describe("useSync (Vue)", () => {
   });
 
   describe("Optimistic Updates", () => {
-    it("should update state optimistically via Immer draft", async () => {
+    it("should update state optimistically via draft updater", async () => {
       const key = uniqueKey();
 
       const { result } = mountComposable<TestState>(key, {
