@@ -76,11 +76,11 @@ export interface UseSyncReturn<T, R = T> {
   data: R;
 
   /**
-   * Mutate state using an Immer draft function.
+   * Mutate state using a proxy draft function.
    * Updates the UI instantly (optimistic), persists to IndexedDB,
    * and queues the change in the outbox for sync.
    *
-   * Fire-and-forget — errors are captured in the `error` field.
+   * Fire-and-forget - errors are captured in the `error` field.
    */
   update: (updater: DraftUpdater<T>) => void;
 
