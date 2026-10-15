@@ -17,6 +17,10 @@ export default function PlaygroundApp() {
 }
 
 export { PlaygroundInner } from "./PlaygroundInner.js";
+export { TaskHeader } from "./TaskHeader.js";
+export { TaskInput } from "./TaskInput.js";
+export { TaskItem } from "./TaskItem.js";
+export { TaskList } from "./TaskList.js";
 export { StatusBadge } from "./StatusBadge.js";
 export { DevTools } from "./DevTools.js";
 export { PlaygroundFallback } from "./Fallback.js";

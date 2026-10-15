@@ -1,8 +1,0 @@
-/* Migrated to playground/styles/* — keep for backward compat (5 lines) */
-@import "./playground/styles/Layout.module.css";
-@import "./playground/styles/Header.module.css";
-@import "./playground/styles/Badge.module.css";
-@import "./playground/styles/Card.module.css";
-@import "./playground/styles/Task.module.css";
-@import "./playground/styles/DevTools.module.css";
-@import "./playground/styles/Skeleton.module.css";
