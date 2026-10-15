@@ -2,7 +2,7 @@ import { assertNoCycles, validateStateShape } from "../../guards/index.js";
 import type { Path } from "../types.js";
 import type { DraftContext } from "../context.js";
 import { markChanged } from "../context.js";
-import { isSupportedObject } from "../utils.js";
+import { isSupportedObject, isDangerousProperty } from "../utils.js";
 import { getMapDraft, getSetDraft } from "./collection.js";
 
 export function getDraft(
@@ -26,7 +26,7 @@ export function getDraft(
     get(_dummy, prop) {
       if (prop === "__isProxy") return true;
       if (prop === "__target") return target;
-      if (prop === "__proto__" || prop === "constructor" || prop === "prototype") return undefined;
+      if (isDangerousProperty(prop)) return undefined;
       if (typeof prop === "symbol") {
         const source = ctx.copies.get(target) ?? target;
         return Reflect.get(source, prop);
@@ -50,7 +50,7 @@ export function getDraft(
         const copy = ctx.copies.get(target);
         return Reflect.set(copy, prop, value);
       }
-      if (prop === "__proto__" || prop === "constructor" || prop === "prototype") return false;
+      if (isDangerousProperty(prop)) return false;
       const isArr = Array.isArray(target);
       const propKey = isArr && typeof prop === "string" && /^\d+$/.test(prop) ? Number(prop) : prop;
       if (isArr && propKey === "length") {
@@ -117,7 +117,7 @@ export function getDraft(
         const copy = ctx.copies.get(target);
         return Reflect.deleteProperty(copy, prop);
       }
-      if (prop === "__proto__" || prop === "constructor" || prop === "prototype") return false;
+      if (isDangerousProperty(prop)) return false;
       const isArr = Array.isArray(target);
       const propKey = isArr && typeof prop === "string" && /^\d+$/.test(prop) ? Number(prop) : prop;
       const source = ctx.copies.get(target) ?? target;

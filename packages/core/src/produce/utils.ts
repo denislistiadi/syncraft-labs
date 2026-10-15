@@ -1,5 +1,9 @@
 import type { Path } from "./types.js";
 
+export function isDangerousProperty(prop: unknown): boolean {
+  return prop === "__proto__" || prop === "constructor" || prop === "prototype";
+}
+
 export function isSupportedObject(value: unknown): boolean {
   if (value === null || typeof value !== "object") return false;
   if (value instanceof Map || value instanceof Set) return true;
