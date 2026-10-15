@@ -52,4 +52,4 @@ jobs:
         run: npm run build -- --filter="./packages/*"
 
       - name: Run tests
-        run: npm test
+        run: npm test -- --filter="./packages/*"
