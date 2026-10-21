@@ -103,6 +103,26 @@ Syncraft Labs stores state in plain serializable structures. In development mode
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
+### Outbox Audit Trail
+By default, synced outbox mutations are removed from IndexedDB after successful synchronization. In environments requiring an audit trail of mutations (e.g. compliance or event logging), set `retainSyncedEntries: true`:
+
+```ts
+const store = createSyncStore<AppState>({
+  storageKey: "audit-store",
+  retainSyncedEntries: true,
+});
+
+// Retrieve archived mutations sorted chronologically
+const history = await store.getArchivedOutbox();
+
+// Clean up archived entries older than 30 days
+await store.clearArchivedOutbox({
+  olderThan: Date.now() - 30 * 24 * 60 * 60 * 1000,
+});
+```
+
+When enabled, calling `store.clearOutbox(ids)` moves records atomically from `outbox` to the `outbox_archive` store, appending `archivedAt` and setting `syncStatus: "synced"`.
+
 ## Migrating from Document to Collection Mode
 
 If you are migrating an existing store from `"document"` mode to `"collection"` mode:
@@ -122,11 +142,12 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `isUnsupportedType(val)` | Function | Check if a value is an unsupported type for state drafting/persistence |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
-| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `retainSyncedEntries?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `OutboxOverflowStrategy` | Type | Strategy enum (`"reject"`, `"dropOldest"`, `"forceFlush"`) |
 | `OutboxOverflowInfo` | Interface | Event details (`storageKey`, `outboxSize`, `maxOutboxSize`, `strategy`) |
-| `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy`) |
+| `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `compactOutbox`, `getArchivedOutbox`, `clearArchivedOutbox`, `destroy`) |
 | `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`) |
+| `ArchivedOutboxEntry<T>` | Interface | Archived outbox entry with `archivedAt` timestamp and `syncStatus: "synced"` |
 | `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
 | `Patch` | Interface | RFC6902 patch (`op`, `path`, `value?`) - Map uses `$entries/<key>`, Set uses `$values/<value>`, keys/values `string\|number` only |
 
