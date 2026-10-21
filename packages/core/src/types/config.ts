@@ -59,6 +59,12 @@ export interface BaseSyncStoreConfig<T> {
   readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
   readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
   /**
+   * Option to retain outbox history (archive rather than delete) for audit purposes.
+   * When enabled, synced entries are moved to a separate `outbox_archive` store.
+   * @default false
+   */
+  readonly retainSyncedEntries?: boolean | undefined;
+  /**
    * Conflict resolution strategy when reconciling incoming remote state.
    * @default "lastWriteWins"
    */

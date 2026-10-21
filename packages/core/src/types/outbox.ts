@@ -6,3 +6,9 @@ export interface OutboxEntry<_T = unknown> {
   readonly patches: readonly Patch[];
   readonly inversePatches: readonly Patch[];
 }
+
+export interface ArchivedOutboxEntry<_T = unknown> extends OutboxEntry<_T> {
+  readonly archivedAt: number;
+  readonly syncStatus: "synced";
+}
+
