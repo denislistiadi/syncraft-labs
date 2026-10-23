@@ -1,8 +1,8 @@
 import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
-import type { DraftUpdater, OutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
-import { closeDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage } from "../storage.js";
+import type { DraftUpdater, OutboxEntry, ArchivedOutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
+import { closeDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
 import { createMonotonicClock, generateId } from "../utils/id.js";
 import { enforceOutboxLimit } from "./outboxGuard.js";
 import * as persistence from "./persistence.js";
@@ -143,7 +143,11 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     async clearOutbox(ids: readonly string[]): Promise<void> {
       assertNotDestroyed();
       const currentDB = assertDB();
-      await clearOutboxStorage(currentDB, ids);
+      if (ctx.retainSyncedEntries) {
+        await archiveOutbox(currentDB, ids);
+      } else {
+        await clearOutboxStorage(currentDB, ids);
+      }
     },
     async compactOutbox(): Promise<readonly OutboxEntry<T>[]> {
       assertNotDestroyed();
@@ -151,6 +155,16 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       const entries = await readOutbox<T>(currentDB);
       const result = compactOutboxFn(entries);
       return result ? [result.compacted] : [];
+    },
+    async getArchivedOutbox(limit?: number): Promise<readonly ArchivedOutboxEntry<T>[]> {
+      assertNotDestroyed();
+      const currentDB = assertDB();
+      return readArchivedOutbox<T>(currentDB, limit);
+    },
+    async clearArchivedOutbox(options?: { olderThan?: number }): Promise<number> {
+      assertNotDestroyed();
+      const currentDB = assertDB();
+      return clearArchivedOutboxStorage(currentDB, options);
     },
     async hydrate(): Promise<T | undefined> {
       assertNotDestroyed();

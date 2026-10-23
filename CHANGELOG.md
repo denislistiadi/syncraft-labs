@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Core**: Added outbox audit trail feature enabled via `retainSyncedEntries: true` configuration, automatically moving synced mutations to a dedicated `outbox_archive` IndexedDB object store instead of permanently deleting them. (#24)
+- **Core**: Added `getArchivedOutbox(limit?)` and `clearArchivedOutbox(options?)` store methods for inspecting mutation history and enforcing retention policies. (#24)
+- **Core**: Added `ArchivedOutboxEntry` type definition and upgraded internal database schema to version 4 with automatic backwards-compatible migration. (#24)
+- **React & Vue**: Added `retainSyncedEntries` option pass-through to `useSync` hook and composable controllers. (#24)
+- **Docs**: Added "Outbox Audit Trail" section and API reference documentation in `@syncraft-labs/core` README. (#24)
+
 ## [0.7.1] - 2026-10-15
 
 ### Security

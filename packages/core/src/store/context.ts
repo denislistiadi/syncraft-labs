@@ -13,6 +13,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   onOverflow: SyncStoreConfig<T>["onOverflow"];
   onQuotaExceeded: SyncStoreConfig<T>["onQuotaExceeded"];
   onRollback: SyncStoreConfig<T>["onRollback"];
+  retainSyncedEntries: boolean;
   logger: SyncraftLogger;
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
@@ -41,6 +42,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     onOverflow: config.onOverflow,
     onQuotaExceeded: config.onQuotaExceeded,
     onRollback: config.onRollback,
+    retainSyncedEntries: config.retainSyncedEntries ?? false,
     logger: config.logger ?? console,
     memoryState: undefined,
     listeners: new Set(),

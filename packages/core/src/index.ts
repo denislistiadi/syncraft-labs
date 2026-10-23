@@ -46,6 +46,7 @@ export type {
   Unsubscribe,
   DraftUpdater,
   OutboxEntry,
+  ArchivedOutboxEntry,
   OutboxOverflowStrategy,
   OutboxOverflowInfo,
   ConflictStrategy,

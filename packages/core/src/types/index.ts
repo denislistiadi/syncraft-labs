@@ -12,7 +12,7 @@ export type {
   QuotaExceededInfo,
   QuotaExceededHandler,
 } from "./config.js";
-export type { OutboxEntry } from "./outbox.js";
+export type { OutboxEntry, ArchivedOutboxEntry } from "./outbox.js";
 export type { SyncListener, Unsubscribe, DraftUpdater } from "./updater.js";
 export type { SyncStore } from "./store.js";
 

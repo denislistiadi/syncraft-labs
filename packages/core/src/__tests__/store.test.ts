@@ -9,8 +9,10 @@
  */
 
 import { describe, it, expect, vi, afterEach } from "vitest";
+import { openDB } from "idb";
 import { createSyncStore } from "../store.js";
 import type { SyncStore } from "../types.js";
+import { DB_PREFIX } from "../storage/db.js";
 import * as persistence from "../store/persistence.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -365,6 +367,215 @@ describe("createSyncStore", () => {
 
       // Should not throw
       await store.clearOutbox(["non-existent-id"]);
+
+      store.destroy();
+    });
+  });
+
+  // ── retainSyncedEntries ─────────────────────────────────────
+
+  describe("retainSyncedEntries", () => {
+    it("should delete entries without archiving when retainSyncedEntries is false (default)", async () => {
+      const store = await createHydratedStore();
+
+      await store.set((draft) => {
+        draft.todos.push({ id: "1", text: "Entry 1", done: false });
+      });
+
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(1);
+
+      await store.clearOutbox([outbox[0]!.id]);
+
+      const remainingOutbox = await store.getOutbox();
+      expect(remainingOutbox).toHaveLength(0);
+
+      const archived = await store.getArchivedOutbox();
+      expect(archived).toHaveLength(0);
+
+      store.destroy();
+    });
+
+    it("should move cleared entries to outbox_archive when retainSyncedEntries is true", async () => {
+      const key = uniqueKey();
+      const store = createSyncStore<TodoState>({
+        storageKey: key,
+        initialState: INITIAL_STATE,
+        retainSyncedEntries: true,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.todos.push({ id: "1", text: "Task 1", done: false });
+      });
+      await store.set((draft) => {
+        draft.todos.push({ id: "2", text: "Task 2", done: false });
+      });
+
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(2);
+
+      const targetEntry = outbox[0]!;
+      await store.clearOutbox([targetEntry.id]);
+
+      // Active outbox now has 1 entry
+      const remaining = await store.getOutbox();
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0]!.id).toBe(outbox[1]!.id);
+
+      // Archive store now has the cleared entry
+      const archived = await store.getArchivedOutbox();
+      expect(archived).toHaveLength(1);
+      expect(archived[0]!.id).toBe(targetEntry.id);
+      expect(archived[0]!.patches).toEqual(targetEntry.patches);
+      expect(archived[0]!.inversePatches).toEqual(targetEntry.inversePatches);
+      expect(archived[0]!.syncStatus).toBe("synced");
+      expect(typeof archived[0]!.archivedAt).toBe("number");
+      expect(archived[0]!.archivedAt).toBeGreaterThanOrEqual(targetEntry.timestamp);
+
+      store.destroy();
+    });
+
+    it("should support limit in getArchivedOutbox(limit)", async () => {
+      const key = uniqueKey();
+      const store = createSyncStore<TodoState>({
+        storageKey: key,
+        initialState: INITIAL_STATE,
+        retainSyncedEntries: true,
+      });
+      await store.hydrate();
+
+      for (let i = 1; i <= 3; i++) {
+        await store.set((draft) => {
+          draft.todos.push({ id: String(i), text: `Task ${i}`, done: false });
+        });
+      }
+
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(3);
+
+      await store.clearOutbox(outbox.map((e) => e.id));
+
+      const archivedLimited = await store.getArchivedOutbox(2);
+      expect(archivedLimited).toHaveLength(2);
+
+      const archivedAll = await store.getArchivedOutbox();
+      expect(archivedAll).toHaveLength(3);
+
+      store.destroy();
+    });
+
+    it("should clear all archived outbox entries when calling clearArchivedOutbox() without options", async () => {
+      const key = uniqueKey();
+      const store = createSyncStore<TodoState>({
+        storageKey: key,
+        initialState: INITIAL_STATE,
+        retainSyncedEntries: true,
+      });
+      await store.hydrate();
+
+      await store.set((draft) => {
+        draft.todos.push({ id: "1", text: "Task 1", done: false });
+      });
+      const outbox = await store.getOutbox();
+      await store.clearOutbox([outbox[0]!.id]);
+
+      expect(await store.getArchivedOutbox()).toHaveLength(1);
+
+      const deletedCount = await store.clearArchivedOutbox();
+      expect(deletedCount).toBe(1);
+
+      const remainingArchived = await store.getArchivedOutbox();
+      expect(remainingArchived).toHaveLength(0);
+
+      store.destroy();
+    });
+
+    it("should selectively purge archived entries based on olderThan timestamp", async () => {
+      const key = uniqueKey();
+      const store = createSyncStore<TodoState>({
+        storageKey: key,
+        initialState: INITIAL_STATE,
+        retainSyncedEntries: true,
+      });
+      await store.hydrate();
+
+      // Mutation 1
+      await store.set((draft) => {
+        draft.todos.push({ id: "1", text: "Task 1", done: false });
+      });
+      const outbox1 = await store.getOutbox();
+      await store.clearOutbox([outbox1[0]!.id]);
+
+      const [firstArchived] = await store.getArchivedOutbox();
+      const firstArchivedAt = firstArchived!.archivedAt;
+
+      // Small delay to ensure timestamp separation
+      await new Promise((resolve) => setTimeout(resolve, 15));
+
+      // Mutation 2
+      await store.set((draft) => {
+        draft.todos.push({ id: "2", text: "Task 2", done: false });
+      });
+      const outbox2 = await store.getOutbox();
+      await store.clearOutbox([outbox2[0]!.id]);
+
+      const bothArchived = await store.getArchivedOutbox();
+      expect(bothArchived).toHaveLength(2);
+
+      // Purge entries older than the second entry's archivedAt (firstArchivedAt + 5ms)
+      const deletedCount = await store.clearArchivedOutbox({ olderThan: firstArchivedAt + 5 });
+      expect(deletedCount).toBe(1);
+
+      const remainingArchived = await store.getArchivedOutbox();
+      expect(remainingArchived).toHaveLength(1);
+      expect(remainingArchived[0]!.id).toBe(outbox2[0]!.id);
+
+      store.destroy();
+    });
+
+    it("should smoothly upgrade DB from v3 to v4 and retain existing state and outbox", async () => {
+      const key = uniqueKey();
+      const dbName = `${DB_PREFIX}${key}`;
+
+      // Simulate an older v3 database setup
+      const v3Db = await openDB(dbName, 3, {
+        upgrade(db) {
+          db.createObjectStore("state");
+          db.createObjectStore("state_entities");
+          db.createObjectStore("outbox", { keyPath: "id" });
+        },
+      });
+
+      await v3Db.put("state", { todos: [{ id: "legacy-1", text: "Legacy Task", done: false }], lastUpdated: 100 }, "current");
+      await v3Db.put("outbox", {
+        id: "legacy-outbox-1",
+        timestamp: 100,
+        patches: [{ op: "add", path: ["todos", 0], value: { id: "legacy-1", text: "Legacy Task", done: false } }],
+        inversePatches: [],
+      });
+      v3Db.close();
+
+      // Open via createSyncStore (upgrades to v4)
+      const store = createSyncStore<TodoState>({
+        storageKey: key,
+        retainSyncedEntries: true,
+      });
+      const hydrated = await store.hydrate();
+
+      expect(hydrated).toEqual({ todos: [{ id: "legacy-1", text: "Legacy Task", done: false }], lastUpdated: 100 });
+      const outbox = await store.getOutbox();
+      expect(outbox).toHaveLength(1);
+      expect(outbox[0]!.id).toBe("legacy-outbox-1");
+
+      // Clear the legacy outbox entry - it should be moved to the newly created outbox_archive store
+      await store.clearOutbox([outbox[0]!.id]);
+      expect(await store.getOutbox()).toHaveLength(0);
+
+      const archived = await store.getArchivedOutbox();
+      expect(archived).toHaveLength(1);
+      expect(archived[0]!.id).toBe("legacy-outbox-1");
+      expect(archived[0]!.syncStatus).toBe("synced");
 
       store.destroy();
     });
