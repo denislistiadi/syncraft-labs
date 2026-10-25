@@ -1,4 +1,5 @@
 import type { Patch } from "../produce/types.js";
+import type { EncryptionKeyInput } from "./crypto.js";
 
 /**
  * Strategy used to resolve conflicts between local state and incoming remote state.
@@ -58,6 +59,12 @@ export interface BaseSyncStoreConfig<T> {
   readonly maxOutboxSize?: number | undefined;
   readonly overflowStrategy?: OutboxOverflowStrategy | undefined;
   readonly onOverflow?: ((info: OutboxOverflowInfo) => void | Promise<void>) | undefined;
+  /**
+   * Optional Web Crypto encryption key or passphrase used to encrypt state at rest in IndexedDB using AES-GCM.
+   * Accepts a CryptoKey (AES-GCM), a raw Uint8Array (16, 24, or 32 bytes), or a passphrase string.
+   * @default undefined
+   */
+  readonly encryptionKey?: EncryptionKeyInput | undefined;
   /**
    * Option to retain outbox history (archive rather than delete) for audit purposes.
    * When enabled, synced entries are moved to a separate `outbox_archive` store.
