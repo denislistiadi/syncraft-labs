@@ -75,6 +75,7 @@ export function getOrCreateController<T extends Record<string, unknown>>(
       maxOutboxSize: options.maxOutboxSize,
       overflowStrategy: options.overflowStrategy,
       onOverflow: options.onOverflow,
+      encryptionKey: options.encryptionKey,
       retainSyncedEntries: options.retainSyncedEntries,
       conflictStrategy: options.conflictStrategy,
       resolver: options.resolver,
