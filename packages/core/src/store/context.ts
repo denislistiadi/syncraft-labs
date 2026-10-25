@@ -18,6 +18,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
   db: IDBPDatabase<unknown> | null;
+  cryptoKey: CryptoKey | null;
   isHydrated: boolean;
   isDestroyed: boolean;
   hasWarnedPreHydration: boolean;
@@ -47,6 +48,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     memoryState: undefined,
     listeners: new Set(),
     db: null,
+    cryptoKey: null,
     isHydrated: false,
     isDestroyed: false,
     hasWarnedPreHydration: false,

@@ -10,6 +10,7 @@ import { createStoreContext } from "./context.js";
 import { createBroadcaster } from "./broadcast.js";
 import { withQuotaGuard } from "../storage/withQuotaGuard.js";
 import type { IDBPDatabase } from "idb";
+import { resolveCryptoKey } from "../crypto/index.js";
 
 
 export function createSyncStore<T extends Record<string, unknown>>(config: SyncStoreConfig<T>): SyncStore<T> {
@@ -54,7 +55,10 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       assertNotDestroyed();
       if (ctx.memoryState !== undefined) return ctx.memoryState;
       if (ctx.db !== null) {
-        const persisted = ctx.storageMode === "collection" ? await readCollectionState<T>(ctx.db) : await readState<T>(ctx.db);
+        const persisted =
+          ctx.storageMode === "collection"
+            ? await readCollectionState<T>(ctx.db, ctx.cryptoKey)
+            : await readState<T>(ctx.db, ctx.cryptoKey);
         if (persisted !== undefined) {
           ctx.memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
           return ctx.memoryState;
@@ -102,7 +106,16 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
         try {
           const outboxEntry: OutboxEntry<T> = { id: generateId(), timestamp: ctx.getMonotonicTimestamp(), patches, inversePatches };
-          await persistence.persistState(currentDB, ctx.storageMode, nextState, patches, storageKey, ctx.onQuotaExceeded, outboxEntry);
+          await persistence.persistState(
+            currentDB,
+            ctx.storageMode,
+            nextState,
+            patches,
+            storageKey,
+            ctx.onQuotaExceeded,
+            outboxEntry,
+            ctx.cryptoKey,
+          );
         } catch (error) {
           ctx.memoryState = previousState;
           if (previousState !== undefined) notifyListeners(previousState);
@@ -124,8 +137,17 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         ctx.memoryState = isDevMode() ? deepFreeze(newState) : newState;
         notifyListeners(ctx.memoryState);
         if (ctx.channel) ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: ctx.memoryState });
-        
-        await persistence.persistState(currentDB, ctx.storageMode, newState, [], storageKey, ctx.onQuotaExceeded);
+
+        await persistence.persistState(
+          currentDB,
+          ctx.storageMode,
+          newState,
+          [],
+          storageKey,
+          ctx.onQuotaExceeded,
+          undefined,
+          ctx.cryptoKey,
+        );
       } finally {
         release();
       }
@@ -172,7 +194,13 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       if (ctx.hydrationPromise !== null) return ctx.hydrationPromise;
       ctx.hydrationPromise = (async () => {
         ctx.db = await openSyncDB(storageKey);
-        const persisted = ctx.storageMode === "collection" ? await readCollectionState<T>(ctx.db) : await readState<T>(ctx.db);
+        if (config.encryptionKey && !ctx.cryptoKey) {
+          ctx.cryptoKey = await resolveCryptoKey(config.encryptionKey, storageKey);
+        }
+        const persisted =
+          ctx.storageMode === "collection"
+            ? await readCollectionState<T>(ctx.db, ctx.cryptoKey)
+            : await readState<T>(ctx.db, ctx.cryptoKey);
         if (persisted !== undefined) {
           if (isDevMode()) {
             assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
@@ -187,14 +215,14 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
           ctx.memoryState = isDevMode() ? deepFreeze(ctx.initialState) : ctx.initialState;
           if (ctx.storageMode === "collection") {
             await withQuotaGuard(
-              () => writeCollectionState(ctx.db!, ctx.initialState),
+              () => writeCollectionState(ctx.db!, ctx.initialState, ctx.cryptoKey),
               { storageKey, operation: "writeCollectionState" },
               ctx.onQuotaExceeded,
               ctx.logger
             );
           } else {
             await withQuotaGuard(
-              () => writeState(ctx.db!, ctx.initialState),
+              () => writeState(ctx.db!, ctx.initialState, ctx.cryptoKey),
               { storageKey, operation: "writeState" },
               ctx.onQuotaExceeded,
               ctx.logger
@@ -223,6 +251,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       }
       ctx.listeners.clear();
       ctx.memoryState = undefined;
+      ctx.cryptoKey = null;
       ctx.isHydrated = false;
       ctx.isDestroyed = true;
       if (ctx.channel) {
