@@ -475,7 +475,59 @@ describe("useSync", () => {
       expect(result.current.error).toBeNull();
     });
   });
+
+  describe("Encryption at Rest", () => {
+    it("should encrypt state at rest in IndexedDB when encryptionKey is provided", async () => {
+      const key = uniqueKey();
+      const encryptionKey = "react-test-secret-passphrase";
+
+      const { result } = renderHook(
+        () =>
+          useSync<TestState>(key, {
+            initialState: INITIAL_STATE,
+            encryptionKey,
+          }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+
+      act(() => {
+        result.current.update((d) => {
+          d.count = 99;
+          d.items.push("encrypted-item");
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.data?.count).toBe(99);
+      });
+
+      const raw = await new Promise<any>((resolve, reject) => {
+        const req = indexedDB.open(`syncraft-labs_${key}`);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction("state", "readonly");
+          const store = tx.objectStore("state");
+          const getReq = store.get("current");
+          getReq.onerror = () => reject(getReq.error);
+          getReq.onsuccess = () => {
+            db.close();
+            resolve(getReq.result);
+          };
+        };
+      });
+
+      const { isEncryptedPayload } = await import("@syncraft-labs/core");
+      expect(raw).toBeDefined();
+      expect(isEncryptedPayload(raw)).toBe(true);
+    });
+  });
 });
+
 
 
 

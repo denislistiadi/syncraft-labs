@@ -381,6 +381,52 @@ describe("useSync (Vue)", () => {
       expect(result.error.value).toBeNull();
     });
   });
+
+  describe("Encryption at Rest", () => {
+    it("should encrypt state at rest in IndexedDB when encryptionKey is provided", async () => {
+      const key = uniqueKey();
+      const encryptionKey = "vue-test-secret-passphrase";
+
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+        encryptionKey,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+
+      result.update((d) => {
+        d.count = 88;
+        d.items.push("encrypted-vue-item");
+      });
+
+      await waitFor(() => {
+        expect(result.data.value?.count).toBe(88);
+      });
+
+      const raw = await new Promise<any>((resolve, reject) => {
+        const req = indexedDB.open(`syncraft-labs_${key}`);
+        req.onerror = () => reject(req.error);
+        req.onsuccess = () => {
+          const db = req.result;
+          const tx = db.transaction("state", "readonly");
+          const store = tx.objectStore("state");
+          const getReq = store.get("current");
+          getReq.onerror = () => reject(getReq.error);
+          getReq.onsuccess = () => {
+            db.close();
+            resolve(getReq.result);
+          };
+        };
+      });
+
+      const { isEncryptedPayload } = await import("@syncraft-labs/core");
+      expect(raw).toBeDefined();
+      expect(isEncryptedPayload(raw)).toBe(true);
+    });
+  });
 });
+
 
 
