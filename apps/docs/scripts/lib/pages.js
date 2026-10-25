@@ -99,6 +99,13 @@ export const pages = [
     desc: "Detect, handle, and mitigate browser IndexedDB storage quota limits (QuotaExceededError).",
   },
   {
+    category: "Guides",
+    file: "guides/encryption-at-rest.md",
+    slug: "guides/encryption-at-rest",
+    title: "Encryption at Rest",
+    desc: "Client-side authenticated encryption (AES-GCM 256-bit) wrapping IndexedDB storage with zero-knowledge key architecture.",
+  },
+  {
     category: "Security & Advisories",
     file: "security/policy.md",
     slug: "security/policy",
@@ -150,6 +157,7 @@ export const sidebarGroups = [
       { label: "Cross-Tab Sync", slug: "guides/cross-tab-sync" },
       { label: "Conflict Resolution", slug: "guides/conflict-resolution" },
       { label: "Storage Quota Handling", slug: "guides/storage-quota" },
+      { label: "Encryption at Rest", slug: "guides/encryption-at-rest" },
       { label: "Error Handling", slug: "guides/error-handling" },
       { label: "Testing", slug: "guides/testing" },
       { label: "Sync Strategies", slug: "guides/sync-strategies" },

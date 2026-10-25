@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Core**: Added optional client-side authenticated Encryption at Rest using Web Crypto AES-GCM (256-bit) via `encryptionKey` configuration on `createSyncStore`. (#23)
+- **Core**: Added cryptographic utilities: `generateEncryptionKey`, `exportEncryptionKey`, `importEncryptionKey`, `resolveCryptoKey`, `encryptData`, `decryptData`, and `isEncryptedPayload`. (#23)
+- **Core**: Added `EncryptionKeyInput` and `EncryptedPayload` type definitions, supporting native `CryptoKey`, raw `Uint8Array`, and PBKDF2 passphrase derivation. (#23)
+- **Core**: Integrated encryption into storage adapters for both `document` and `collection` storage modes with fresh 12-byte random IVs and tamper-detection verification. (#23)
+- **React & Vue**: Added `encryptionKey` pass-through to `useSync` hook and composable options. (#23)
+- **Docs**: Added comprehensive "Encryption at Rest (AES-GCM)" guide detailing architecture, zero-knowledge threat model, key management guidelines, and performance benchmarks across 1KB–1MB payloads. (#23)
 - **Core**: Added outbox audit trail feature enabled via `retainSyncedEntries: true` configuration, automatically moving synced mutations to a dedicated `outbox_archive` IndexedDB object store instead of permanently deleting them. (#24)
 - **Core**: Added `getArchivedOutbox(limit?)` and `clearArchivedOutbox(options?)` store methods for inspecting mutation history and enforcing retention policies. (#24)
 - **Core**: Added `ArchivedOutboxEntry` type definition and upgraded internal database schema to version 4 with automatic backwards-compatible migration. (#24)

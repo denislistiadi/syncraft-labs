@@ -156,6 +156,29 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 });
 ```
 
+## Encryption at Rest
+
+Secure sensitive user data persisted to IndexedDB by providing an `encryptionKey` to `useSync` or `useSyncSuspense`. Data is encrypted using AES-GCM (256-bit) via the native Web Crypto API.
+
+```tsx
+import { useSync } from "@syncraft-labs/react";
+
+function SecureNotesApp({ sessionKey }: { sessionKey: CryptoKey | string }) {
+  const { data, update, isHydrating } = useSync<NotesState>("user-notes", {
+    initialState: { notes: [] },
+    // Accepts a Web Crypto CryptoKey, Uint8Array, or user passphrase string
+    encryptionKey: sessionKey,
+  });
+
+  if (isHydrating) return <p>Decrypting secure vault...</p>;
+
+  // ...
+}
+```
+
+> [!NOTE]
+> Keys are zero-knowledge and never persisted by Syncraft Labs. Retain keys in your authentication session/memory state.
+
 ## Performance & Optimization
 
 **Selector-based Reactivity**: Prevent over-rendering by passing a `selector` function. The hook will only trigger a re-render if the selected slice of data changes.
@@ -177,7 +200,7 @@ Syncraft Labs exposes a global object `window.__SYNCRAFT_DEVTOOLS__` in the brow
 | `useSync<T>(key, options)` | Hook | Primary React integration hook returning reactive state and updater |
 | `useSyncSuspense<T>(key, options)` | Hook | Suspense-compatible hook throwing promises during hydration |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `encryptionKey?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
 
 ## License
