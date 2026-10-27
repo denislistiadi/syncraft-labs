@@ -38,6 +38,17 @@ export { resolveConflict, type ConflictResolutionConfig } from "./controller/con
 export { isQuotaExceededError } from "./storage/quota.js";
 export { withQuotaGuard } from "./storage/withQuotaGuard.js";
 
+// ── Crypto Utilities ──────────────────────────────────────────
+export {
+  resolveCryptoKey,
+  encryptData,
+  decryptData,
+  isEncryptedPayload,
+  generateEncryptionKey,
+  exportEncryptionKey,
+  importEncryptionKey,
+} from "./crypto/index.js";
+
 // ── Types ─────────────────────────────────────────────────────
 export type {
   SyncStoreConfig,
@@ -55,8 +66,9 @@ export type {
   ConflictResolvedInfo,
   QuotaExceededInfo,
   QuotaExceededHandler,
+  EncryptedPayload,
+  EncryptionKeyInput,
 } from "./types.js";
-
 
 export type {
   SyncraftErrorSource,
@@ -65,4 +77,5 @@ export type {
 
 export type { Patch } from "./produce/index.js";
 export type { CompactResult } from "./compact.js";
+
 

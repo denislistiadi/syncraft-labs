@@ -133,6 +133,32 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 </template>
 ```
 
+## Encryption at Rest
+
+Secure sensitive user data persisted to IndexedDB by providing an `encryptionKey` to `useSync`. Data is authenticated and encrypted using AES-GCM (256-bit) via the native Web Crypto API.
+
+```vue
+<script setup lang="ts">
+import { useSync } from "@syncraft-labs/vue";
+
+const props = defineProps<{ sessionKey: CryptoKey | string }>();
+
+const { data, update, isHydrating } = useSync<NotesState>("user-notes", {
+  initialState: { notes: [] },
+  // Accepts a Web Crypto CryptoKey, Uint8Array, or user passphrase string
+  encryptionKey: props.sessionKey,
+});
+</script>
+
+<template>
+  <p v-if="isHydrating">Decrypting secure vault...</p>
+  <!-- ... -->
+</template>
+```
+
+> [!NOTE]
+> Keys are zero-knowledge and never persisted by Syncraft Labs. Retain keys in your authentication session/memory state.
+
 ## Performance & Optimization
 
 **Selector-based Reactivity**: Prevent over-rendering by passing a `selector` function. The composable will only trigger reactivity if the selected slice of data changes (using `shallowRef` internally).
@@ -153,7 +179,7 @@ Syncraft Labs exposes a global object `window.__SYNCRAFT_DEVTOOLS__` in the brow
 | `createSyncraft()` | Plugin | Vue plugin guaranteeing app-level store registry isolation across SSR requests |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 composable returning reactive `shallowRef` state and updater |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `encryptionKey?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
 | `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
 
 ## License

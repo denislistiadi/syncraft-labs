@@ -100,6 +100,39 @@ Syncraft Labs stores state in plain serializable structures. In development mode
 - **Dates**: Allowed as immutable leaf values. Must be replaced wholesale (not mutated via `.setFullYear()`, etc.). Emits a dev warning recommending ISO strings or timestamps.
 - **Unsupported Types**: Custom class instances, `RegExp`, `Error`, and functions throw an explicit `Error` with the property path.
 
+### Encryption at Rest (AES-GCM)
+Syncraft Labs supports optional, authenticated client-side encryption for data stored in IndexedDB using the native Web Crypto API (`AES-GCM` 256-bit).
+
+```ts
+import {
+  createSyncStore,
+  generateEncryptionKey,
+  exportEncryptionKey,
+} from "@syncraft-labs/core";
+
+// Option A: Generate a fresh 256-bit AES-GCM CryptoKey
+const cryptoKey = await generateEncryptionKey(256);
+
+// Option B: Or pass a user passphrase string (automatically derived via PBKDF2)
+// const cryptoKey = "user-provided-passphrase";
+
+const store = createSyncStore<AppState>({
+  storageKey: "secure-wallet-state",
+  encryptionKey: cryptoKey,
+  initialState: { balance: 100 },
+});
+
+await store.hydrate();
+```
+
+#### Key Management & Zero-Knowledge Security Policy
+> [!IMPORTANT]
+> **Zero-Knowledge Key Storage**: Syncraft Labs never stores, caches, or persists your encryption keys to IndexedDB, LocalStorage, cookies, or any persistent medium.
+>
+> 1. **Consumer Responsibility**: The host application is strictly responsible for managing encryption keys (e.g., deriving keys from user credentials at login, holding them in ephemeral memory/session state, and wiping them upon logout).
+> 2. **Irrecoverable Data Loss**: Because encryption is end-to-end and authenticated (AES-GCM), **if the encryption key or passphrase is lost, state persisted in IndexedDB cannot be recovered or decrypted under any circumstances.**
+> 3. **Tamper Detection**: AES-GCM incorporates an authentication tag and a fresh, cryptographically random 12-byte IV for every write operation. Any modification or corruption of persisted ciphertext throws a `SyncraftError`.
+
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
@@ -136,13 +169,22 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | Export | Type | Description |
 |--------|------|-------------|
 | `createSyncStore<T>(config)` | Function | Factory creating a new `SyncStore` instance (`T extends Record<string, unknown> \| any[]`) |
+| `generateEncryptionKey(length?)` | Function | Generate a Web Crypto `AES-GCM` key (128, 192, or 256 bits; default: 256) |
+| `exportEncryptionKey(key)` | Function | Export a `CryptoKey` to a standard base64 string |
+| `importEncryptionKey(base64)` | Function | Import a base64 string into an `AES-GCM` `CryptoKey` |
+| `resolveCryptoKey(input, storageKey)` | Function | Resolve a `CryptoKey`, `Uint8Array`, or passphrase string into an AES-GCM key |
+| `encryptData(data, key)` | Function | Encrypt serializable data using AES-GCM with a fresh 12-byte random IV |
+| `decryptData(payload, key)` | Function | Authenticate and decrypt an `EncryptedPayload` back into original state |
+| `isEncryptedPayload(val)` | Function | Type guard checking if an unknown value is an `EncryptedPayload` |
 | `deepFreeze<T>(obj)` | Function | Recursively freeze an object tree with `Object.freeze()` |
 | `assertNoCycles(obj, context?)` | Function | Detect circular references in an object tree with detailed property path |
 | `validateStateShape(obj, context?)` | Function | Recursively validate state shape; warns on Date and throws on unsupported types |
 | `isUnsupportedType(val)` | Function | Check if a value is an unsupported type for state drafting/persistence |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
-| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `retainSyncedEntries?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `encryptionKey?`, `retainSyncedEntries?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `EncryptionKeyInput` | Type | Accepted key inputs: `CryptoKey \| Uint8Array \| string` |
+| `EncryptedPayload` | Interface | Encrypted record shape (`__syncraft_encrypted: true`, `iv`, `data`) |
 | `OutboxOverflowStrategy` | Type | Strategy enum (`"reject"`, `"dropOldest"`, `"forceFlush"`) |
 | `OutboxOverflowInfo` | Interface | Event details (`storageKey`, `outboxSize`, `maxOutboxSize`, `strategy`) |
 | `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `compactOutbox`, `getArchivedOutbox`, `clearArchivedOutbox`, `destroy`) |

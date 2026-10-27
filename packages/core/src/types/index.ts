@@ -15,5 +15,6 @@ export type {
 export type { OutboxEntry, ArchivedOutboxEntry } from "./outbox.js";
 export type { SyncListener, Unsubscribe, DraftUpdater } from "./updater.js";
 export type { SyncStore } from "./store.js";
+export type { EncryptedPayload, EncryptionKeyInput } from "./crypto.js";
 
 
