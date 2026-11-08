@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.8.0] - 2026-11-08
 
 ### Added
 - **Core**: Added optional client-side authenticated Encryption at Rest using Web Crypto AES-GCM (256-bit) via `encryptionKey` configuration on `createSyncStore`. (#23)
@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core**: Added `ArchivedOutboxEntry` type definition and upgraded internal database schema to version 4 with automatic backwards-compatible migration. (#24)
 - **React & Vue**: Added `retainSyncedEntries` option pass-through to `useSync` hook and composable controllers. (#24)
 - **Docs**: Added "Outbox Audit Trail" section and API reference documentation in `@syncraft-labs/core` README. (#24)
+- **Docs**: Added real-world Kanban example, scaling & performance guide, and multi-language backend integration guides (Node.js, Go, Python, Java, C#) supporting both traditional REST `PUT` and granular JSON Patch sync. (#65)
 
 ## [0.7.1] - 2026-10-15
 
