@@ -106,6 +106,27 @@ export const pages = [
     desc: "Client-side authenticated encryption (AES-GCM 256-bit) wrapping IndexedDB storage with zero-knowledge key architecture.",
   },
   {
+    category: "Guides",
+    file: "guides/backend-architecture.md",
+    slug: "guides/backend-architecture",
+    title: "Backend Integration",
+    desc: "How to process Syncraft outbox mutations in Node.js, Go, Python, Java, and C#.",
+  },
+  {
+    category: "Examples",
+    file: "examples/real-world-kanban.md",
+    slug: "examples/real-world-kanban",
+    title: "Kanban Board",
+    desc: "Offline-first collaborative Kanban board in React and Vue with optimistic updates and WebSocket sync.",
+  },
+  {
+    category: "Examples",
+    file: "examples/enterprise-field-ops.md",
+    slug: "examples/enterprise-field-ops",
+    title: "Scaling & Performance",
+    desc: "Practical patterns for large datasets, multi-tab coordination, and high-frequency writes.",
+  },
+  {
     category: "Security & Advisories",
     file: "security/policy.md",
     slug: "security/policy",
@@ -163,7 +184,15 @@ export const sidebarGroups = [
       { label: "Sync Strategies", slug: "guides/sync-strategies" },
       { label: "Multi-Store Architecture", slug: "guides/multi-store-architecture" },
       { label: "SSR (Next.js/Nuxt)", slug: "guides/ssr-nextjs-nuxt" },
+      { label: "Backend Integration", slug: "guides/backend-architecture" },
       { label: "Production Checklist", slug: "guides/production-checklist" },
+    ],
+  },
+  {
+    label: "Examples",
+    items: [
+      { label: "Kanban Board", slug: "examples/real-world-kanban" },
+      { label: "Scaling & Performance", slug: "examples/enterprise-field-ops" },
     ],
   },
   {
