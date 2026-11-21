@@ -1,11 +1,13 @@
 import type { Client } from "@libsql/client";
 import type { Hono } from "hono";
 import { isValidBoardId } from "../board/repository.js";
+import type { BoardHub } from "../realtime/hub.js";
 import { applySync, SyncConflictError } from "../sync/service.js";
 import { parseSyncRequest } from "../sync/validate.js";
 
 export interface SyncRouteDependencies {
   readonly db: Client;
+  readonly hub: BoardHub;
 }
 
 export function registerSyncRoutes(app: Hono, deps: SyncRouteDependencies): void {
@@ -33,6 +35,18 @@ export function registerSyncRoutes(app: Hono, deps: SyncRouteDependencies): void
 
     try {
       const result = await applySync(deps.db, boardId, parsed.payload);
+
+      if (!result.duplicate && result.appliedPatches > 0) {
+        await deps.hub.publish({
+          type: "update",
+          boardId,
+          version: result.board.version,
+          updatedAt: result.board.updatedAt,
+          updatedBy: parsed.payload.clientId,
+          state: result.board.state,
+        });
+      }
+
       return c.json({
         ok: true,
         boardId,
