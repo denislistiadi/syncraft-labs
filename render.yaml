@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: syncraft-demo-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: .
+    buildCommand: npm ci && npm run build -- --filter=@syncraft-labs/demo-api
+    startCommand: node apps/demo-api/dist/index.js
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: TURSO_DATABASE_URL
+        sync: false
+      - key: TURSO_AUTH_TOKEN
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false
+      - key: RATE_LIMIT_MAX
+        value: "120"
+    buildFilter:
+      paths:
+        - apps/demo-api/**
+        - packages/core/**
+        - package.json
+        - package-lock.json
+        - turbo.json

@@ -16,6 +16,10 @@
     "test:watch": "turbo run test:watch",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
+    "demo:dev": "turbo run dev --filter=./apps/demo-*",
+    "demo:build": "turbo run build --filter=./apps/demo-*",
+    "demo:test": "turbo run test --filter=./apps/demo-*",
+    "demo:typecheck": "turbo run typecheck --filter=./apps/demo-*",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {

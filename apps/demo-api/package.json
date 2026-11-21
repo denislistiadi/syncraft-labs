@@ -1,0 +1,31 @@
+{
+  "name": "@syncraft-labs/demo-api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Reference backend for the Syncraft Labs Kanban demo.",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest watch"
+  },
+  "dependencies": {
+    "@hono/node-server": "^2.1.11",
+    "@libsql/client": "^0.18.0",
+    "@syncraft-labs/core": "0.8.0",
+    "hono": "^4.13.19"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "tsup": "^8.4.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

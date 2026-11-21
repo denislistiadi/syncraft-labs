@@ -6,7 +6,8 @@ Contributing guide for Syncraft Labs.
 
 ### Prerequisites
 
-- **Node.js** ≥ 20.0.0
+- **Node.js** ≥ 20.0.0 for the published packages
+- **Node.js** ≥ 24.0.0 for `apps/demo-api` and `apps/demo-web` (native `libSQL` and Vite 7)
 - **npm** ≥ 10.0.0
 
 ### Getting Started
@@ -35,7 +36,10 @@ syncraft-labs/
 │   ├── react/         # @syncraft-labs/react — useSync hook
 │   └── vue/           # @syncraft-labs/vue — useSync composable
 ├── apps/
-│   └── playground/    # React + Vite demo app
+│   ├── demo-api/      # Hono + libSQL reference backend (issue #55)
+│   ├── demo-web/      # React + Vue Kanban reference app (issue #55)
+│   └── docs/          # Astro Starlight documentation site
+├── docs/              # Field-testing runbooks and reports
 ├── turbo.json         # Turborepo pipeline config
 ├── tsconfig.base.json # Shared TypeScript config
 └── vitest.workspace.ts
@@ -50,6 +54,10 @@ syncraft-labs/
 | `npm test` | Run all tests once |
 | `npm run test:watch` | Run tests in watch mode |
 | `npm run typecheck` | Run TypeScript checks across all packages |
+| `npm run demo:dev` | Start the demo API and web app together (Node 24) |
+| `npm run demo:build` | Build the demo API and web app |
+| `npm run demo:test` | Run demo API tests |
+| `npm run demo:typecheck` | Typecheck the demo workspaces |
 | `npm run clean` | Remove all `dist/` and `node_modules/` |
 
 ### Working on a Specific Package
@@ -90,7 +98,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/):
 ```
 
 **Types:** `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `perf`  
-**Scopes:** `core`, `react`, `vue`, `playground`, `infra`
+**Scopes:** `core`, `react`, `vue`, `demo-api`, `demo-web`, `deploy`, `docs`, `infra`
 
 Examples:
 ```
@@ -118,6 +126,9 @@ test(core): add outbox overflow test cases
 ```bash
 # Run all tests
 npm test
+
+# Start the reference demo (API on :8787, web on :5173)
+npm run demo:dev
 
 # Run tests for a specific package
 cd packages/core && npm run test
