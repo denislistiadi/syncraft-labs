@@ -27,3 +27,26 @@ services:
         - package.json
         - package-lock.json
         - turbo.json
+
+  - type: web
+    name: syncraft-demo-web
+    runtime: static
+    plan: free
+    rootDir: .
+    buildCommand: npm ci && npm run build -- --filter=@syncraft-labs/demo-web
+    staticPublishPath: apps/demo-web/dist
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Public origin of the API service, without a trailing slash.
+      - key: VITE_API_URL
+        sync: false
+    buildFilter:
+      paths:
+        - apps/demo-web/**
+        - packages/core/**
+        - packages/react/**
+        - packages/vue/**
+        - package.json
+        - package-lock.json
+        - turbo.json

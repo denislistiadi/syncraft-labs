@@ -44,6 +44,25 @@ Your users get **zero-latency updates** that survive page refreshes, network out
 | **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
 | **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
 
+## v0.9.0 reference app
+
+The Kanban demo in [`apps/demo-web`](apps/demo-web/README.md) dogfoods the
+published packages in a full-stack app: React at `/`, Vue at `/vue.html`, a
+Hono + libSQL API, a durable outbox, SSE fan-out, and a Test Lab for offline and
+failure scenarios. The root `render.yaml` deploys the static site, API, and
+Turso database layout.
+
+```bash
+npm run demo:dev        # API :8787 + Vite :5173
+npm run demo:e2e        # Playwright smoke suite
+```
+
+- [Demo web notes](apps/demo-web/README.md)
+- [Deployment runbook](docs/demo-runbook.md)
+- [Field-testing plan](docs/field-testing-plan.md)
+- [Field-testing report](docs/field-testing-report.md)
+- [DX findings](docs/demo-dx-findings.md)
+
 ## Quick Start
 
 ### React
