@@ -1,6 +1,7 @@
 import type { Client } from "@libsql/client";
 import { Hono } from "hono";
 import { registerBoardRoutes } from "./routes/boards.js";
+import { registerSyncRoutes } from "./routes/sync.js";
 
 export interface AppDependencies {
   /** libSQL client. Tests inject a temporary SQLite file. */
@@ -25,6 +26,7 @@ export function createApp(deps: AppDependencies): Hono {
       version,
       health: "/health",
       boards: "/api/boards/:id",
+      sync: "/api/boards/:id/sync",
     }),
   );
 
@@ -38,6 +40,7 @@ export function createApp(deps: AppDependencies): Hono {
   );
 
   registerBoardRoutes(app, { db: deps.db });
+  registerSyncRoutes(app, { db: deps.db });
 
   app.notFound((c) => c.json({ error: "not_found" }, 404));
 
