@@ -14,7 +14,7 @@ async function main(): Promise<void> {
 
   await migrateDatabase(db);
 
-  const app = createApp({ version: config.version });
+  const app = createApp({ db, version: config.version });
 
   serve({ fetch: app.fetch, port: config.port }, (info) => {
     console.log(`[demo-api] listening on http://localhost:${info.port}`);

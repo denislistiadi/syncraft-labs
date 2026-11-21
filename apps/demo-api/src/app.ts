@@ -1,6 +1,10 @@
+import type { Client } from "@libsql/client";
 import { Hono } from "hono";
+import { registerBoardRoutes } from "./routes/boards.js";
 
 export interface AppDependencies {
+  /** libSQL client. Tests inject a temporary SQLite file. */
+  readonly db: Client;
   /** Version string exposed by `/health`. */
   readonly version?: string;
 }
@@ -11,7 +15,7 @@ export interface AppDependencies {
  * Dependencies are injected so tests can use an isolated database and a fake
  * clock without booting the HTTP listener.
  */
-export function createApp(deps: AppDependencies = {}): Hono {
+export function createApp(deps: AppDependencies): Hono {
   const app = new Hono();
   const version = deps.version ?? "0.9.0";
 
@@ -20,6 +24,7 @@ export function createApp(deps: AppDependencies = {}): Hono {
       name: "syncraft-demo-api",
       version,
       health: "/health",
+      boards: "/api/boards/:id",
     }),
   );
 
@@ -31,6 +36,15 @@ export function createApp(deps: AppDependencies = {}): Hono {
       uptime: Math.round(process.uptime()),
     }),
   );
+
+  registerBoardRoutes(app, { db: deps.db });
+
+  app.notFound((c) => c.json({ error: "not_found" }, 404));
+
+  app.onError((error, c) => {
+    console.error("[demo-api] unhandled error", error);
+    return c.json({ error: "internal_error" }, 500);
+  });
 
   return app;
 }
