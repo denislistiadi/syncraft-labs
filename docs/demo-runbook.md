@@ -5,6 +5,35 @@ Operational notes for the Kanban reference app in
 for the UI, a free Render web service for the API, and a free Turso database for
 durable SQLite.
 
+## Live deployment
+
+| Service | URL |
+| --- | --- |
+| Web (React) | <https://syncraft-demo-web.onrender.com/> |
+| Web (Vue) | <https://syncraft-demo-web.onrender.com/vue.html> |
+| API health | <https://syncraft-demo-api.onrender.com/health> |
+| Turso database | `syncraft-demo` |
+
+Append `?board=<id>` to either web entry to use an isolated board; the default
+is `demo`. Confirm the query string before starting a test session; dropping it
+writes to the public demo board.
+
+The API service uses these Render environment values:
+
+- `TURSO_DATABASE_URL` — the `libsql://…` URL from
+  `turso db show syncraft-demo --url`
+- `TURSO_AUTH_TOKEN` — a database token from
+  `turso db tokens create syncraft-demo`
+- `CORS_ORIGIN` — `https://syncraft-demo-web.onrender.com` exactly, with no
+  trailing slash or quotes
+- `RATE_LIMIT_MAX` — `120`
+
+The static site uses:
+
+- `VITE_API_URL` — `https://syncraft-demo-api.onrender.com`, with no trailing
+  slash. It is baked into the build, so rebuild the site if the API origin
+  changes.
+
 ## Local prerequisites
 
 - Node.js 24 (`node --version`)

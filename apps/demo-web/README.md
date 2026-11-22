@@ -9,6 +9,15 @@ The app is intentionally small, but it exercises the parts of Syncraft that are
 hard to trust from unit tests alone: optimistic writes, durable offline queues,
 idempotent pushes, SSE fan-out, conflict rebasing, and cross-tab updates.
 
+## Live demo
+
+- React: <https://syncraft-demo-web.onrender.com/>
+- Vue: <https://syncraft-demo-web.onrender.com/vue.html>
+
+Append `?board=<id>` to either entry for an isolated board. The free Render API
+can take up to a minute to wake. Field-test results are in the
+[report](../../docs/field-testing-report.md).
+
 ## Stack
 
 | Layer | Technology |
@@ -18,7 +27,7 @@ idempotent pushes, SSE fan-out, conflict rebasing, and cross-tab updates.
 | API | Hono on Node 24 |
 | Database | libSQL/SQLite locally, Turso in production |
 | Build | Vite 7 with React and Vue entries |
-| Browser tests | Playwright/Chromium |
+| Browser tests | Playwright (Chromium locally; Chromium, WebKit, Firefox live) |
 
 ## Run locally
 
