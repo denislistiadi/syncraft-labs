@@ -2,7 +2,8 @@
 
 **Status:** awaiting deployment. Results will be filled from the
 [field-testing plan](./field-testing-plan.md) once the Render and Turso
-deployment is live.
+deployment is live. Build-time developer-experience observations are recorded
+in [DX findings](./demo-dx-findings.md).
 
 ## Build
 

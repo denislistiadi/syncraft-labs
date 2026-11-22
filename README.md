@@ -61,6 +61,7 @@ npm run demo:e2e        # Playwright smoke suite
 - [Deployment runbook](docs/demo-runbook.md)
 - [Field-testing plan](docs/field-testing-plan.md)
 - [Field-testing report](docs/field-testing-report.md)
+- [DX findings](docs/demo-dx-findings.md)
 
 ## Quick Start
 
