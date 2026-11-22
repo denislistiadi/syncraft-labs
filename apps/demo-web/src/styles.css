@@ -408,6 +408,12 @@ code {
   justify-content: space-between;
 }
 
+.notice--offline {
+  border-color: var(--line-strong);
+  background: var(--surface-muted);
+  color: var(--ink-soft);
+}
+
 .notice--error strong {
   color: var(--danger);
 }

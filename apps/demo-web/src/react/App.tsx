@@ -160,6 +160,24 @@ export function App() {
     }
   }, [data.cards, editingCardId]);
 
+  useEffect(() => {
+    function handleKeyDown(event: KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      if (editingCardId !== null) {
+        setEditingCardId(null);
+        return;
+      }
+      if (isTestLabOpen) {
+        setIsTestLabOpen(false);
+        return;
+      }
+      if (isDevtoolsOpen) setIsDevtoolsOpen(false);
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [editingCardId, isDevtoolsOpen, isTestLabOpen]);
+
   const handleAddCard = useCallback(
     (columnId: string, title: string) => {
       update((draft) => {
@@ -276,6 +294,13 @@ export function App() {
 
   return (
     <div className="app-shell">
+      <p className="sr-only" role="status" aria-live="polite">
+        {error
+          ? `Sync error: ${error.message}`
+          : isSyncing
+            ? "Syncing changes"
+            : "All changes synced"}
+      </p>
       <header className="app-header">
         <div className="app-header__inner">
           <div className="brand">
@@ -329,6 +354,14 @@ export function App() {
           lastError={apiSnapshot.lastError}
           onRetry={() => void runHealthCheck()}
         />
+        {isOffline ? (
+          <div className="notice notice--offline" role="status">
+            <div>
+              <strong>Browser offline.</strong> Edits stay in the outbox and sync when the
+              connection returns.
+            </div>
+          </div>
+        ) : null}
         {error ? (
           <div className="notice notice--error" role="alert">
             <div>
@@ -368,6 +401,7 @@ export function App() {
 
         <KanbanBoard
           board={data}
+          isBusy={isHydrating || isSyncing}
           onAddCard={handleAddCard}
           onOpenCard={setEditingCardId}
           onMoveCard={handleMoveCard}

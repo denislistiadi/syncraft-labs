@@ -13,6 +13,7 @@ const CARD_MIME = "application/x-syncraft-card";
 
 export interface KanbanBoardProps {
   readonly board: BoardState;
+  readonly isBusy?: boolean;
   readonly onAddCard: (columnId: string, title: string) => void;
   readonly onOpenCard: (cardId: string) => void;
   readonly onMoveCard: (cardId: string, toColumnId: string, index: number) => void;
@@ -22,7 +23,7 @@ export interface KanbanBoardProps {
 
 export function KanbanBoard(props: KanbanBoardProps) {
   return (
-    <div className="board" role="list" aria-label="Kanban board">
+    <div className="board" role="list" aria-label="Kanban board" aria-busy={props.isBusy}>
       {props.board.columns.map((column, index) => (
         <BoardColumn
           key={column.id}
