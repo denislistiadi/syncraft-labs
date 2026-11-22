@@ -9,7 +9,9 @@
     "build": "vite build",
     "preview": "vite preview --port 4173",
     "typecheck": "vue-tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:live": "playwright test --config=playwright.live.config.ts",
+    "smoke:live": "node scripts/smoke-live.mjs"
   },
   "dependencies": {
     "@syncraft-labs/core": "0.8.0",

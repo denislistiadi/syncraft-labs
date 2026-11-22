@@ -30,7 +30,9 @@ Thumbs.db
 # Demo local data and test output
 apps/demo-api/data/
 apps/demo-web/test-results/
+apps/demo-web/test-results-live/
 apps/demo-web/playwright-report/
+apps/demo-web/playwright-report-live/
 apps/demo-web/.vite/
 
 # Logs
