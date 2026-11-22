@@ -31,7 +31,6 @@ services:
   - type: web
     name: syncraft-demo-web
     runtime: static
-    plan: free
     rootDir: .
     buildCommand: npm ci && npm run build -- --filter=@syncraft-labs/demo-web
     staticPublishPath: apps/demo-web/dist

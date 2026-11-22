@@ -1,7 +1,20 @@
 import { expect, type Page } from "@playwright/test";
 
-const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:8787";
-const APP_PATHS = { react: "/index.html", vue: "/vue.html" } as const;
+const API_URL = (process.env.E2E_API_URL ?? "http://127.0.0.1:8787").replace(
+  /\/+$/,
+  "",
+);
+const APP_PATHS = { react: "/", vue: "/vue.html" } as const;
+
+/** Live deployments can cold-start for up to a minute on Render's free tier. */
+const IS_LIVE =
+  process.env.E2E_LIVE === "1" ||
+  (process.env.E2E_WEB_URL !== undefined && process.env.E2E_API_URL !== undefined);
+const UI_TIMEOUT_MS = Number(
+  process.env.E2E_UI_TIMEOUT_MS ?? (IS_LIVE ? 90_000 : 20_000),
+);
+const CARD_TIMEOUT_MS = IS_LIVE ? 30_000 : 15_000;
+const PUSH_TIMEOUT_MS = IS_LIVE ? 60_000 : 25_000;
 
 export type AppKind = keyof typeof APP_PATHS;
 
@@ -51,7 +64,9 @@ export async function openBoard(
     waitUntil: "domcontentloaded",
   });
   await expect(page.locator(".board-column")).toHaveCount(4);
-  await expect(page.locator(".card").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".card").first()).toBeVisible({
+    timeout: UI_TIMEOUT_MS,
+  });
 }
 
 export function column(page: Page, index: number) {
@@ -79,7 +94,7 @@ export async function expectCardInColumn(
 ): Promise<void> {
   await expect(
     column(page, columnIndex).getByText(title, { exact: true }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible({ timeout: CARD_TIMEOUT_MS });
 }
 
 export async function openCard(page: Page, title: string): Promise<void> {
@@ -106,6 +121,7 @@ interface PushStats {
 export async function fetchStats(boardId: string): Promise<PushStats> {
   const response = await fetch(
     `${API_URL}/api/boards/${encodeURIComponent(boardId)}/stats`,
+    { signal: AbortSignal.timeout(IS_LIVE ? 30_000 : 10_000) },
   );
   if (!response.ok) {
     throw new Error(`Stats request failed with HTTP ${response.status}`);
@@ -122,6 +138,9 @@ export async function waitForPush(
   minimum: number,
 ): Promise<void> {
   await expect
-    .poll(() => pushCount(boardId), { timeout: 25_000, intervals: [250, 500, 1_000] })
+    .poll(() => pushCount(boardId), {
+      timeout: PUSH_TIMEOUT_MS,
+      intervals: [250, 500, 1_000],
+    })
     .toBeGreaterThanOrEqual(minimum);
 }

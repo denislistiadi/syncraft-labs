@@ -84,8 +84,20 @@ npm run demo:test      # API integration tests
 npm run demo:e2e       # Playwright: React, Vue, sync, recovery
 ```
 
-The Playwright suite starts the API and Vite automatically, uses a temporary
-SQLite database, and covers:
+Against a deployed environment:
+
+```bash
+E2E_WEB_URL=https://... E2E_API_URL=https://... npm run demo:e2e:live
+WEB_URL=https://... API_URL=https://... npm run demo:smoke:live
+```
+
+`demo:e2e:live` reuses the same Playwright specs with a live config. Add
+`E2E_BROWSERS=chromium,webkit,firefox` to run all three desktop engines.
+`demo:smoke:live` checks health, seed, idempotent sync, stats, SSE, CORS, and
+both HTML entries, then prints the board stats.
+
+The local Playwright suite starts the API and Vite automatically, uses a
+temporary SQLite database, and covers:
 
 - create/edit/move/delete parity for React and Vue
 - mobile reorder and column-crossing controls
