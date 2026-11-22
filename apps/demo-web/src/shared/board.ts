@@ -35,11 +35,42 @@ export function getColumnOf(board: BoardState, cardId: string): Column | undefin
 
 export function getColumnCards(board: BoardState, column: Column): Card[] {
   const cards: Card[] = [];
+  const seen = new Set<string>();
   for (const cardId of column.cardIds) {
+    if (seen.has(cardId)) continue;
+    seen.add(cardId);
     const card = board.cards[cardId];
     if (card) cards.push(card);
   }
   return cards;
+}
+
+/**
+ * Repairs a board that may contain duplicate card references.
+ *
+ * Replaying an outbox `add` patch on a remote board that already includes the
+ * same card inserts its ID a second time. Keeping the first occurrence keeps
+ * the server's ordering while making rendering and drag-and-drop deterministic.
+ */
+export function normalizeBoard(board: BoardState): BoardState {
+  const seen = new Set<string>();
+  const columns = board.columns.map((column) => {
+    const cardIds: string[] = [];
+    for (const cardId of column.cardIds) {
+      if (seen.has(cardId) || !board.cards[cardId]) continue;
+      seen.add(cardId);
+      cardIds.push(cardId);
+    }
+    return { ...column, cardIds };
+  });
+
+  const orphaned = Object.keys(board.cards).filter((cardId) => !seen.has(cardId));
+  const firstColumn = columns[0];
+  if (firstColumn && orphaned.length > 0) {
+    firstColumn.cardIds.push(...orphaned);
+  }
+
+  return { columns, cards: board.cards };
 }
 
 export function addCard(

@@ -1,6 +1,6 @@
 import { applyPatches, type ConflictInfo } from "@syncraft-labs/core";
 import type { ApiClient } from "./api.js";
-import { createEmptyBoard } from "./board.js";
+import { createEmptyBoard, normalizeBoard } from "./board.js";
 import type { BoardState } from "./types.js";
 
 export { STORAGE_KEY } from "./config.js";
@@ -12,10 +12,13 @@ export { STORAGE_KEY } from "./config.js";
  * edits that are still queued in the outbox stay visible. `applyPatches` skips
  * paths that no longer exist, so a card that was deleted remotely simply drops
  * its pending edits instead of crashing the demo.
+ *
+ * Patches may already be reflected in the remote state when another tab pushed
+ * the shared outbox first, so the result is normalized before it is rendered.
  */
 export function rebasePendingPatches({ remote, patches }: ConflictInfo<BoardState>): BoardState {
   if (patches.length === 0) return remote;
-  return applyPatches(remote, patches);
+  return normalizeBoard(applyPatches(remote, patches));
 }
 
 export interface BoardSyncCallbacks {
