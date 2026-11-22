@@ -97,6 +97,43 @@ curl -s -o /dev/null -w "%{http_code}\n" "$WEB/"
 curl -s -o /dev/null -w "%{http_code}\n" "$WEB/vue.html"
 ```
 
+### Automated live checks
+
+The smoke script exercises health, seed, idempotent sync, duplicate handling,
+stats, SSE, CORS, and both HTML entries against a throwaway board:
+
+```bash
+WEB_URL="$WEB" API_URL="$API" npm run demo:smoke:live
+```
+
+Run the browser suite against the same deployment:
+
+```bash
+E2E_WEB_URL="$WEB" E2E_API_URL="$API" npm run demo:e2e:live
+
+# Add WebKit and Firefox desktop:
+E2E_BROWSERS=chromium,webkit,firefox \
+  E2E_WEB_URL="$WEB" E2E_API_URL="$API" npm run demo:e2e:live
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:WEB_URL = "https://<web-origin>"
+$env:API_URL = "https://<api-origin>"
+npm run demo:smoke:live
+
+$env:E2E_WEB_URL = $env:WEB_URL
+$env:E2E_API_URL = $env:API_URL
+$env:E2E_BROWSERS = "chromium,webkit,firefox"
+npm run demo:e2e:live
+```
+
+The live suite uses one worker and a unique board per test to stay below the
+write rate limit. Allow up to a minute for the first request if the API is
+asleep. Install the extra engines once with
+`npx playwright install webkit firefox`.
+
 In the browser:
 
 1. Open React and Vue on the same `?board=` ID.
