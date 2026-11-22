@@ -2,6 +2,9 @@ export const STORAGE_KEY = "syncraft-kanban-demo-v1";
 export const DEFAULT_BOARD_ID = "demo";
 export const CLIENT_ID_STORAGE_KEY = "syncraft-kanban-demo-client-id";
 
+/** Must match `DB_PREFIX` in `@syncraft-labs/core`'s IndexedDB adapter. */
+export const LOCAL_DB_PREFIX = "syncraft-labs_";
+
 const BOARD_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 export const API_BASE_URL = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");

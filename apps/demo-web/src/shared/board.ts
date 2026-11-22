@@ -141,6 +141,23 @@ export function moveCardToColumn(draft: BoardState, cardId: string, toColumnId: 
   moveCard(draft, cardId, toColumnId, target.cardIds.length);
 }
 
+/** Swaps a card with its neighbour inside the same column. */
+export function moveCardWithinColumn(
+  draft: BoardState,
+  cardId: string,
+  direction: -1 | 1,
+): void {
+  const column = getColumnOf(draft, cardId);
+  if (!column) return;
+  const position = column.cardIds.indexOf(cardId);
+  const nextPosition = position + direction;
+  if (nextPosition < 0 || nextPosition >= column.cardIds.length) return;
+  const otherId = column.cardIds[nextPosition];
+  if (!otherId) return;
+  column.cardIds[position] = otherId;
+  column.cardIds[nextPosition] = cardId;
+}
+
 export function isBoardState(value: unknown): value is BoardState {
   if (typeof value !== "object" || value === null) return false;
   const candidate = value as { columns?: unknown; cards?: unknown };
