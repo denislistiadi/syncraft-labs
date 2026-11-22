@@ -7,9 +7,7 @@ import {
 } from "react";
 import { getColumnCards } from "../shared/board.js";
 import type { BoardState, Card, Column } from "../shared/types.js";
-import { columnTheme } from "../shared/ui.js";
-
-const CARD_MIME = "application/x-syncraft-card";
+import { columnTheme, CARD_MIME } from "../shared/ui.js";
 
 export interface KanbanBoardProps {
   readonly board: BoardState;

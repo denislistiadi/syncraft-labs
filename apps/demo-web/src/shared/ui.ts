@@ -3,6 +3,8 @@ export interface ColumnTheme {
   readonly soft: string;
 }
 
+export const CARD_MIME = "application/x-syncraft-card";
+
 const COLUMN_THEMES: Record<string, ColumnTheme> = {
   backlog: { accent: "#64748b", soft: "#eef1f5" },
   "in-progress": { accent: "#2563eb", soft: "#e8effd" },
