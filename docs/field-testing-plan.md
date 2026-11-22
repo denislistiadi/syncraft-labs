@@ -9,10 +9,11 @@ idempotent sync, and live fan-out between React and Vue tabs.
 | Item | Value |
 | --- | --- |
 | Release | v0.9.0 |
-| Commit | _fill after deploy_ |
-| Web URL | _fill after deploy_ |
-| API URL | _fill after deploy_ |
-| Turso database | _fill after deploy_ |
+| Commit | `c6a2919` |
+| Web URL | <https://syncraft-demo-web.onrender.com> |
+| API URL | <https://syncraft-demo-api.onrender.com> |
+| Turso database | `syncraft-demo` |
+| Test window | 2026-11-22 |
 
 ## Matrix
 
