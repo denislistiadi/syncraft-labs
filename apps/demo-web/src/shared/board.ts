@@ -135,29 +135,18 @@ export function moveCard(
 }
 
 /**
- * Moves a card one slot left/right. At a column boundary the card crosses into
- * the adjacent column, which gives touch users a predictable alternative to
- * drag and drop.
+ * Moves a card into the adjacent column. The up/down controls handle reordering
+ * inside a column, so left/right always cross the boundary.
  */
 export function moveCardBy(draft: BoardState, cardId: string, direction: -1 | 1): void {
   const sourceIndex = draft.columns.findIndex((column) => column.cardIds.includes(cardId));
   const source = draft.columns[sourceIndex];
   if (!source) return;
 
-  const position = source.cardIds.indexOf(cardId);
-  const nextPosition = position + direction;
-
-  if (nextPosition >= 0 && nextPosition < source.cardIds.length) {
-    const otherId = source.cardIds[nextPosition];
-    if (!otherId) return;
-    source.cardIds[position] = otherId;
-    source.cardIds[nextPosition] = cardId;
-    return;
-  }
-
   const target = draft.columns[sourceIndex + direction];
   if (!target) return;
 
+  const position = source.cardIds.indexOf(cardId);
   source.cardIds.splice(position, 1);
   if (direction === 1) {
     target.cardIds.unshift(cardId);
