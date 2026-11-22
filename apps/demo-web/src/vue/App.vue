@@ -401,7 +401,7 @@ onUnmounted(() => {
           <p class="eyebrow">Board · {{ api.boardId }}</p>
           <h1>Launch board</h1>
           <p class="board-toolbar__meta">
-            {{ board.columns.length }} columns · {{ totalCards }} cards · v{{ apiSnapshot.version }} · 
+            {{ board.columns.length }} columns · {{ totalCards }} cards · v{{ apiSnapshot.version }} ·
             {{ isHydrating ? "hydrating…" : `${apiSnapshot.metrics.pushes} pushes` }}
             <template v-if="apiSnapshot.metrics.duplicates > 0">
               · {{ apiSnapshot.metrics.duplicates }} duplicate{{
