@@ -19,6 +19,7 @@
     "demo:dev": "turbo run dev --filter=./apps/demo-*",
     "demo:build": "turbo run build --filter=./apps/demo-*",
     "demo:test": "turbo run test --filter=./apps/demo-*",
+    "demo:e2e": "npm run test:e2e --workspace @syncraft-labs/demo-web",
     "demo:typecheck": "turbo run typecheck --filter=./apps/demo-*",
     "clean": "turbo run clean && rm -rf node_modules"
   },
