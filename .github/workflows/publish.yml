@@ -44,31 +44,40 @@ jobs:
           echo "=== @syncraft-labs/vue ==="
           (cd packages/vue && npm pack --dry-run)
 
+      - name: Verify release metadata
+        run: npm run release:check
+
       - name: Publish @syncraft-labs/core
         run: |
           VERSION=$(node -p "require('./packages/core/package.json').version")
+          TAG=latest
+          if [[ "$VERSION" == *-* ]]; then TAG=beta; fi
           if npm view @syncraft-labs/core@$VERSION version >/dev/null 2>&1; then
             echo "@syncraft-labs/core@$VERSION already published, skipping"
           else
-            cd packages/core && npm publish --access public --provenance
+            cd packages/core && npm publish --access public --provenance --tag "$TAG"
           fi
 
       - name: Publish @syncraft-labs/react
         run: |
           VERSION=$(node -p "require('./packages/react/package.json').version")
+          TAG=latest
+          if [[ "$VERSION" == *-* ]]; then TAG=beta; fi
           if npm view @syncraft-labs/react@$VERSION version >/dev/null 2>&1; then
             echo "@syncraft-labs/react@$VERSION already published, skipping"
           else
-            cd packages/react && npm publish --access public --provenance
+            cd packages/react && npm publish --access public --provenance --tag "$TAG"
           fi
 
       - name: Publish @syncraft-labs/vue
         run: |
           VERSION=$(node -p "require('./packages/vue/package.json').version")
+          TAG=latest
+          if [[ "$VERSION" == *-* ]]; then TAG=beta; fi
           if npm view @syncraft-labs/vue@$VERSION version >/dev/null 2>&1; then
             echo "@syncraft-labs/vue@$VERSION already published, skipping"
           else
-            cd packages/vue && npm publish --access public --provenance
+            cd packages/vue && npm publish --access public --provenance --tag "$TAG"
           fi
 
 

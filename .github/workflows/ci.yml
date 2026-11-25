@@ -28,6 +28,9 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Verify release metadata
+        run: npm run release:check
+
       - name: Build docs
         run: npm run build -- --filter="@syncraft-labs/docs"
 

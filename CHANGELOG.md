@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0-beta.1] - 2026-11-25
+
+> **Prerelease.** Focus: per-entry outbox acknowledgements, local data lifecycle
+> (`purge` + schema migrations), reactive pending count, and a corrected merge
+> base. This release contains breaking changes; read the upgrade notes before
+> installing.
+
+### Added
+
+- **Core**: Per-entry push acknowledgements via `OutboxAck` (`applied`, `conflict`, `rejected`, `retry`), `OutboxAckStatus`, `OutboxAckError`, and the `PushHandler` type. (#76)
+- **Core**: `compaction: "none" | "merge"` (default `"none"`) and `onPushResult` for surfacing conflicts and rejections. (#76)
+- **Core**: `SyncStore.getPendingCount()` and `SyncStore.subscribeOutbox()` for reactive outbox status. (#75)
+- **Core**: `SyncStore.purge()` and the standalone `purgeSyncDB(storageKey)` export for logout and account switching. (#72)
+- **Core**: `schemaVersion` and `migrate(persisted, fromVersion)` store options, a `meta` object store, and IndexedDB schema v5. (#74)
+- **React & Vue**: `pendingCount` and `purge` on `useSync`; acknowledgement, compaction, and schema options are forwarded to the store. (#75, #76, #72, #74)
+- **Docs**: New "Reliable Sync" guide and 0.8 to 0.9 migration guide.
+
+### Changed
+
+- **Core**: The background sync loop pushes entries individually by default and clears only entries the server acknowledged. `retry` and missing acknowledgements stay queued with exponential backoff. (#76)
+- **Core**: `lastSyncedBase` now tracks server-confirmed state only. It advances after the outbox is empty and is never set to a merged result. (#73)
+- **Core**: `navigator.onLine === undefined` (SSR/Node) is treated as online instead of offline.
+
+### Fixed
+
+- **Core**: Partial push responses no longer delete unacknowledged mutations. (#76)
+- **Core**: Three-way merges no longer treat optimistic local edits as already synchronized. (#73)
+
+### Breaking
+
+- `pusher` may return `OutboxAck[]`. Returning `void` still works but logs a warning and treats every pushed entry as applied. (#76)
+- Automatic compaction is no longer the default. Opt in with `compaction: "merge"`. (#76)
+- `lastSyncedBase` no longer contains merged local edits. Custom resolvers that relied on it must compare against the server-confirmed base. (#73)
+- IndexedDB upgrades to schema v5. The upgrade is automatic; stores with `schemaVersion` changes must provide `migrate`. (#74)
+
+### Upgrade
+
+```bash
+npm install @syncraft-labs/core@beta @syncraft-labs/react@beta @syncraft-labs/vue@beta
+```
+
+See the [0.9 migration guide](https://syncraft-labs.web.id/docs/reference/migration-09) for the full checklist.
+
 ## [0.8.0] - 2026-11-08
 
 ### Added

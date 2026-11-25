@@ -1,6 +1,6 @@
 {
   "name": "syncraft-labs",
-  "version": "0.8.0",
+  "version": "0.9.0-beta.1",
   "private": true,
   "description": "Local-First state synchronization engine for React and Vue.",
   "homepage": "https://syncraft-labs.web.id",
@@ -23,6 +23,7 @@
     "demo:e2e:live": "npm run test:e2e:live --workspace @syncraft-labs/demo-web",
     "demo:smoke:live": "npm run smoke:live --workspace @syncraft-labs/demo-web",
     "demo:typecheck": "turbo run typecheck --filter=./apps/demo-*",
+    "release:check": "node scripts/check-versions.mjs",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {

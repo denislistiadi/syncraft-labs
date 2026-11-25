@@ -14,9 +14,9 @@
     "smoke:live": "node scripts/smoke-live.mjs"
   },
   "dependencies": {
-    "@syncraft-labs/core": "0.8.0",
-    "@syncraft-labs/react": "0.8.0",
-    "@syncraft-labs/vue": "0.8.0",
+    "@syncraft-labs/core": "0.9.0-beta.1",
+    "@syncraft-labs/react": "0.9.0-beta.1",
+    "@syncraft-labs/vue": "0.9.0-beta.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "vue": "^3.5.0"
