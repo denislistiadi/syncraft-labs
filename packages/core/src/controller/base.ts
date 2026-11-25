@@ -56,7 +56,8 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
   private retryCount = 0;
 
   /**
-   * Snapshot of the most recently synchronized common base state.
+   * Snapshot of the last server-confirmed state, used as the three-way merge
+   * base. Never contains unacknowledged local mutations.
    */
   lastSyncedBase: T | undefined = undefined;
 
@@ -254,7 +255,6 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         }
       }
 
-      this.lastSyncedBase = this.store.getSnapshot();
       this.isSyncing = false;
 
       const unacknowledged = acks.filter((ack) => ack.status === "retry");
@@ -271,6 +271,12 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
       }
 
       this.retryCount = 0;
+      // Only advance the merge base once every local mutation has been
+      // confirmed, otherwise pending edits would be treated as synced.
+      const remainingOutbox = await this.store.getOutbox();
+      if (remainingOutbox.length === 0) {
+        this.lastSyncedBase = this.store.getSnapshot();
+      }
       this.latestOptions.onSyncSuccess?.();
       if (this.error instanceof SyncraftError && this.error.source === "sync") this.error = null;
       else if (this.error && !(this.error instanceof SyncraftError)) this.error = null;
@@ -369,7 +375,9 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     }
 
     await this.store.setServerState(resolved);
-    this.lastSyncedBase = resolved;
+    // The merge base must remain server-authoritative. `resolved` may contain
+    // local edits that the server has not confirmed yet.
+    this.lastSyncedBase = remote;
 
     if (this.latestOptions.onConflictResolved) {
       try {
