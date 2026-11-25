@@ -12,7 +12,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { openDB } from "idb";
 import { createSyncStore } from "../store.js";
 import type { SyncStore } from "../types.js";
-import { DB_PREFIX } from "../storage/db.js";
+import { DB_PREFIX, DB_VERSION } from "../storage/db.js";
 import * as persistence from "../store/persistence.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -1489,6 +1489,74 @@ describe("createSyncStore", () => {
 
       store.destroy();
     });
+  });
+});
+
+describe("purge", () => {
+  it("deletes the backing database and can be hydrated again", async () => {
+    const key = uniqueKey();
+    const store = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+    });
+    await store.hydrate();
+    await store.set((draft) => {
+      draft.lastUpdated = 99;
+      draft.todos.push({ id: "1", text: "offline", done: false });
+    });
+
+    expect((await store.getOutbox()).length).toBe(1);
+
+    const listener = vi.fn();
+    store.subscribe(listener);
+
+    await store.purge();
+
+    // The store is intentionally un-hydrated after purge; silence the dev warning.
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(store.getSnapshot()).toBeUndefined();
+    warnSpy.mockRestore();
+    expect(listener).toHaveBeenCalledWith(undefined);
+
+    // The database is gone: a fresh store with the same key starts clean.
+    const reopened = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+    });
+    await reopened.hydrate();
+    expect(reopened.getSnapshot()).toEqual(INITIAL_STATE);
+
+    // The purged store is still usable.
+    await store.hydrate();
+    expect(store.getSnapshot()).toEqual(INITIAL_STATE);
+
+    reopened.destroy();
+    store.destroy();
+  });
+
+  it("waits for another open connection before deleting", async () => {
+    const key = uniqueKey();
+    const store = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+    });
+    await store.hydrate();
+
+    // Simulate a second tab holding the database open.
+    const otherTab = await openDB(`${DB_PREFIX}${key}`, DB_VERSION);
+    let resolved = false;
+    const purgePromise = store.purge().then(() => {
+      resolved = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(resolved).toBe(false);
+
+    otherTab.close();
+    await purgePromise;
+
+    expect(resolved).toBe(true);
+    store.destroy();
   });
 });
 

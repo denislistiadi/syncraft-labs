@@ -20,6 +20,7 @@
 
 // ── Factory & Utilities ───────────────────────────────────────
 export { createSyncStore } from "./store/index.js";
+export { deleteSyncDB as purgeSyncDB } from "./storage/db.js";
 export { applyPatches } from "./produce/index.js";
 export { compactOutbox } from "./compact.js";
 export {

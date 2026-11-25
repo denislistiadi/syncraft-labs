@@ -137,6 +137,10 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     [controller],
   );
 
+  const purge = useCallback(async () => {
+    await store.purge();
+  }, [store]);
+
   const destroyStoreCallback = useCallback(() => {
     destroyStore(registry, key);
   }, [registry, key]);
@@ -150,6 +154,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     isSyncing: lifecycleSnapshot.isSyncing,
     isOffline,
     error: lifecycleSnapshot.error,
+    purge,
     destroyStore: destroyStoreCallback,
   };
 }

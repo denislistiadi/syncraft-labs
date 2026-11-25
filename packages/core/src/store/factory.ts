@@ -2,7 +2,7 @@ import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
 import type { DraftUpdater, OutboxEntry, ArchivedOutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
-import { closeDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
+import { closeDB, deleteSyncDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
 import { createMonotonicClock, generateId } from "../utils/id.js";
 import { enforceOutboxLimit } from "./outboxGuard.js";
 import * as persistence from "./persistence.js";
@@ -242,6 +242,26 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
     },
     get isHydrating(): boolean {
       return !ctx.isHydrated && !ctx.isDestroyed;
+    },
+    async purge(): Promise<void> {
+      assertNotDestroyed();
+      const release = await acquireLock();
+      try {
+        if (ctx.db !== null) {
+          closeDB(ctx.db);
+          ctx.db = null;
+        }
+        await deleteSyncDB(storageKey);
+        ctx.memoryState = undefined;
+        ctx.isHydrated = false;
+        ctx.hasWarnedPreHydration = false;
+        ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
+        if (ctx.channel) {
+          ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: undefined });
+        }
+      } finally {
+        release();
+      }
     },
     destroy(): void {
       if (ctx.isDestroyed) return;
