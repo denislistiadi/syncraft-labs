@@ -121,7 +121,7 @@ const { data, update, error } = useSync<CacheState>("app-cache", {
 
 When handling large local-first datasets, apply these best practices to prevent reaching storage quotas:
 
-### 1. Enable Outbox Compaction & Lower `maxOutboxSize`
+### 1. Bound the Outbox and Compact When Safe
 
 Repeated updates to the same fields can accumulate pending patches in the outbox. Configure bounded outbox limits:
 
@@ -132,6 +132,8 @@ const store = createSyncStore({
   overflowStrategy: "dropOldest", // Prevent unbounded queue growth offline
 });
 ```
+
+`dropOldest` loses mutations. Prefer draining the outbox and, if your server applies a merged entry atomically, opt into `compaction: "merge"` on `useSync`. Compaction is off by default because per-entry acknowledgements require each mutation to keep its own id.
 
 ### 2. Use Collection Mode for Large Datasets
 

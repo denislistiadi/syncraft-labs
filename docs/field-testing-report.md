@@ -1,4 +1,4 @@
-# Field-testing report — v0.9.0 Kanban demo
+# Field-testing report - demo v0.9.0 (library 0.8.0)
 
 **Status:** complete. The demo is deployed and the automated live suite passed.
 The manual field session is recorded below, including one process deviation: the
@@ -14,7 +14,7 @@ developer-experience observations are in
 
 | Item | Value |
 | --- | --- |
-| Release | v0.9.0 |
+| Release | Demo v0.9.0 on library 0.8.0 |
 | Commit | `c6a2919` |
 | Web URL | <https://syncraft-demo-web.onrender.com> |
 | API URL | <https://syncraft-demo-api.onrender.com> |

@@ -18,19 +18,21 @@
 7. [Conflict Resolution](#guides-conflict-resolution)
 8. [Error Handling](#guides-error-handling)
 9. [Sync Strategies](#guides-sync-strategies)
-10. [Multi-Store Architecture](#guides-multi-store-architecture)
-11. [SSR (Next.js & Nuxt)](#guides-ssr-nextjs-nuxt)
-12. [Testing](#guides-testing)
-13. [Production Checklist](#guides-production-checklist)
-14. [Storage Quota Handling](#guides-storage-quota)
-15. [Encryption at Rest](#guides-encryption-at-rest)
-16. [Backend Integration](#guides-backend-architecture)
-17. [Kanban Board](#examples-real-world-kanban)
-18. [Scaling & Performance](#examples-enterprise-field-ops)
-19. [Security Policy](#security-policy)
-20. [Security Advisory: SYNCRAFT-SEC-2026-001](#security-advisory-2026-001)
-21. [RFC-001: CRDT Evaluation](#reference-crdt-evaluation)
-22. [Changelog](#reference-changelog)
+10. [Reliable Sync](#guides-reliable-sync)
+11. [Multi-Store Architecture](#guides-multi-store-architecture)
+12. [SSR (Next.js & Nuxt)](#guides-ssr-nextjs-nuxt)
+13. [Testing](#guides-testing)
+14. [Production Checklist](#guides-production-checklist)
+15. [Storage Quota Handling](#guides-storage-quota)
+16. [Encryption at Rest](#guides-encryption-at-rest)
+17. [Backend Integration](#guides-backend-architecture)
+18. [Kanban Board](#examples-real-world-kanban)
+19. [Scaling & Performance](#examples-enterprise-field-ops)
+20. [Security Policy](#security-policy)
+21. [Security Advisory: SYNCRAFT-SEC-2026-001](#security-advisory-2026-001)
+22. [RFC-001: CRDT Evaluation](#reference-crdt-evaluation)
+23. [Changelog](#reference-changelog)
+24. [Migrating to 0.9](#reference-migration-09)
 
 ---
 
@@ -358,6 +360,10 @@ Create a new store instance. Each store manages one slice of state identified by
 | `onQuotaExceeded` | `(info: QuotaExceededInfo) => void` | `undefined` | Callback invoked on storage quota exhaustion |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
 | `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
+| `encryptionKey` | `EncryptionKeyInput` | `undefined` | Encrypt state at rest with AES-GCM. Accepts a `CryptoKey`, raw bytes, or a passphrase |
+| `retainSyncedEntries` | `boolean` | `false` | Move acknowledged outbox entries to `outbox_archive` instead of deleting them |
+| `schemaVersion` | `number` | `1` | Version of the persisted state shape |
+| `migrate` | `(persisted: unknown, fromVersion: number) => T` | `undefined` | Upgrade persisted state when `schemaVersion` changes. Clears the outbox after a successful migration |
 
 #### Returns: `SyncStore<T>`
 
@@ -366,11 +372,17 @@ Create a new store instance. Each store manages one slice of state identified by
 | `get()` | `() => Promise<T \| undefined>` | Async read — memory → IndexedDB fallback |
 | `getSnapshot()` | `() => T \| undefined` | Synchronous read from memory (fast path) |
 | `set(updater)` | `(updater: DraftUpdater<T>) => Promise<void>` | Mutate via draft. Optimistic + durable |
+| `setServerState(state)` | `(state: T) => Promise<void>` | Replace state with server-authoritative data without adding an outbox entry |
 | `subscribe(listener)` | `(listener: SyncListener<T>) => Unsubscribe` | Listen to state changes |
 | `hydrate()` | `() => Promise<T \| undefined>` | Load from IndexedDB (call once on init) |
-| `getOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations |
+| `getOutbox(limit?)` | `(limit?: number) => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations, oldest first |
+| `getPendingCount()` | `() => Promise<number>` | Number of mutations waiting in the outbox |
+| `subscribeOutbox(listener)` | `(listener: () => void) => Unsubscribe` | Notified on local writes, acknowledgements, purge, and cross-tab broadcasts |
 | `compactOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Return compacted view of outbox entries (last-write-wins) |
-| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove synced entries by ID |
+| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove acknowledged entries by ID |
+| `getArchivedOutbox(limit?)` | `(limit?: number) => Promise<readonly ArchivedOutboxEntry<T>[]>` | Read the audit archive when `retainSyncedEntries` is enabled |
+| `clearArchivedOutbox(options?)` | `(options?: { olderThan?: number }) => Promise<number>` | Delete archived entries, optionally older than a Unix ms timestamp |
+| `purge()` | `() => Promise<void>` | Delete the IndexedDB database, clear the snapshot, and allow hydration again |
 | `destroy()` | `() => void` | Close IndexedDB connection, clear listeners |
 | `isHydrating` | `boolean` (getter) | `true` until `hydrate()` completes |
 
@@ -392,10 +404,50 @@ Two patterns:
 
 ```ts
 interface OutboxEntry<T> {
-  readonly id: string;           // UUID v4
+  readonly id: string;           // UUID v4, also the idempotency key
   readonly timestamp: number;    // Unix ms
   readonly patches: Patch[];     // Applied JSON patches
   readonly inversePatches: Patch[]; // Inverse patches for rollback
+}
+```
+
+#### `OutboxAck`
+
+Returned by `pusher` to acknowledge each pushed entry.
+
+```ts
+type OutboxAckStatus = "applied" | "conflict" | "rejected" | "retry";
+
+interface OutboxAck {
+  readonly id: string;           // OutboxEntry.id
+  readonly status: OutboxAckStatus;
+  readonly error?: {
+    readonly code: string;
+    readonly message: string;
+    readonly retryable?: boolean;
+  };
+}
+
+type PushHandler<T = unknown> = (
+  entries: readonly OutboxEntry<T>[],
+) => Promise<void | readonly OutboxAck[]>;
+```
+
+| Status | Effect |
+|--------|--------|
+| `applied` | Entry is removed from the outbox |
+| `conflict` | Entry is removed and reported through `onPushResult` |
+| `rejected` | Entry is removed and reported through `onPushResult` |
+| `retry` | Entry stays queued and the loop backs off |
+
+Pushed entries missing from the response are treated as `retry`. Returning `void` is deprecated: it logs a warning and treats every pushed entry as `applied`.
+
+#### `ArchivedOutboxEntry<T>`
+
+```ts
+interface ArchivedOutboxEntry<T> extends OutboxEntry<T> {
+  readonly archivedAt: number;
+  readonly syncStatus: "synced";
 }
 ```
 
@@ -461,6 +513,16 @@ if (result) {
   await pusher([result.compacted]);
   await store.clearOutbox(result.originalIds);
 }
+```
+
+#### `purgeSyncDB(storageKey: string): Promise<void>`
+
+Delete the IndexedDB database for a storage key without holding a store instance. Useful in logout flows that run outside the component tree.
+
+```ts
+import { purgeSyncDB } from "@syncraft-labs/core";
+
+await purgeSyncDB("activities:c12:u34");
 ```
 
 #### `applyPatches<T>(baseState: T, patches: readonly Patch[]): T`
@@ -635,19 +697,26 @@ Standard React hook for subscribing to a SyncStore.
 |--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
-| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
+| `pusher` | `PushHandler<T>` | `undefined` | Push pending mutations. Return one `OutboxAck` per entry so uncommitted entries stay queued |
+| `compaction` | `"none" \| "merge"` | `"none"` | Outbox compaction before pushing. `"merge"` is only safe when the server applies the merged entry atomically |
+| `onPushResult` | `(results: readonly OutboxAck[]) => void` | `undefined` | Called with normalized acknowledgements after every push |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
 | `selector` | `(state: T \| undefined) => R` | `undefined` | Extract specific slice to prevent over-rendering |
 | `onSyncStart` | `() => void` | `undefined` | Fired when background sync starts |
 | `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
 | `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
 | `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `onConflictResolved` | `(info: ConflictResolvedInfo) => void` | `undefined` | Fired when incoming remote state is reconciled |
 | `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
+| `encryptionKey` | `EncryptionKeyInput` | `undefined` | Encrypt state at rest with AES-GCM |
+| `retainSyncedEntries` | `boolean` | `false` | Archive acknowledged outbox entries instead of deleting them |
+| `schemaVersion` | `number` | `1` | Version of the persisted state shape |
+| `migrate` | `(persisted: unknown, fromVersion: number) => T` | `undefined` | Migrate persisted state when `schemaVersion` changes |
 
 #### `UseSyncReturn<T>`
 
@@ -656,10 +725,13 @@ Standard React hook for subscribing to a SyncStore.
 | `data` | `T \| undefined` | Current state (`undefined` during hydration) |
 | `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with draft (fire-and-forget) |
 | `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
+| `applyRemoteState` | `(remote: T) => Promise<void>` | Apply server-authoritative state without queueing an outbox entry |
 | `isHydrating` | `boolean` | `true` while loading from IndexedDB |
 | `isSyncing` | `boolean` | `true` while pusher/refetch is running |
 | `isOffline` | `boolean` | `true` when `navigator.onLine` is `false` |
+| `pendingCount` | `number` | Number of mutations waiting in the outbox |
 | `error` | `Error \| null` | Last error from set/pusher/refetch |
+| `purge` | `() => Promise<void>` | Delete local data and reset the merge base. Use on logout or account switch |
 | `destroyStore` | `() => void` | Destroy the store for this key |
 
 ### `useSyncSuspense<T>(key, options): UseSyncReturn<T>`
@@ -798,19 +870,26 @@ Primary composable for Syncraft Labs in Vue.
 |--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
-| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
+| `pusher` | `PushHandler<T>` | `undefined` | Push pending mutations. Return one `OutboxAck` per entry so uncommitted entries stay queued |
+| `compaction` | `"none" \| "merge"` | `"none"` | Outbox compaction before pushing. `"merge"` is only safe when the server applies the merged entry atomically |
+| `onPushResult` | `(results: readonly OutboxAck[]) => void` | `undefined` | Called with normalized acknowledgements after every push |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
 | `selector` | `(state: T \| undefined) => R` | `undefined` | Extract specific slice to prevent over-rendering |
 | `onSyncStart` | `() => void` | `undefined` | Fired when background sync starts |
 | `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
 | `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
 | `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `onConflictResolved` | `(info: ConflictResolvedInfo) => void` | `undefined` | Fired when incoming remote state is reconciled |
 | `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
+| `encryptionKey` | `EncryptionKeyInput` | `undefined` | Encrypt state at rest with AES-GCM |
+| `retainSyncedEntries` | `boolean` | `false` | Archive acknowledged outbox entries instead of deleting them |
+| `schemaVersion` | `number` | `1` | Version of the persisted state shape |
+| `migrate` | `(persisted: unknown, fromVersion: number) => T` | `undefined` | Migrate persisted state when `schemaVersion` changes |
 
 #### `UseSyncReturn<T>`
 
@@ -821,10 +900,13 @@ All reactive values are returned as Vue Refs:
 | `data` | `ShallowRef<T \| undefined>` | Current state (`undefined` during hydration) |
 | `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with draft (fire-and-forget) |
 | `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
+| `applyRemoteState` | `(remote: T) => Promise<void>` | Apply server-authoritative state without queueing an outbox entry |
 | `isHydrating` | `Ref<boolean>` | `true` while loading from IndexedDB |
 | `isSyncing` | `Ref<boolean>` | `true` while pusher/refetch is running |
 | `isOffline` | `Ref<boolean>` | `true` when `navigator.onLine` is `false` |
+| `pendingCount` | `Ref<number>` | Number of mutations waiting in the outbox |
 | `error` | `ShallowRef<Error \| null>` | Last error from set/pusher/refetch |
+| `purge` | `() => Promise<void>` | Delete local data and reset the merge base. Use on logout or account switch |
 | `destroyStore` | `() => void` | Destroy the store for this key |
 
 ### `destroyStore(registry, key): void`
@@ -1335,14 +1417,19 @@ Send all queued outbox entries to the server so it can process each mutation ind
 ### Client
 
 ```tsx
-const { data, update } = useSync<TodoState>("todos", {
+const { data, update, pendingCount } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
   pusher: async (entries) => {
-    await fetch("/api/sync", {
+    const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entries),
     });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const { results } = await response.json();
+    return results; // OutboxAck[]
   },
 });
 ```
@@ -1352,21 +1439,49 @@ const { data, update } = useSync<TodoState>("todos", {
 ```ts
 app.post("/api/sync", async (req, res) => {
   const entries: OutboxEntry<TodoState>[] = req.body;
+  const results: OutboxAck[] = [];
 
   for (const entry of entries) {
-    // 1. Check idempotency (skip if already processed)
-    if (await isProcessed(entry.id)) continue;
-
-    // 2. Apply patches to server DB
-    for (const patch of entry.patches) {
-      await applyPatchToDatabase(req.userId, patch);
+    // 1. Replay the original result for already-processed mutations
+    const previous = await findProcessed(entry.id);
+    if (previous) {
+      results.push(previous);
+      continue;
     }
 
-    // 3. Mark entry as processed
-    await markProcessed(entry.id);
+    // 2. Apply patches inside one transaction
+    try {
+      await db.transaction(async (tx) => {
+        for (const patch of entry.patches) {
+          await applyPatchToDatabase(tx, req.userId, patch);
+        }
+        await markProcessed(tx, entry.id, { id: entry.id, status: "applied" });
+      });
+      results.push({ id: entry.id, status: "applied" });
+    } catch (error) {
+      if (isVersionConflict(error)) {
+        results.push({
+          id: entry.id,
+          status: "conflict",
+          error: { code: "version_conflict", message: "Stale base version" },
+        });
+      } else if (isValidationError(error)) {
+        results.push({
+          id: entry.id,
+          status: "rejected",
+          error: { code: "validation_failed", message: error.message },
+        });
+      } else {
+        results.push({
+          id: entry.id,
+          status: "retry",
+          error: { code: "temporarily_unavailable", message: "Try again" },
+        });
+      }
+    }
   }
 
-  res.json({ status: "ok" });
+  res.json({ results });
 });
 ```
 
@@ -1375,7 +1490,12 @@ app.post("/api/sync", async (req, res) => {
 - ✅ Preserves individual mutation history
 - ✅ Enables server-side audit logs
 - ✅ Idempotent by design (using `entry.id`)
+- ✅ Partial failures are visible and retryable
 - ❌ Requires patch handling logic on the server
+
+:::tip
+The full protocol - cursor pulls, `has_more`, expired cursors, and server-wins conflict handling - is documented in [Reliable Sync](/docs/guides/reliable-sync).
+:::
 
 ---
 
@@ -1441,13 +1561,24 @@ useSync("notes", { pusher: pushFn, syncInterval: 30_000 });
 
 When a user performs rapid mutations to the same state field while offline (e.g. typing in an input field or dragging a slider), every `update()` call appends an outbox entry.
 
-Syncraft automatically runs **outbox compaction** before each background sync loop push (in React `useSync` and Vue `useSync`). Consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
+Since 0.9, **compaction is opt-in**. The default (`compaction: "none"`) pushes every entry so the server can acknowledge each mutation individually:
+
+```ts
+useSync("doc", {
+  pusher: pushFn,
+  compaction: "merge", // opt in only if your server applies the merged entry atomically
+});
+```
+
+With `compaction: "merge"`, consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
 
 ```ts
 // 10 consecutive updates to `lastUpdated` while offline...
-// Without compaction: 10 outbox entries sent over the network
+// Without compaction: 10 outbox entries, each acknowledged separately
 // With compaction:    1 outbox entry containing only the latest patch
 ```
+
+Merging destroys per-entry identity, so the server must return one acknowledgement for the compacted entry and Syncraft fans it out to the original ids. If you only need smaller payloads, prefer acknowledging entries individually and batching on the server.
 
 You can also run compaction manually on any store instance or array of outbox entries:
 
@@ -1464,6 +1595,359 @@ if (result) {
 // Or on store instance:
 const compactedView = await store.compactOutbox();
 ```
+
+---
+
+<a id="guides-reliable-sync"></a>
+# Reliable Sync
+
+> URL: https://syncraft-labs.web.id/guides/reliable-sync/
+
+Syncraft Labs owns the client half of offline-first: optimistic writes, durable IndexedDB state, and an outbox journal. The other half is a server contract that can survive retries, partial failures, and long offline periods.
+
+This guide describes the protocol Syncraft 0.9 expects. It is the same contract used by AgriTrack Pro in production.
+
+---
+
+## The Sync Loop at a Glance
+
+A correct round trip has four phases, always in this order:
+
+1. **Push** pending outbox entries.
+2. **Acknowledge** each entry individually.
+3. **Reconcile** local state with the server response (for example, apply the authoritative version returned by the server).
+4. **Pull** changes newer than the last cursor - only when the outbox is empty.
+
+Skipping step 2 is what causes lost writes. Skipping the "outbox empty" guard on step 4 is what causes resurrected edits: a pull applied while local mutations are still queued can overwrite them before they are pushed.
+
+> **[CAUTION]**
+>
+> Push before pull. Pull only when `pendingCount` is `0`.
+
+---
+
+## Per-Entry Acknowledgements
+
+Since 0.9, `pusher` can return one `OutboxAck` per entry:
+
+```ts
+type OutboxAckStatus = "applied" | "conflict" | "rejected" | "retry";
+
+interface OutboxAck {
+  id: string;              // OutboxEntry.id
+  status: OutboxAckStatus;
+  error?: {
+    code: string;
+    message: string;
+    retryable?: boolean;
+  };
+}
+```
+
+| Status | Meaning | Syncraft behaviour |
+|--------|---------|--------------------|
+| `applied` | The server committed the mutation. | Entry is removed from the outbox. |
+| `conflict` | The server refused the mutation because its version is stale. | Entry is removed and reported through `onPushResult`. |
+| `rejected` | Permanent refusal (validation, authorization, deleted entity). | Entry is removed and reported through `onPushResult`. |
+| `retry` | The server could not commit the mutation right now. | Entry stays queued and the loop backs off exponentially. |
+
+Two safety rules are built in:
+
+- **Missing acknowledgements are `retry`.** A partial response never silently deletes an unconfirmed mutation.
+- **`void` is treated as "everything applied"** for backwards compatibility, and logs a warning. Do not rely on it in production.
+
+```ts
+const { data, update, pendingCount } = useSync<ActivityState>("activities", {
+  initialState: { activities: [] },
+  pusher: async (entries) => {
+    const response = await fetch("/api/sync/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({
+        mutations: entries.map((entry) => ({
+          mutation_id: entry.id,
+          patches: entry.patches,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      // Throwing keeps every entry queued and triggers backoff.
+      throw new Error(`Push failed with HTTP ${response.status}`);
+    }
+
+    const { results } = await response.json();
+    return results;
+  },
+});
+```
+
+---
+
+## Server Contract: Push
+
+The client sends the raw outbox entries. Your server decides what a mutation means, but it must be able to process the same `mutation_id` twice and return the same answer.
+
+### Request
+
+```json
+{
+  "mutations": [
+    {
+      "mutation_id": "8f14e45f-ea0a-4c8b-9f2a-6a1f0f2f9d10",
+      "entity": "activities",
+      "entity_id": "3d0f0b7e-7a1c-4c33-9a7e-2f5c1f6a8b21",
+      "base_version": 4,
+      "patches": [
+        { "op": "replace", "path": ["status"], "value": "completed" }
+      ],
+      "created_at": 1764000000000
+    }
+  ]
+}
+```
+
+`mutation_id` is the outbox entry `id`. It is stable across retries, which makes it the idempotency key.
+
+### Processing rules
+
+1. **One transaction per mutation.** A mutation is applied completely or not at all.
+2. **Idempotency first.** If `mutation_id` was already processed, return the stored acknowledgement instead of applying the patches again.
+3. **Check the base version.** If `base_version` no longer matches the entity version, do not apply the patch. Return `conflict` with the current server version so the client can pull it.
+4. **Validate before writing.** Return `rejected` with a stable `error.code` for permanent failures.
+5. **Ordering.** Entries are pushed oldest-first. When two mutations target the same entity, apply them in the order received; reject the second with `conflict` if its `base_version` is stale.
+6. **Return one result per mutation.** The response array may be in any order, but every `mutation_id` should appear exactly once.
+
+### Response
+
+```json
+{
+  "results": [
+    {
+      "id": "8f14e45f-ea0a-4c8b-9f2a-6a1f0f2f9d10",
+      "status": "applied",
+      "error": null
+    },
+    {
+      "id": "1c9a3d2b-5f4e-4a6b-8c7d-9e0f1a2b3c4d",
+      "status": "conflict",
+      "error": {
+        "code": "version_conflict",
+        "message": "Activity was modified on another device.",
+        "retryable": false
+      }
+    }
+  ]
+}
+```
+
+Return HTTP `200` when the batch was processed, even if individual mutations were rejected. Reserve non-2xx responses for transport or server failures that should retry the whole batch.
+
+> **[TIP]**
+>
+> Store `(mutation_id, result)` with a retention window longer than your maximum offline period. A device that was offline for a month will replay old mutations after it reconnects.
+
+---
+
+## Server Contract: Pull
+
+A pull returns everything that changed after the client's cursor. Use a monotonic server-side sequence - a bigint journal id, not a client timestamp.
+
+```http
+GET /api/sync/pull?cursor=1042
+```
+
+```json
+{
+  "changes": [
+    {
+      "cursor": 1043,
+      "entity": "activities",
+      "entity_id": "3d0f0b7e-7a1c-4c33-9a7e-2f5c1f6a8b21",
+      "operation": "upsert",
+      "version": 5,
+      "payload": { "id": 91, "status": "completed", "version": 5 }
+    }
+  ],
+  "next_cursor": 1043,
+  "has_more": false
+}
+```
+
+Rules that keep the journal correct:
+
+- **Append one row per committed mutation** inside the same transaction that changes the entity.
+- **Never reuse or reorder cursor values.** Clients treat the cursor as opaque.
+- **Page the response.** Return `has_more: true` and let the client call again with `next_cursor` until it is `false`.
+- **Handle expired cursors.** If `cursor` is older than your retention window, return `reset_required` plus a full snapshot. The client must replace its local state and restart from the new cursor.
+
+On the client, apply the pulled snapshot through `applyRemoteState()` or `refetch()` - never through `update()`. `update()` appends to the outbox, which would echo server data back as a local mutation.
+
+```ts
+// Pull only after the outbox has drained.
+const pull = async (cursor: number) => {
+  const response = await fetch(`/api/sync/pull?cursor=${cursor}`);
+  const page = await response.json();
+
+  const nextState = mergeChanges(data, page.changes);
+  await applyRemoteState(nextState); // server-authoritative, no outbox entry
+  localStorage.setItem("sync:cursor", String(page.next_cursor));
+
+  if (page.has_more) {
+    await pull(page.next_cursor);
+  }
+};
+```
+
+---
+
+## Conflict Policy: Server Wins
+
+Server-wins is the simplest policy that still converges: the server is the only writer of record, and clients replay their intent against it.
+
+When the server returns `conflict`:
+
+1. The outbox entry is removed - retrying it would fail forever.
+2. `onPushResult` receives the acknowledgement.
+3. The client pulls the authoritative entity and shows a notification.
+
+```tsx
+const [conflicts, setConflicts] = useState<OutboxAck[]>([]);
+
+useSync<ActivityState>("activities", {
+  initialState: { activities: [] },
+  pusher: pushActivities,
+  onPushResult: (results) => {
+    const conflictsThisRound = results.filter(
+      (result) => result.status === "conflict" || result.status === "rejected",
+    );
+    if (conflictsThisRound.length > 0) {
+      setConflicts((previous) => [...previous, ...conflictsThisRound]);
+    }
+  },
+});
+```
+
+Render the conflict list as a non-blocking banner or toast. Do not silently discard it: from the user's point of view, their edit was accepted locally and then disappeared.
+
+> **[NOTE]**
+>
+> Persistent conflict notifications require your own table. Syncraft only reports the acknowledgement; it does not store conflict history.
+
+---
+
+## Retry and Backoff
+
+The background loop already handles retry scheduling:
+
+- `retry` acknowledgements keep entries in the outbox and schedule the next attempt with exponential backoff (`1s`, `2s`, `4s`, ... capped at 30s).
+- A thrown `pusher` error keeps the whole batch queued and backs off the same way.
+- `navigator.onLine === false` pauses the loop without consuming retries.
+- A non-retryable `SyncraftError` halts the queue until the next manual `refetch()` or remount.
+
+Your server should distinguish transient from permanent failures:
+
+| Situation | Ack status | Why |
+|-----------|------------|-----|
+| Database timeout, lock contention | `retry` | The same mutation can succeed later. |
+| Stale `base_version` | `conflict` | Retrying cannot fix it; the client must pull. |
+| Validation error, forbidden action | `rejected` | Retrying will never succeed. |
+| Unknown entity id | `rejected` | The entity was deleted or never existed. |
+
+---
+
+## Compaction
+
+Compaction merges consecutive mutations into a single entry before pushing. It reduces payload size, but it also destroys per-entry idempotency.
+
+- `compaction: "none"` (default) - push every entry. Required when the server acks entries individually.
+- `compaction: "merge"` - push one merged entry. Only safe when the server applies the merged entry atomically and the merged entry keeps the original ids for acknowledgement.
+
+If you enable `merge`, the server must return one acknowledgement for the compacted entry and Syncraft fans it out to every original id. A partial response is treated as `retry` for all of them.
+
+---
+
+## Observable Status
+
+Expose the queue state in your UI so "saved" is never a guess:
+
+```tsx
+const { pendingCount, isSyncing, isOffline, error } = useSync<ActivityState>(
+  "activities",
+  options,
+);
+```
+
+| Signal | Use it for |
+|--------|------------|
+| `pendingCount` | "3 changes waiting to sync" badge |
+| `isSyncing` | Spinner while a push or pull is running |
+| `isOffline` | Offline banner |
+| `error` | Last transport or store error |
+| `onPushResult` | Per-entry conflicts and rejections |
+
+`pendingCount` updates after local writes, acknowledgements, `purge()`, and cross-tab broadcasts, so it stays correct when the user has the app open in two tabs.
+
+---
+
+## Reference Implementation
+
+A complete loop with React:
+
+```tsx
+function useActivitySync() {
+  const cursorRef = useRef(Number(localStorage.getItem("sync:cursor") ?? 0));
+
+  const sync = useSync<ActivityState>("activities", {
+    initialState: { activities: [] },
+    pusher: pushActivities,
+    onSyncSuccess: () => {
+      // Push finished; pull when the outbox is empty.
+    },
+    onPushResult: reportConflicts,
+  });
+
+  useEffect(() => {
+    if (sync.pendingCount !== 0 || sync.isSyncing || sync.isOffline) return;
+
+    let cancelled = false;
+    void (async () => {
+      const page = await fetchChanges(cursorRef.current);
+      if (cancelled) return;
+      await sync.applyRemoteState(mergeChanges(sync.data, page.changes));
+      cursorRef.current = page.next_cursor;
+      localStorage.setItem("sync:cursor", String(page.next_cursor));
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sync.pendingCount, sync.isSyncing, sync.isOffline]);
+
+  return sync;
+}
+```
+
+The important detail is the guard: the effect only pulls when `pendingCount === 0`. That is the client-side half of the convergence rule.
+
+---
+
+## Production Checklist
+
+- [ ] `pusher` returns `OutboxAck[]`, not `void`.
+- [ ] Every mutation has a stable `mutation_id` equal to the outbox entry `id`.
+- [ ] The server stores processed mutation ids and replays the original result.
+- [ ] Each mutation is applied in a single transaction with its journal row.
+- [ ] Pull uses a monotonic cursor and supports `has_more`.
+- [ ] Expired cursors return `reset_required` and a full snapshot.
+- [ ] The client pulls only when `pendingCount` is `0`.
+- [ ] `conflict` and `rejected` surface in the UI instead of disappearing.
+- [ ] `retry` stays queued and backs off.
+- [ ] Local data is purged on logout and account switch (`purge()`).
+- [ ] `schemaVersion` is bumped and `migrate` is provided whenever the persisted shape changes.
 
 ---
 
@@ -2381,7 +2865,7 @@ const { data, update, error } = useSync<CacheState>("app-cache", {
 
 When handling large local-first datasets, apply these best practices to prevent reaching storage quotas:
 
-### 1. Enable Outbox Compaction & Lower `maxOutboxSize`
+### 1. Bound the Outbox and Compact When Safe
 
 Repeated updates to the same fields can accumulate pending patches in the outbox. Configure bounded outbox limits:
 
@@ -2392,6 +2876,8 @@ const store = createSyncStore({
   overflowStrategy: "dropOldest", // Prevent unbounded queue growth offline
 });
 ```
+
+`dropOldest` loses mutations. Prefer draining the outbox and, if your server applies a merged entry atomically, opt into `compaction: "merge"` on `useSync`. Compaction is off by default because per-entry acknowledgements require each mutation to keep its own id.
 
 ### 2. Use Collection Mode for Large Datasets
 
@@ -3802,6 +4288,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ---
 
+## [0.9.0-beta.1] — 2026-11-25
+
+> **Prerelease.** Focus: per-entry outbox acknowledgements, local data lifecycle
+> (`purge` + schema migrations), reactive pending count, and a corrected merge
+> base. This release contains breaking changes; read the
+> [0.9 migration guide](/docs/reference/migration-09) before installing.
+
+### Added
+
+- **Core**: Per-entry push acknowledgements via `OutboxAck` (`applied`, `conflict`, `rejected`, `retry`), `OutboxAckStatus`, `OutboxAckError`, and the `PushHandler` type. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- **Core**: `compaction: "none" | "merge"` (default `"none"`) and `onPushResult` for surfacing conflicts and rejections. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- **Core**: `SyncStore.getPendingCount()` and `SyncStore.subscribeOutbox()` for reactive outbox status. ([#75](https://github.com/denislistiadi/syncraft-labs/issues/75))
+- **Core**: `SyncStore.purge()` and the standalone `purgeSyncDB(storageKey)` export for logout and account switching. ([#72](https://github.com/denislistiadi/syncraft-labs/issues/72))
+- **Core**: `schemaVersion` and `migrate(persisted, fromVersion)` store options, a `meta` object store, and IndexedDB schema v5. ([#74](https://github.com/denislistiadi/syncraft-labs/issues/74))
+- **React & Vue**: `pendingCount` and `purge` on `useSync`; acknowledgement, compaction, and schema options are forwarded to the store. ([#75](https://github.com/denislistiadi/syncraft-labs/issues/75), [#76](https://github.com/denislistiadi/syncraft-labs/issues/76), [#72](https://github.com/denislistiadi/syncraft-labs/issues/72), [#74](https://github.com/denislistiadi/syncraft-labs/issues/74))
+- **Docs**: New [Reliable Sync](/docs/guides/reliable-sync) guide and [0.8 to 0.9 migration guide](/docs/reference/migration-09).
+
+### Changed
+
+- **Core**: The background sync loop pushes entries individually by default and clears only entries the server acknowledged. `retry` and missing acknowledgements stay queued with exponential backoff. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- **Core**: `lastSyncedBase` now tracks server-confirmed state only. It advances after the outbox is empty and is never set to a merged result. ([#73](https://github.com/denislistiadi/syncraft-labs/issues/73))
+- **Core**: `navigator.onLine === undefined` (SSR/Node) is treated as online instead of offline.
+
+### Fixed
+
+- **Core**: Partial push responses no longer delete unacknowledged mutations. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- **Core**: Three-way merges no longer treat optimistic local edits as already synchronized. ([#73](https://github.com/denislistiadi/syncraft-labs/issues/73))
+
+### Breaking
+
+- `pusher` may return `OutboxAck[]`. Returning `void` still works but logs a warning and treats every pushed entry as applied. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- Automatic compaction is no longer the default. Opt in with `compaction: "merge"`. ([#76](https://github.com/denislistiadi/syncraft-labs/issues/76))
+- `lastSyncedBase` no longer contains merged local edits. Custom resolvers that relied on it must compare against the server-confirmed base. ([#73](https://github.com/denislistiadi/syncraft-labs/issues/73))
+- IndexedDB upgrades to schema v5. The upgrade is automatic; stores with `schemaVersion` changes must provide `migrate`. ([#74](https://github.com/denislistiadi/syncraft-labs/issues/74))
+
+### Upgrade
+
+```bash
+npm install @syncraft-labs/core@beta @syncraft-labs/react@beta @syncraft-labs/vue@beta
+```
+
+---
+
 ## [0.8.0] — 2026-11-08
 
 > **Focus**: Client-side authenticated Encryption at Rest (AES-GCM 256-bit), outbox audit trail archive for compliance, real-world Kanban and scaling examples, and multi-language backend integration guides. Zero breaking changes.
@@ -4027,6 +4556,211 @@ npm install @syncraft-labs/core@0.6.0 @syncraft-labs/react@0.6.0 @syncraft-labs/
 - **@syncraft-labs/react**: `useSync<T>()` hook with `useSyncExternalStore`, background sync loop with exponential backoff, `fetcher`/`pusher` contracts, and offline tracking.
 - **@syncraft-labs/vue**: `useSync<T>()` composable with `shallowRef`, background sync loop, and clean unmount lifecycle.
 - **Infrastructure**: Turborepo monorepo with tsup (dual ESM/CJS build), Vitest test suite, and strict TypeScript configurations.
+
+---
+
+<a id="reference-migration-09"></a>
+# Migrating to 0.9
+
+> URL: https://syncraft-labs.web.id/reference/migration-09/
+
+0.9 makes the outbox tell the truth. Pushes are acknowledged per entry, the merge base only advances when the server has confirmed every mutation, and local data has an explicit lifecycle.
+
+Most apps need three changes: return acknowledgements from `pusher`, stop relying on automatic compaction, and review custom conflict resolvers. Everything else is additive.
+
+---
+
+## Install
+
+```bash
+npm install @syncraft-labs/core@beta @syncraft-labs/react@beta @syncraft-labs/vue@beta
+```
+
+Pin exact versions if you want to stage the rollout:
+
+```json
+{
+  "dependencies": {
+    "@syncraft-labs/core": "0.9.0-beta.1",
+    "@syncraft-labs/react": "0.9.0-beta.1"
+  }
+}
+```
+
+---
+
+## Breaking Changes
+
+### 1. `pusher` should return `OutboxAck[]`
+
+Returning `void` still compiles, but Syncraft logs a warning and treats every pushed entry as applied - including entries the server rejected. That is the failure mode 0.9 exists to remove.
+
+```ts
+// Before - any partial failure silently drops mutations
+pusher: async (entries) => {
+  await fetch("/api/sync", {
+    method: "POST",
+    body: JSON.stringify(entries),
+  });
+},
+```
+
+```ts
+// After - one acknowledgement per entry
+pusher: async (entries) => {
+  const response = await fetch("/api/sync/push", {
+    method: "POST",
+    body: JSON.stringify({
+      mutations: entries.map((entry) => ({
+        mutation_id: entry.id,
+        patches: entry.patches,
+      })),
+    }),
+  });
+
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+  const { results } = await response.json();
+  return results; // OutboxAck[]
+},
+```
+
+If your server cannot acknowledge individual entries yet, return `applied` for every entry explicitly. At least the intent is visible in code:
+
+```ts
+return entries.map((entry) => ({ id: entry.id, status: "applied" as const }));
+```
+
+### 2. Automatic compaction is gone
+
+0.8 compacted the outbox before every push. 0.9 defaults to `compaction: "none"`, because merging entries makes per-entry acknowledgement impossible.
+
+If your server already handles a single merged entry atomically, opt back in:
+
+```ts
+useSync("activities", {
+  compaction: "merge",
+  pusher: pushActivities,
+});
+```
+
+If you were relying on compaction for payload size, prefer acknowledging entries individually and batching on the server instead. Compaction is now an explicit trade-off, not a default.
+
+### 3. `lastSyncedBase` is server-confirmed only
+
+The three-way merge base used to be updated with the merged result, which could include local edits the server had not seen. It now advances only when the outbox is empty after a successful push, and `applyRemoteState()` sets it to the incoming remote state.
+
+Custom resolvers that compared `base` against optimistic local state may need adjustment:
+
+```ts
+resolver: ({ local, remote, base }) => {
+  // `base` is what the server confirmed, not the last local snapshot.
+  return {
+    ...remote,
+    title: local.title !== base.title ? local.title : remote.title,
+  };
+},
+```
+
+`lastWriteWins` (the default) is unaffected in practice: remote still wins.
+
+### 4. IndexedDB schema v5
+
+The database gains a `meta` object store for the persisted schema version. The upgrade is automatic; existing state and outbox entries are preserved.
+
+Downgrading to 0.8 after the database has been opened at v5 will fail because IndexedDB refuses to open a database with a lower version. If you need to roll back, call `purge()` first or clear the site data.
+
+---
+
+## New APIs to Adopt
+
+### `pendingCount` and `onPushResult`
+
+```tsx
+const { pendingCount, isSyncing } = useSync<ActivityState>("activities", {
+  initialState: { activities: [] },
+  pusher: pushActivities,
+  onPushResult: (results) => {
+    const failed = results.filter((result) => result.status !== "applied");
+    if (failed.length > 0) showSyncWarning(failed);
+  },
+});
+```
+
+`pendingCount` is reactive in React and a `Ref<number>` in Vue. Use it to render "N changes waiting" instead of guessing from `isSyncing`.
+
+### `purge()` on logout
+
+Local data must not survive an account or tenant switch.
+
+```ts
+const { purge } = useSync<ActivityState>("activities", options);
+
+async function logout() {
+  await purge();
+  await fetch("/api/logout", { method: "POST" });
+  router.visit("/login");
+}
+```
+
+`purge()` deletes the IndexedDB database, resets the merge base, and lets the store hydrate again. On the raw store it is also available as `store.purge()` and `purgeSyncDB(storageKey)`.
+
+Scope your `storageKey` per user or tenant as well (`activities:c12:u34`). Purging is the cleanup; scoping prevents one account from ever reading another account's cache.
+
+### `schemaVersion` and `migrate`
+
+Bump `schemaVersion` whenever a release changes the persisted shape:
+
+```ts
+useSync("activities", {
+  initialState: { activities: [] },
+  schemaVersion: 2,
+  migrate: (persisted, fromVersion) => {
+    if (fromVersion === 1) {
+      return {
+        activities: (persisted as { tasks: Activity[] }).tasks,
+      };
+    }
+    return persisted as ActivityState;
+  },
+});
+```
+
+Behaviour:
+
+- First boot writes the current version.
+- Matching version skips migration.
+- A version change runs `migrate`, **clears the outbox** (old patches target the old shape), persists the migrated state, and writes the new version.
+- A version change without `migrate` throws an actionable error instead of loading incompatible data.
+
+---
+
+## Upgrade Checklist
+
+- [ ] `pusher` returns `OutboxAck[]` for every pushed entry.
+- [ ] The server treats `OutboxEntry.id` as an idempotency key.
+- [ ] Partial responses are possible and safe (missing ids become `retry`).
+- [ ] `conflict` and `rejected` are shown to the user.
+- [ ] Remove assumptions that the outbox is compacted automatically.
+- [ ] Audit custom resolvers for `lastSyncedBase` usage.
+- [ ] Add `purge()` to logout and account switching.
+- [ ] Scope `storageKey` per company/user.
+- [ ] Set `schemaVersion` and add `migrate` before changing persisted shapes.
+- [ ] Pull changes only when `pendingCount === 0`.
+- [ ] Test an offline write, a restart, a reconnect, and a forced `conflict`.
+
+---
+
+## Testing the Upgrade
+
+At minimum, cover these four scenarios:
+
+1. **Offline write survives reload.** Create a mutation with the network disabled, reload, and confirm `pendingCount` is still `1`.
+2. **Partial acknowledgement keeps the entry.** Return `retry` for one entry and `applied` for the rest; only the acknowledged entry disappears.
+3. **Conflict does not loop.** Return `conflict`; confirm the entry leaves the outbox and `onPushResult` fires once.
+4. **Migration clears stale patches.** Persist state at version 1 with a queued mutation, boot at version 2 with `migrate`, and confirm the state is migrated and `pendingCount` is `0`.
+
+See [Reliable Sync](/docs/guides/reliable-sync) for the full server contract and [Testing](/docs/guides/testing) for `fake-indexeddb` setup.
 
 ---
 

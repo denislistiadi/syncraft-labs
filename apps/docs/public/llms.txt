@@ -19,6 +19,7 @@
 - [Conflict Resolution](https://syncraft-labs.web.id/guides/conflict-resolution/): Pluggable conflict resolution with Last-Write-Wins, 3-way merge resolvers, and real-time remote state application.
 - [Error Handling](https://syncraft-labs.web.id/guides/error-handling/): Error types, error listeners, retry mechanisms, and fallback strategies.
 - [Sync Strategies](https://syncraft-labs.web.id/guides/sync-strategies/): Optimistic, pessimistic, background, and custom sync strategies.
+- [Reliable Sync](https://syncraft-labs.web.id/guides/reliable-sync/): Production sync protocol - per-entry acknowledgements, idempotent pushes, cursor pulls, retries, and server-wins conflicts.
 - [Multi-Store Architecture](https://syncraft-labs.web.id/guides/multi-store-architecture/): Managing multiple stores, domain isolation, and modular state.
 - [SSR (Next.js & Nuxt)](https://syncraft-labs.web.id/guides/ssr-nextjs-nuxt/): Hydration, server-side rendering, and client-side activation.
 - [Testing](https://syncraft-labs.web.id/guides/testing/): Unit testing, mocking storage adapters, and testing offline scenarios.
@@ -40,6 +41,7 @@
 
 ## Releases
 - [Changelog](https://syncraft-labs.web.id/reference/changelog/): Release history, version migration notes, and upgrades for Syncraft Labs across all packages.
+- [Migrating to 0.9](https://syncraft-labs.web.id/reference/migration-09/): Upgrade checklist for per-entry acknowledgements, compaction defaults, IndexedDB v5, schema migrations, and purge.
 
 ## Full Documentation & Sitemaps
 - [llms-full.txt](https://syncraft-labs.web.id/llms-full.txt): Complete compiled documentation in a single file for AI agents and LLMs.

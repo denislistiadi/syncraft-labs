@@ -30,6 +30,9 @@ Your users get **zero-latency updates** that survive page refreshes, network out
 | **Instant writes** | Optimistic updates via Proxy drafts — UI never waits for persistence |
 | **IndexedDB persistence** | State survives page refresh, tab close, and browser restart |
 | **Outbox sync** | Mutations queued as patches, drained by a background `pusher` |
+| **Per-entry acknowledgements** | `pusher` returns `applied`, `conflict`, `rejected`, or `retry` per mutation — partial failures stay queued |
+| **Reactive queue status** | `pendingCount` and `subscribeOutbox` expose what is still waiting to sync |
+| **Data lifecycle** | `purge()` for logout, `schemaVersion` + `migrate` for persisted shape upgrades |
 | **Auto-hydration** | Seamless cold-start from IndexedDB with loading states |
 | **Offline-ready** | Works offline, syncs automatically when back online |
 | **Auto-rollback** | Reverts optimistic updates if IndexedDB write fails |
@@ -44,7 +47,7 @@ Your users get **zero-latency updates** that survive page refreshes, network out
 | **React 18+** | `useSyncExternalStore` for tear-free concurrent rendering |
 | **Vue 3.3+** | `shallowRef` composable — no deep reactivity overhead |
 
-## v0.9.0 reference app
+## Reference app
 
 The Kanban demo in [`apps/demo-web`](apps/demo-web/README.md) dogfoods the
 published packages in a full-stack app: React at `/`, Vue at `/vue.html`, a
@@ -82,11 +85,15 @@ function TodoApp() {
   const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
     initialState: { todos: [] },
     fetcher: () => fetch("/api/todos").then((r) => r.json()),
-    pusher: (entries) =>
-      fetch("/api/sync", {
+    pusher: async (entries) => {
+      const response = await fetch("/api/sync", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(entries),
-      }),
+      });
+      const { results } = await response.json();
+      return results; // OutboxAck[]
+    },
   });
 
   if (isHydrating) return <p>Loading…</p>;
@@ -186,11 +193,15 @@ interface TodoState {
 const { data, update, isHydrating, isOffline } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
   fetcher: () => fetch("/api/todos").then((r) => r.json()),
-  pusher: (entries) =>
-    fetch("/api/sync", {
+  pusher: async (entries) => {
+    const response = await fetch("/api/sync", {
       method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entries),
-    }),
+    });
+    const { results } = await response.json();
+    return results; // OutboxAck[]
+  },
 });
 
 function addTodo() {
@@ -307,11 +318,14 @@ store.destroy();
 | `isUnsupportedType(val)` | Function | Check if a value is unsupported for state persistence and proxy drafting |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Compact outbox entries by merging same-path mutations |
-| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?` |
+| `purgeSyncDB(storageKey)` | Function | Delete the IndexedDB database for a storage key |
+| `SyncStoreConfig<T>` | Type | Config: `storageKey`, `initialState?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?` (`"reject"` \| `"dropOldest"` \| `"forceFlush"`), `onOverflow?`, `storageMode?` (`"document"` \| `"collection"`), `idField?`, `encryptionKey?`, `retainSyncedEntries?`, `schemaVersion?`, `migrate?` |
 | `OutboxOverflowStrategy` | Type | Strategy enum: `"reject"` \| `"dropOldest"` \| `"forceFlush"` |
 | `OutboxOverflowInfo` | Type | Event details: `storageKey`, `outboxSize`, `maxOutboxSize`, `strategy` |
-| `SyncStore<T>` | Type | Store interface: `get`, `set`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `compactOutbox`, `clearOutbox`, `destroy` |
+| `SyncStore<T>` | Type | Store interface: `get`, `set`, `setServerState`, `getSnapshot`, `subscribe`, `hydrate`, `getOutbox`, `getPendingCount`, `subscribeOutbox`, `compactOutbox`, `clearOutbox`, `purge`, `destroy` |
 | `OutboxEntry<T>` | Type | Pending mutation: `id`, `timestamp`, `patches`, `inversePatches` |
+| `OutboxAck` | Type | Push acknowledgement: `id`, `status` (`"applied"` \| `"conflict"` \| `"rejected"` \| `"retry"`), `error?` |
+| `PushHandler<T>` | Type | `(entries) => Promise<void \| readonly OutboxAck[]>` |
 | `DraftUpdater<T>` | Type | Proxy draft function: `(draft: T) => void \| T` |
 | `SyncListener<T>` | Type | Subscriber callback: `(state: T) => void` |
 | `Unsubscribe` | Type | Cleanup function: `() => void` |
@@ -324,8 +338,8 @@ store.destroy();
 | `useSync<T>(key, options)` | Hook | Primary React integration |
 | `useSyncSuspense<T>(key, options)` | Hook | React Suspense integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
-| `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`, `destroyStore` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `compaction?`, `onPushResult?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`, `encryptionKey?`, `retainSyncedEntries?`, `schemaVersion?`, `migrate?` |
+| `UseSyncReturn<T>` | Type | Return: `data`, `update`, `refetch`, `applyRemoteState`, `isHydrating`, `isSyncing`, `isOffline`, `pendingCount`, `error`, `purge`, `destroyStore` |
 
 ### `@syncraft-labs/vue`
 
@@ -334,8 +348,8 @@ store.destroy();
 | `createSyncraft()` | Plugin | MUST be installed via `app.use()` to provide isolated state (SSR safe) |
 | `useSync<T>(key, options)` | Composable | Primary Vue 3 integration |
 | `destroyStore(key)` | Function | Destroy a singleton store |
-| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?` |
-| `UseSyncReturn<T>` | Type | Return: `data` (ShallowRef), `update`, `refetch`, `isHydrating` (Ref), `isSyncing` (Ref), `isOffline` (Ref), `error` (ShallowRef), `destroyStore` |
+| `UseSyncOptions<T>` | Type | Options: `initialState?`, `fetcher?`, `pusher?`, `compaction?`, `onPushResult?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`, `encryptionKey?`, `retainSyncedEntries?`, `schemaVersion?`, `migrate?` |
+| `UseSyncReturn<T>` | Type | Return: `data` (ShallowRef), `update`, `refetch`, `applyRemoteState`, `isHydrating` (Ref), `isSyncing` (Ref), `isOffline` (Ref), `pendingCount` (Ref), `error` (ShallowRef), `purge`, `destroyStore` |
 
 ## Packages
 
@@ -354,6 +368,8 @@ Ready for enterprise scale? Read our production guides at [syncraft-labs.web.id]
 - [SSR (Next.js & Nuxt)](https://syncraft-labs.web.id/docs/guides/ssr-nextjs-nuxt) — Hydration safety and data leak prevention.
 - [Error Handling](https://syncraft-labs.web.id/docs/guides/error-handling) — Rollback flows and exponential backoff.
 - [Sync Strategies](https://syncraft-labs.web.id/docs/guides/sync-strategies) — Designing pusher endpoints and conflict resolution.
+- [Reliable Sync](https://syncraft-labs.web.id/docs/guides/reliable-sync) — Per-entry acknowledgements, idempotent pushes, and cursor pulls.
+- [Migrating to 0.9](https://syncraft-labs.web.id/docs/reference/migration-09) - Breaking changes and upgrade checklist.
 - [Testing](https://syncraft-labs.web.id/docs/guides/testing) — Fake-IndexedDB setup and registry resets.
 - [Cross-Tab Sync](https://syncraft-labs.web.id/docs/guides/cross-tab-sync) — BroadcastChannel mechanics and limitations.
 
