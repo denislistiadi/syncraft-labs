@@ -136,6 +136,44 @@ await store.hydrate();
 ### The Outbox Queue
 Every mutation appends an `OutboxEntry` containing patches and inverse patches to IndexedDB. Framework integrations drain this queue using a custom background `pusher` strategy.
 
+Since 0.9, `pusher` returns one `OutboxAck` per entry (`applied`, `conflict`, `rejected`, or `retry`). Entries the server did not confirm stay queued, and missing acknowledgements are treated as `retry`. Automatic compaction is opt-in with `compaction: "merge"`.
+
+```ts
+const acks = await pusher(await store.getOutbox(100));
+const applied = acks
+  .filter((ack) => ack.status !== "retry")
+  .map((ack) => ack.id);
+await store.clearOutbox(applied);
+```
+
+Read `getPendingCount()` or subscribe with `subscribeOutbox()` to expose queue status in the UI.
+
+### Local Data Lifecycle
+Call `purge()` on logout or account switch. It deletes the IndexedDB database, clears the in-memory snapshot, and allows the store to hydrate again.
+
+```ts
+await store.purge();
+// or, outside the store instance:
+await purgeSyncDB("activities:c12:u34");
+```
+
+When a release changes the persisted shape, bump `schemaVersion` and provide `migrate`:
+
+```ts
+const store = createSyncStore<AppState>({
+  storageKey: "app",
+  schemaVersion: 2,
+  migrate: (persisted, fromVersion) => {
+    if (fromVersion === 1) {
+      return { items: (persisted as { todos: Item[] }).todos };
+    }
+    return persisted as AppState;
+  },
+});
+```
+
+A successful migration clears the outbox because old patches target the previous shape. A version change without `migrate` throws instead of loading incompatible data.
+
 ### Outbox Audit Trail
 By default, synced outbox mutations are removed from IndexedDB after successful synchronization. In environments requiring an audit trail of mutations (e.g. compliance or event logging), set `retainSyncedEntries: true`:
 
@@ -182,13 +220,17 @@ If you are migrating an existing store from `"document"` mode to `"collection"` 
 | `isUnsupportedType(val)` | Function | Check if a value is an unsupported type for state drafting/persistence |
 | `applyPatches<T>(base, patches)` | Function | Pure function applying Immer JSON patches to a state |
 | `compactOutbox(entries)` | Function | Merges redundant consecutive patches to the same path |
-| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `encryptionKey?`, `retainSyncedEntries?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
+| `purgeSyncDB(storageKey)` | Function | Delete the IndexedDB database for a storage key |
+| `SyncStoreConfig<T>` | Interface | Configuration options (`storageKey`, `initialState?`, `encryptionKey?`, `retainSyncedEntries?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`, `schemaVersion?`, `migrate?`) |
 | `EncryptionKeyInput` | Type | Accepted key inputs: `CryptoKey \| Uint8Array \| string` |
 | `EncryptedPayload` | Interface | Encrypted record shape (`__syncraft_encrypted: true`, `iv`, `data`) |
 | `OutboxOverflowStrategy` | Type | Strategy enum (`"reject"`, `"dropOldest"`, `"forceFlush"`) |
 | `OutboxOverflowInfo` | Interface | Event details (`storageKey`, `outboxSize`, `maxOutboxSize`, `strategy`) |
-| `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `subscribe`, `hydrate`, `getOutbox`, `clearOutbox`, `compactOutbox`, `getArchivedOutbox`, `clearArchivedOutbox`, `destroy`) |
+| `SyncStore<T>` | Interface | Store methods (`get`, `getSnapshot`, `set`, `setServerState`, `subscribe`, `hydrate`, `getOutbox`, `getPendingCount`, `subscribeOutbox`, `clearOutbox`, `compactOutbox`, `getArchivedOutbox`, `clearArchivedOutbox`, `purge`, `destroy`) |
 | `OutboxEntry<T>` | Interface | Outbox entry (`id`, `timestamp`, `patches`, `inversePatches`) |
+| `OutboxAck` | Interface | Push acknowledgement (`id`, `status`, `error?`) |
+| `OutboxAckStatus` | Type | `"applied" \| "conflict" \| "rejected" \| "retry"` |
+| `PushHandler<T>` | Type | `(entries) => Promise<void \| readonly OutboxAck[]>` |
 | `ArchivedOutboxEntry<T>` | Interface | Archived outbox entry with `archivedAt` timestamp and `syncStatus: "synced"` |
 | `DraftUpdater<T>` | Type | Function updating draft state: `(draft: T) => void \| T` |
 | `Patch` | Interface | RFC6902 patch (`op`, `path`, `value?`) - Map uses `$entries/<key>`, Set uses `$values/<value>`, keys/values `string\|number` only |

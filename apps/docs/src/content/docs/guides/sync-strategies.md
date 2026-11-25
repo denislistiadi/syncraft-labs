@@ -72,14 +72,19 @@ Send all queued outbox entries to the server so it can process each mutation ind
 ### Client
 
 ```tsx
-const { data, update } = useSync<TodoState>("todos", {
+const { data, update, pendingCount } = useSync<TodoState>("todos", {
   initialState: { todos: [] },
   pusher: async (entries) => {
-    await fetch("/api/sync", {
+    const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entries),
     });
+
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const { results } = await response.json();
+    return results; // OutboxAck[]
   },
 });
 ```
@@ -89,21 +94,49 @@ const { data, update } = useSync<TodoState>("todos", {
 ```ts
 app.post("/api/sync", async (req, res) => {
   const entries: OutboxEntry<TodoState>[] = req.body;
+  const results: OutboxAck[] = [];
 
   for (const entry of entries) {
-    // 1. Check idempotency (skip if already processed)
-    if (await isProcessed(entry.id)) continue;
-
-    // 2. Apply patches to server DB
-    for (const patch of entry.patches) {
-      await applyPatchToDatabase(req.userId, patch);
+    // 1. Replay the original result for already-processed mutations
+    const previous = await findProcessed(entry.id);
+    if (previous) {
+      results.push(previous);
+      continue;
     }
 
-    // 3. Mark entry as processed
-    await markProcessed(entry.id);
+    // 2. Apply patches inside one transaction
+    try {
+      await db.transaction(async (tx) => {
+        for (const patch of entry.patches) {
+          await applyPatchToDatabase(tx, req.userId, patch);
+        }
+        await markProcessed(tx, entry.id, { id: entry.id, status: "applied" });
+      });
+      results.push({ id: entry.id, status: "applied" });
+    } catch (error) {
+      if (isVersionConflict(error)) {
+        results.push({
+          id: entry.id,
+          status: "conflict",
+          error: { code: "version_conflict", message: "Stale base version" },
+        });
+      } else if (isValidationError(error)) {
+        results.push({
+          id: entry.id,
+          status: "rejected",
+          error: { code: "validation_failed", message: error.message },
+        });
+      } else {
+        results.push({
+          id: entry.id,
+          status: "retry",
+          error: { code: "temporarily_unavailable", message: "Try again" },
+        });
+      }
+    }
   }
 
-  res.json({ status: "ok" });
+  res.json({ results });
 });
 ```
 
@@ -112,7 +145,12 @@ app.post("/api/sync", async (req, res) => {
 - ✅ Preserves individual mutation history
 - ✅ Enables server-side audit logs
 - ✅ Idempotent by design (using `entry.id`)
+- ✅ Partial failures are visible and retryable
 - ❌ Requires patch handling logic on the server
+
+:::tip
+The full protocol - cursor pulls, `has_more`, expired cursors, and server-wins conflict handling - is documented in [Reliable Sync](/docs/guides/reliable-sync).
+:::
 
 ---
 
@@ -178,13 +216,24 @@ useSync("notes", { pusher: pushFn, syncInterval: 30_000 });
 
 When a user performs rapid mutations to the same state field while offline (e.g. typing in an input field or dragging a slider), every `update()` call appends an outbox entry.
 
-Syncraft automatically runs **outbox compaction** before each background sync loop push (in React `useSync` and Vue `useSync`). Consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
+Since 0.9, **compaction is opt-in**. The default (`compaction: "none"`) pushes every entry so the server can acknowledge each mutation individually:
+
+```ts
+useSync("doc", {
+  pusher: pushFn,
+  compaction: "merge", // opt in only if your server applies the merged entry atomically
+});
+```
+
+With `compaction: "merge"`, consecutive mutations touching the same path are merged into a single outbox entry using a **last-write-wins** strategy:
 
 ```ts
 // 10 consecutive updates to `lastUpdated` while offline...
-// Without compaction: 10 outbox entries sent over the network
+// Without compaction: 10 outbox entries, each acknowledged separately
 // With compaction:    1 outbox entry containing only the latest patch
 ```
+
+Merging destroys per-entry identity, so the server must return one acknowledgement for the compacted entry and Syncraft fans it out to the original ids. If you only need smaller payloads, prefer acknowledging entries individually and batching on the server.
 
 You can also run compaction manually on any store instance or array of outbox entries:
 

@@ -65,6 +65,13 @@ export const pages = [
   },
   {
     category: "Guides",
+    file: "guides/reliable-sync.md",
+    slug: "guides/reliable-sync",
+    title: "Reliable Sync",
+    desc: "Production sync protocol - per-entry acknowledgements, idempotent pushes, cursor pulls, retries, and server-wins conflicts.",
+  },
+  {
+    category: "Guides",
     file: "guides/multi-store-architecture.md",
     slug: "guides/multi-store-architecture",
     title: "Multi-Store Architecture",
@@ -154,6 +161,13 @@ export const pages = [
     title: "Changelog",
     desc: "Release history, version migration notes, and upgrades for Syncraft Labs across all packages.",
   },
+  {
+    category: "Releases",
+    file: "reference/migration-09.md",
+    slug: "reference/migration-09",
+    title: "Migrating to 0.9",
+    desc: "Upgrade checklist for per-entry acknowledgements, compaction defaults, IndexedDB v5, schema migrations, and purge.",
+  },
 ];
 
 export const sidebarGroups = [
@@ -182,6 +196,7 @@ export const sidebarGroups = [
       { label: "Error Handling", slug: "guides/error-handling" },
       { label: "Testing", slug: "guides/testing" },
       { label: "Sync Strategies", slug: "guides/sync-strategies" },
+      { label: "Reliable Sync", slug: "guides/reliable-sync" },
       { label: "Multi-Store Architecture", slug: "guides/multi-store-architecture" },
       { label: "SSR (Next.js/Nuxt)", slug: "guides/ssr-nextjs-nuxt" },
       { label: "Backend Integration", slug: "guides/backend-architecture" },
@@ -205,6 +220,7 @@ export const sidebarGroups = [
     label: "Releases",
     items: [
       { label: "Changelog", slug: "reference/changelog" },
+      { label: "Migrating to 0.9", slug: "reference/migration-09" },
     ],
   },
   {

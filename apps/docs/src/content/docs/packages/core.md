@@ -31,6 +31,10 @@ Create a new store instance. Each store manages one slice of state identified by
 | `onQuotaExceeded` | `(info: QuotaExceededInfo) => void` | `undefined` | Callback invoked on storage quota exhaustion |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy: `"document"` (single blob) or `"collection"` (per-entity records) |
 | `idField` | `string` | `undefined` | Required when `storageMode` is `"collection"`. Property name of entity unique ID |
+| `encryptionKey` | `EncryptionKeyInput` | `undefined` | Encrypt state at rest with AES-GCM. Accepts a `CryptoKey`, raw bytes, or a passphrase |
+| `retainSyncedEntries` | `boolean` | `false` | Move acknowledged outbox entries to `outbox_archive` instead of deleting them |
+| `schemaVersion` | `number` | `1` | Version of the persisted state shape |
+| `migrate` | `(persisted: unknown, fromVersion: number) => T` | `undefined` | Upgrade persisted state when `schemaVersion` changes. Clears the outbox after a successful migration |
 
 #### Returns: `SyncStore<T>`
 
@@ -39,11 +43,17 @@ Create a new store instance. Each store manages one slice of state identified by
 | `get()` | `() => Promise<T \| undefined>` | Async read — memory → IndexedDB fallback |
 | `getSnapshot()` | `() => T \| undefined` | Synchronous read from memory (fast path) |
 | `set(updater)` | `(updater: DraftUpdater<T>) => Promise<void>` | Mutate via draft. Optimistic + durable |
+| `setServerState(state)` | `(state: T) => Promise<void>` | Replace state with server-authoritative data without adding an outbox entry |
 | `subscribe(listener)` | `(listener: SyncListener<T>) => Unsubscribe` | Listen to state changes |
 | `hydrate()` | `() => Promise<T \| undefined>` | Load from IndexedDB (call once on init) |
-| `getOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations |
+| `getOutbox(limit?)` | `(limit?: number) => Promise<readonly OutboxEntry<T>[]>` | Read pending mutations, oldest first |
+| `getPendingCount()` | `() => Promise<number>` | Number of mutations waiting in the outbox |
+| `subscribeOutbox(listener)` | `(listener: () => void) => Unsubscribe` | Notified on local writes, acknowledgements, purge, and cross-tab broadcasts |
 | `compactOutbox()` | `() => Promise<readonly OutboxEntry<T>[]>` | Return compacted view of outbox entries (last-write-wins) |
-| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove synced entries by ID |
+| `clearOutbox(ids)` | `(ids: readonly string[]) => Promise<void>` | Remove acknowledged entries by ID |
+| `getArchivedOutbox(limit?)` | `(limit?: number) => Promise<readonly ArchivedOutboxEntry<T>[]>` | Read the audit archive when `retainSyncedEntries` is enabled |
+| `clearArchivedOutbox(options?)` | `(options?: { olderThan?: number }) => Promise<number>` | Delete archived entries, optionally older than a Unix ms timestamp |
+| `purge()` | `() => Promise<void>` | Delete the IndexedDB database, clear the snapshot, and allow hydration again |
 | `destroy()` | `() => void` | Close IndexedDB connection, clear listeners |
 | `isHydrating` | `boolean` (getter) | `true` until `hydrate()` completes |
 
@@ -65,10 +75,50 @@ Two patterns:
 
 ```ts
 interface OutboxEntry<T> {
-  readonly id: string;           // UUID v4
+  readonly id: string;           // UUID v4, also the idempotency key
   readonly timestamp: number;    // Unix ms
   readonly patches: Patch[];     // Applied JSON patches
   readonly inversePatches: Patch[]; // Inverse patches for rollback
+}
+```
+
+#### `OutboxAck`
+
+Returned by `pusher` to acknowledge each pushed entry.
+
+```ts
+type OutboxAckStatus = "applied" | "conflict" | "rejected" | "retry";
+
+interface OutboxAck {
+  readonly id: string;           // OutboxEntry.id
+  readonly status: OutboxAckStatus;
+  readonly error?: {
+    readonly code: string;
+    readonly message: string;
+    readonly retryable?: boolean;
+  };
+}
+
+type PushHandler<T = unknown> = (
+  entries: readonly OutboxEntry<T>[],
+) => Promise<void | readonly OutboxAck[]>;
+```
+
+| Status | Effect |
+|--------|--------|
+| `applied` | Entry is removed from the outbox |
+| `conflict` | Entry is removed and reported through `onPushResult` |
+| `rejected` | Entry is removed and reported through `onPushResult` |
+| `retry` | Entry stays queued and the loop backs off |
+
+Pushed entries missing from the response are treated as `retry`. Returning `void` is deprecated: it logs a warning and treats every pushed entry as `applied`.
+
+#### `ArchivedOutboxEntry<T>`
+
+```ts
+interface ArchivedOutboxEntry<T> extends OutboxEntry<T> {
+  readonly archivedAt: number;
+  readonly syncStatus: "synced";
 }
 ```
 
@@ -134,6 +184,16 @@ if (result) {
   await pusher([result.compacted]);
   await store.clearOutbox(result.originalIds);
 }
+```
+
+#### `purgeSyncDB(storageKey: string): Promise<void>`
+
+Delete the IndexedDB database for a storage key without holding a store instance. Useful in logout flows that run outside the component tree.
+
+```ts
+import { purgeSyncDB } from "@syncraft-labs/core";
+
+await purgeSyncDB("activities:c12:u34");
 ```
 
 #### `applyPatches<T>(baseState: T, patches: readonly Patch[]): T`

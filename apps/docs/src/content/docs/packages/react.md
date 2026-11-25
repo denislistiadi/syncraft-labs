@@ -121,19 +121,26 @@ Standard React hook for subscribing to a SyncStore.
 |--------|------|---------|-------------|
 | `initialState` | `T` | `undefined` | Default state when IndexedDB is empty |
 | `fetcher` | `() => Promise<T>` | `undefined` | Fetch initial data from remote source |
-| `pusher` | `(entries: OutboxEntry<T>[]) => Promise<void>` | `undefined` | Push pending mutations to server |
+| `pusher` | `PushHandler<T>` | `undefined` | Push pending mutations. Return one `OutboxAck` per entry so uncommitted entries stay queued |
+| `compaction` | `"none" \| "merge"` | `"none"` | Outbox compaction before pushing. `"merge"` is only safe when the server applies the merged entry atomically |
+| `onPushResult` | `(results: readonly OutboxAck[]) => void` | `undefined` | Called with normalized acknowledgements after every push |
 | `syncInterval` | `number` | `5000` | Background sync interval (ms) |
 | `selector` | `(state: T \| undefined) => R` | `undefined` | Extract specific slice to prevent over-rendering |
 | `onSyncStart` | `() => void` | `undefined` | Fired when background sync starts |
 | `onSyncSuccess` | `() => void` | `undefined` | Fired when background sync succeeds |
 | `onSyncError` | `(error: Error) => void` | `undefined` | Fired when background sync fails |
 | `onRollback` | `(error: Error, previousState: T \| undefined) => void` | `undefined` | Fired when local persistence fails and optimistic state reverts |
+| `onConflictResolved` | `(info: ConflictResolvedInfo) => void` | `undefined` | Fired when incoming remote state is reconciled |
 | `logger` | `SyncraftLogger` | `console` | Injectable logger replacing hardcoded console calls |
 | `maxOutboxSize` | `number` | `1000` | Maximum outbox entries before overflow strategy triggers |
 | `overflowStrategy` | `"reject" \| "dropOldest" \| "forceFlush"` | `"reject"` | Behavior when `maxOutboxSize` is reached |
 | `onOverflow` | `(info: OutboxOverflowInfo) => void \| Promise<void>` | `undefined` | Callback invoked on outbox overflow events |
 | `storageMode` | `"document" \| "collection"` | `"document"` | Storage strategy (`"document"` or `"collection"`) |
 | `idField` | `string` | `undefined` | Property name of entity ID (required for collection mode) |
+| `encryptionKey` | `EncryptionKeyInput` | `undefined` | Encrypt state at rest with AES-GCM |
+| `retainSyncedEntries` | `boolean` | `false` | Archive acknowledged outbox entries instead of deleting them |
+| `schemaVersion` | `number` | `1` | Version of the persisted state shape |
+| `migrate` | `(persisted: unknown, fromVersion: number) => T` | `undefined` | Migrate persisted state when `schemaVersion` changes |
 
 #### `UseSyncReturn<T>`
 
@@ -142,10 +149,13 @@ Standard React hook for subscribing to a SyncStore.
 | `data` | `T \| undefined` | Current state (`undefined` during hydration) |
 | `update` | `(updater: DraftUpdater<T>) => void` | Mutate state with draft (fire-and-forget) |
 | `refetch` | `() => Promise<void>` | Pull fresh data via `fetcher` |
+| `applyRemoteState` | `(remote: T) => Promise<void>` | Apply server-authoritative state without queueing an outbox entry |
 | `isHydrating` | `boolean` | `true` while loading from IndexedDB |
 | `isSyncing` | `boolean` | `true` while pusher/refetch is running |
 | `isOffline` | `boolean` | `true` when `navigator.onLine` is `false` |
+| `pendingCount` | `number` | Number of mutations waiting in the outbox |
 | `error` | `Error \| null` | Last error from set/pusher/refetch |
+| `purge` | `() => Promise<void>` | Delete local data and reset the merge base. Use on logout or account switch |
 | `destroyStore` | `() => void` | Destroy the store for this key |
 
 ### `useSyncSuspense<T>(key, options): UseSyncReturn<T>`

@@ -144,16 +144,30 @@ const { data, update, refetch, isSyncing } = useSync<TodoState>("todos", {
 
   // Push pending mutations to your backend
   pusher: async (entries) => {
-    await fetch("/api/sync", {
+    const response = await fetch("/api/sync", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entries),
     });
+    const { results } = await response.json();
+    return results; // OutboxAck[]
+  },
+
+  // Called with normalized acks after every push
+  onPushResult: (results) => {
+    const failed = results.filter((result) => result.status !== "applied");
+    if (failed.length > 0) console.warn("Not synced:", failed);
   },
 
   // Polling interval in ms (default: 5000)
   syncInterval: 3000,
 });
+```
+
+Use `pendingCount` to render queue status and `purge()` on logout:
+
+```tsx
+const { pendingCount, purge } = useSync<TodoState>("todos", options);
 ```
 
 ## Encryption at Rest
@@ -200,8 +214,8 @@ Syncraft Labs exposes a global object `window.__SYNCRAFT_DEVTOOLS__` in the brow
 | `useSync<T>(key, options)` | Hook | Primary React integration hook returning reactive state and updater |
 | `useSyncSuspense<T>(key, options)` | Hook | Suspense-compatible hook throwing promises during hydration |
 | `destroyStore(key)` | Function | Destroys an active store instance by storage key |
-| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `encryptionKey?`, `fetcher?`, `pusher?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`) |
-| `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `isHydrating`, `isSyncing`, `isOffline`, `error`) |
+| `UseSyncOptions<T>` | Interface | Configuration options (`initialState?`, `encryptionKey?`, `fetcher?`, `pusher?`, `compaction?`, `onPushResult?`, `syncInterval?`, `selector?`, `onSyncStart?`, `onSyncSuccess?`, `onSyncError?`, `onRollback?`, `maxOutboxSize?`, `overflowStrategy?`, `onOverflow?`, `storageMode?`, `idField?`, `retainSyncedEntries?`, `schemaVersion?`, `migrate?`) |
+| `UseSyncReturn<T>` | Interface | Return values (`data`, `update`, `refetch`, `applyRemoteState`, `isHydrating`, `isSyncing`, `isOffline`, `pendingCount`, `error`, `purge`) |
 
 ## License
 
