@@ -144,6 +144,10 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     await controller.applyRemoteState(remote);
   };
 
+  const purge = async () => {
+    await store.purge();
+  };
+
   const destroyStoreCallback = () => {
     destroyStore(registry, key);
   };
@@ -157,6 +161,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     isSyncing,
     isOffline,
     error,
+    purge,
     destroyStore: destroyStoreCallback,
   };
 }

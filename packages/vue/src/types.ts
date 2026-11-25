@@ -89,6 +89,12 @@ export interface UseSyncReturn<T, R = T> {
   /** Last error from set/pusher/refetch. Cleared on success. */
   error: ShallowRef<Error | null>;
 
+  /**
+   * Delete the backing IndexedDB database and reset the store to its initial
+   * state. Use on logout or when switching accounts/tenants.
+   */
+  purge: () => Promise<void>;
+
   /** Destroy the singleton store for this key. */
   destroyStore: () => void;
 }

@@ -1,4 +1,4 @@
-import { openDB, type IDBPDatabase } from "idb";
+import { deleteDB, openDB, type IDBPDatabase } from "idb";
 
 export const DB_PREFIX = "syncraft-labs_";
 export const DB_VERSION = 4;
@@ -28,4 +28,14 @@ export async function openSyncDB(storageKey: string): Promise<SyncDB> {
 
 export function closeDB(db: SyncDB): void {
   db.close();
+}
+
+/**
+ * Delete the IndexedDB database backing a store.
+ *
+ * The caller must close its own connection first. If another tab still holds
+ * the database open, deletion waits until that connection closes.
+ */
+export async function deleteSyncDB(storageKey: string): Promise<void> {
+  await deleteDB(`${DB_PREFIX}${storageKey}`);
 }

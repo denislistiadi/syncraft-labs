@@ -109,6 +109,12 @@ export interface UseSyncReturn<T, R = T> {
   error: Error | null;
 
   /**
+   * Delete the backing IndexedDB database and reset the store to its initial
+   * state. Use on logout or when switching accounts/tenants.
+   */
+  purge: () => Promise<void>;
+
+  /**
    * Destroy the singleton store for this key and remove it from the registry.
    * Call when you're sure no other component needs this store.
    */

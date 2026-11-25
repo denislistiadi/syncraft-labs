@@ -14,6 +14,11 @@ export interface SyncStore<T> {
   clearArchivedOutbox(options?: { olderThan?: number }): Promise<number>;
   hydrate(): Promise<T | undefined>;
   readonly isHydrating: boolean;
+  /**
+   * Delete the backing IndexedDB database, clear the in-memory snapshot, and
+   * reset hydration so the store can be hydrated again from scratch.
+   */
+  purge(): Promise<void>;
   destroy(): void;
 }
 
