@@ -2,7 +2,7 @@ import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
 import type { DraftUpdater, OutboxEntry, ArchivedOutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
-import { closeDB, deleteSyncDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
+import { closeDB, countOutbox, deleteSyncDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
 import { createMonotonicClock, generateId } from "../utils/id.js";
 import { enforceOutboxLimit } from "./outboxGuard.js";
 import * as persistence from "./persistence.js";
@@ -29,10 +29,20 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
   if (ctx.storageMode === "collection" && !ctx.idField) throw new Error(`[Syncraft Labs] idField is required when storageMode is "collection" for store "${storageKey}".`);
 
   // Broadcast channel
-  ctx.channel = createBroadcaster<T>(storageKey, (s) => { ctx.memoryState = s; }, (s) => notifyListeners(s));
+  ctx.channel = createBroadcaster<T>(
+    storageKey,
+    (s) => {
+      ctx.memoryState = s;
+      notifyOutboxListeners();
+    },
+    (s) => notifyListeners(s),
+  );
 
   function notifyListeners(state: T): void {
     ctx.listeners.forEach((listener) => listener(state));
+  }
+  function notifyOutboxListeners(): void {
+    ctx.outboxListeners.forEach((listener) => listener());
   }
   function assertNotDestroyed(): void {
     if (ctx.isDestroyed) throw new Error(`[Syncraft Labs] Store "${storageKey}" has been destroyed. Create a new store instance if you need to continue using this key.`);
@@ -116,6 +126,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
             outboxEntry,
             ctx.cryptoKey,
           );
+          notifyOutboxListeners();
         } catch (error) {
           ctx.memoryState = previousState;
           if (previousState !== undefined) notifyListeners(previousState);
@@ -162,6 +173,16 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       const currentDB = assertDB();
       return readOutbox<T>(currentDB, limit);
     },
+    async getPendingCount(): Promise<number> {
+      assertNotDestroyed();
+      if (ctx.db === null) return 0;
+      return countOutbox(ctx.db);
+    },
+    subscribeOutbox(listener: () => void): Unsubscribe {
+      assertNotDestroyed();
+      ctx.outboxListeners.add(listener);
+      return () => ctx.outboxListeners.delete(listener);
+    },
     async clearOutbox(ids: readonly string[]): Promise<void> {
       assertNotDestroyed();
       const currentDB = assertDB();
@@ -170,6 +191,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
       } else {
         await clearOutboxStorage(currentDB, ids);
       }
+      notifyOutboxListeners();
     },
     async compactOutbox(): Promise<readonly OutboxEntry<T>[]> {
       assertNotDestroyed();
@@ -256,6 +278,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         ctx.isHydrated = false;
         ctx.hasWarnedPreHydration = false;
         ctx.listeners.forEach((listener) => listener(undefined as unknown as T));
+        notifyOutboxListeners();
         if (ctx.channel) {
           ctx.channel.postMessage({ type: "SYNCRAFT_STATE_UPDATE", snapshot: undefined });
         }
@@ -270,6 +293,7 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
         ctx.db = null;
       }
       ctx.listeners.clear();
+      ctx.outboxListeners.clear();
       ctx.memoryState = undefined;
       ctx.cryptoKey = null;
       ctx.isHydrated = false;

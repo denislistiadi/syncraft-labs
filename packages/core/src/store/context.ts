@@ -17,6 +17,7 @@ export interface StoreContext<T extends Record<string, unknown>> {
   logger: SyncraftLogger;
   memoryState: T | undefined;
   listeners: Set<SyncListener<T>>;
+  outboxListeners: Set<() => void>;
   db: IDBPDatabase<unknown> | null;
   cryptoKey: CryptoKey | null;
   isHydrated: boolean;
@@ -47,6 +48,7 @@ export function createStoreContext<T extends Record<string, unknown>>(
     logger: config.logger ?? console,
     memoryState: undefined,
     listeners: new Set(),
+    outboxListeners: new Set(),
     db: null,
     cryptoKey: null,
     isHydrated: false,

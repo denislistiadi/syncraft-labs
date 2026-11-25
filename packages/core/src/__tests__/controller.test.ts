@@ -241,6 +241,27 @@ describe("BaseStoreController integration", () => {
       release();
     });
 
+    it("tracks pendingCount across updates and acknowledgements", async () => {
+      const pusher = vi.fn(async (entries: readonly { id: string }[]): Promise<OutboxAck[]> =>
+        entries.map((entry) => ({ id: entry.id, status: "applied" as const })),
+      );
+      const release = registerSync({ pusher });
+      expect(controller.pendingCount).toBe(0);
+
+      await store.set((draft) => {
+        draft.count = 3;
+      });
+      await vi.waitFor(() => {
+        expect(controller.pendingCount).toBe(1);
+      });
+
+      await controller.runSyncLoop();
+      await vi.waitFor(() => {
+        expect(controller.pendingCount).toBe(0);
+      });
+      release();
+    });
+
     it("treats a void pusher response as applied for backwards compatibility", async () => {
       await seedTwoEntries();
       const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

@@ -17,6 +17,7 @@ export interface VueControllerState {
   readonly isHydrating: boolean;
   readonly isSyncing: boolean;
   readonly error: Error | null;
+  readonly pendingCount: number;
 }
 
 export class VueStoreController<

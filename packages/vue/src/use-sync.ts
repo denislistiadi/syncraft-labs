@@ -90,6 +90,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   );
   const isHydrating: Ref<boolean> = ref(controller.isHydrating);
   const isSyncing: Ref<boolean> = ref(controller.isSyncing);
+  const pendingCount: Ref<number> = ref(controller.pendingCount);
   const error: ShallowRef<Error | null> = shallowRef<Error | null>(
     controller.error,
   );
@@ -108,6 +109,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   const syncControllerState = () => {
     isHydrating.value = controller.isHydrating;
     isSyncing.value = controller.isSyncing;
+    pendingCount.value = controller.pendingCount;
     error.value = controller.error;
   };
 
@@ -145,7 +147,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
   };
 
   const purge = async () => {
-    await store.purge();
+    await controller.purge();
   };
 
   const destroyStoreCallback = () => {
@@ -160,6 +162,7 @@ export function useSync<T extends Record<string, unknown>, R = T | undefined>(
     isHydrating,
     isSyncing,
     isOffline,
+    pendingCount,
     error,
     purge,
     destroyStore: destroyStoreCallback,

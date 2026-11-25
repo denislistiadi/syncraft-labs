@@ -526,6 +526,38 @@ describe("useSync", () => {
       expect(isEncryptedPayload(raw)).toBe(true);
     });
   });
+
+  describe("Outbox status", () => {
+    it("exposes pendingCount and resets it after purge", async () => {
+      const key = uniqueKey();
+      const { result } = renderHook(
+        () => useSync<TestState>(key, { initialState: INITIAL_STATE }),
+        { wrapper: SyncraftProvider },
+      );
+
+      await waitFor(() => {
+        expect(result.current.isHydrating).toBe(false);
+      });
+      expect(result.current.pendingCount).toBe(0);
+
+      act(() => {
+        result.current.update((draft) => {
+          draft.count = 1;
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.pendingCount).toBe(1);
+      });
+
+      await act(async () => {
+        await result.current.purge();
+      });
+
+      expect(result.current.pendingCount).toBe(0);
+      expect(result.current.data).toBeUndefined();
+    });
+  });
 });
 
 

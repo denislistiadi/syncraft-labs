@@ -1534,6 +1534,51 @@ describe("purge", () => {
     store.destroy();
   });
 
+  it("tracks the pending count and notifies outbox subscribers", async () => {
+    const key = uniqueKey();
+    const store = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+    });
+    await store.hydrate();
+    expect(await store.getPendingCount()).toBe(0);
+
+    const listener = vi.fn();
+    const unsubscribe = store.subscribeOutbox(listener);
+
+    await store.set((draft) => {
+      draft.lastUpdated = 1;
+    });
+    expect(await store.getPendingCount()).toBe(1);
+    expect(listener).toHaveBeenCalledTimes(1);
+
+    const ids = (await store.getOutbox()).map((entry) => entry.id);
+    await store.clearOutbox(ids);
+    expect(await store.getPendingCount()).toBe(0);
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    store.destroy();
+  });
+
+  it("resets the pending count after purge", async () => {
+    const key = uniqueKey();
+    const store = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+    });
+    await store.hydrate();
+    await store.set((draft) => {
+      draft.lastUpdated = 1;
+    });
+    expect(await store.getPendingCount()).toBe(1);
+
+    await store.purge();
+    expect(await store.getPendingCount()).toBe(0);
+
+    store.destroy();
+  });
+
   it("waits for another open connection before deleting", async () => {
     const key = uniqueKey();
     const store = createSyncStore<TodoState>({

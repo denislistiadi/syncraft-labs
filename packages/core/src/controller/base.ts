@@ -54,6 +54,10 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
   private syncInFlight = false;
   private syncTimeoutId: ReturnType<typeof setTimeout> | null = null;
   private retryCount = 0;
+  private outboxUnsubscribe: (() => void) | null = null;
+
+  /** Number of mutations waiting in the outbox. */
+  pendingCount = 0;
 
   /**
    * Snapshot of the last server-confirmed state, used as the three-way merge
@@ -82,6 +86,21 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     this.latestOptions = initialOptions;
     if (this.store.getSnapshot() !== undefined) {
       this.lastSyncedBase = this.store.getSnapshot();
+    }
+    this.outboxUnsubscribe = this.store.subscribeOutbox(() => {
+      void this.refreshPendingCount();
+    });
+  }
+
+  private async refreshPendingCount(): Promise<void> {
+    try {
+      const count = await this.store.getPendingCount();
+      if (count !== this.pendingCount) {
+        this.pendingCount = count;
+        this.notify();
+      }
+    } catch {
+      // The store may be destroyed while the async read is in flight.
     }
   }
 
@@ -113,6 +132,7 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         this.hydrationError = null;
         this.notify();
         const hydrated = await this.store.hydrate();
+        this.pendingCount = await this.store.getPendingCount();
         this.isHydrated = true;
         this.isHydrating = false;
         if (this.lastSyncedBase === undefined && hydrated !== undefined) {
@@ -421,10 +441,26 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     }
   }
 
+  /**
+   * Delete the local database, reset the merge base, and allow the store to
+   * hydrate again. Use on logout or when switching accounts/tenants.
+   */
+  async purge(): Promise<void> {
+    await this.store.purge();
+    this.lastSyncedBase = undefined;
+    this.pendingCount = 0;
+    this.initialFetchDone = false;
+    this.notify();
+  }
+
   destroy(): void {
     if (this.syncTimeoutId !== null) {
       clearTimeout(this.syncTimeoutId);
       this.syncTimeoutId = null;
+    }
+    if (this.outboxUnsubscribe !== null) {
+      this.outboxUnsubscribe();
+      this.outboxUnsubscribe = null;
     }
     this.listeners.clear();
   }
