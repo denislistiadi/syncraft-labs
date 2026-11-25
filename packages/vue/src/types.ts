@@ -5,7 +5,12 @@
  */
 
 import type { Ref, ShallowRef } from "vue";
-import type { OutboxEntry, DraftUpdater, SyncStoreConfig } from "@syncraft-labs/core";
+import type {
+  DraftUpdater,
+  OutboxAck,
+  PushHandler,
+  SyncStoreConfig,
+} from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Composable Options
@@ -32,8 +37,25 @@ export interface UseSyncOptions<T extends Record<string, unknown>, R = T>
   /**
    * Async function to push pending mutations to a remote source.
    * Called automatically by the background sync loop.
+   *
+   * Return an acknowledgement per entry so entries the server did not commit
+   * stay queued. Returning `void` is still supported for backwards
+   * compatibility, but every pushed entry is then treated as applied.
    */
-  readonly pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
+  readonly pusher?: PushHandler<T> | undefined;
+
+  /**
+   * Compaction policy applied to the outbox before pushing.
+   *
+   * @default "none"
+   */
+  readonly compaction?: "none" | "merge" | undefined;
+
+  /**
+   * Called with the normalized acknowledgements after every push. Use it to
+   * surface conflicts and rejections in the UI.
+   */
+  readonly onPushResult?: ((results: readonly OutboxAck[]) => void) | undefined;
 
   /**
    * Interval (ms) between background sync attempts.

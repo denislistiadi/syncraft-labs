@@ -2,14 +2,28 @@ import { compactOutbox } from "../compact.js";
 import { toSyncraftError, SyncraftError } from "../errors.js";
 import type { SyncStore } from "../types/store.js";
 import type { DraftUpdater } from "../types/updater.js";
-import type { OutboxEntry } from "../types/outbox.js";
+import type { OutboxAck, OutboxEntry, PushHandler } from "../types/outbox.js";
 import type { SyncStoreConfig } from "../types/config.js";
 import { BASE_RETRY_DELAY, DEFAULT_SYNC_INTERVAL, MAX_RETRY_DELAY } from "./constants.js";
 import { resolveConflict } from "./conflict.js";
 
 export type BaseControllerOptions<T extends Record<string, unknown>> = Omit<SyncStoreConfig<T>, "storageKey"> & {
   fetcher?: (() => Promise<T>) | undefined;
-  pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
+  pusher?: PushHandler<T> | undefined;
+  /**
+   * Outbox compaction policy before pushing.
+   *
+   * - `"none"` (default): push every entry individually so each mutation can
+   *   be acknowledged on its own.
+   * - `"merge"`: merge the batch into a single entry. Only safe when the
+   *   server processes the merged entry atomically.
+   */
+  compaction?: "none" | "merge" | undefined;
+  /**
+   * Called with the normalized acknowledgements after every push. Use it to
+   * surface conflicts and rejections in the UI.
+   */
+  onPushResult?: ((results: readonly OutboxAck[]) => void) | undefined;
   syncInterval?: number | undefined;
   onSyncStart?: (() => void) | undefined;
   onSyncSuccess?: (() => void) | undefined;
@@ -146,12 +160,50 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
     return this.hydrationPromise;
   }
 
+  /**
+   * Normalizes a pusher response into one acknowledgement per original outbox
+   * entry. Missing entries are treated as `retry` so a partial server response
+   * never silently drops a mutation.
+   */
+  private normalizeAcks(
+    rawAcks: void | readonly OutboxAck[],
+    pushedEntries: readonly OutboxEntry<T>[],
+    originalIds: readonly string[],
+    compaction: "none" | "merge",
+  ): OutboxAck[] {
+    const logger = this.latestOptions.logger ?? console;
+
+    if (rawAcks == null) {
+      logger.warn(
+        "[Syncraft Labs] pusher() returned no acknowledgements, so every pushed entry is treated as applied. Return OutboxAck[] to keep entries the server did not commit.",
+      );
+      return pushedEntries.map((entry) => ({ id: entry.id, status: "applied" }));
+    }
+
+    const acksById = new Map<string, OutboxAck>();
+    for (const ack of rawAcks) {
+      acksById.set(ack.id, ack);
+    }
+
+    if (compaction === "merge") {
+      const compactedAck = acksById.get(pushedEntries[0]!.id);
+      if (!compactedAck) {
+        return originalIds.map((id) => ({ id, status: "retry" }));
+      }
+      return originalIds.map((id) => ({ ...compactedAck, id }));
+    }
+
+    return pushedEntries.map(
+      (entry) => acksById.get(entry.id) ?? { id: entry.id, status: "retry" },
+    );
+  }
+
   async runSyncLoop(): Promise<void> {
     if (this.subscribers === 0) return;
     if (this.syncInFlight) return;
     const pusher = this.latestOptions.pusher;
     if (!pusher) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) {
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
       this.scheduleNextSync(this.latestOptions.syncInterval ?? DEFAULT_SYNC_INTERVAL);
       return;
     }
@@ -163,20 +215,62 @@ export abstract class BaseStoreController<T extends Record<string, unknown>> {
         this.scheduleNextSync(this.latestOptions.syncInterval ?? DEFAULT_SYNC_INTERVAL);
         return;
       }
-      const compactResult = compactOutbox(rawOutbox);
-      if (!compactResult) {
-        this.retryCount = 0;
-        this.scheduleNextSync(this.latestOptions.syncInterval ?? DEFAULT_SYNC_INTERVAL);
-        return;
+      const compaction = this.latestOptions.compaction ?? "none";
+      let pushedEntries: readonly OutboxEntry<T>[];
+      let originalIds: readonly string[];
+      if (compaction === "merge") {
+        const compactResult = compactOutbox(rawOutbox);
+        if (!compactResult) {
+          this.retryCount = 0;
+          this.scheduleNextSync(this.latestOptions.syncInterval ?? DEFAULT_SYNC_INTERVAL);
+          return;
+        }
+        pushedEntries = [compactResult.compacted];
+        originalIds = compactResult.originalIds;
+      } else {
+        pushedEntries = rawOutbox;
+        originalIds = rawOutbox.map((entry) => entry.id);
       }
       this.isSyncing = true;
       this.latestOptions.onSyncStart?.();
       this.notify();
-      await pusher([compactResult.compacted]);
-      await this.store.clearOutbox(compactResult.originalIds);
+
+      const rawAcks = await pusher(pushedEntries);
+      const acks = this.normalizeAcks(rawAcks, pushedEntries, originalIds, compaction);
+
+      const removableIds = acks
+        .filter((ack) => ack.status !== "retry")
+        .map((ack) => ack.id);
+      if (removableIds.length > 0) {
+        await this.store.clearOutbox(removableIds);
+      }
+
+      if (this.latestOptions.onPushResult) {
+        try {
+          this.latestOptions.onPushResult(acks);
+        } catch (cbErr) {
+          const logger = this.latestOptions.logger ?? console;
+          logger.warn("[Syncraft Labs] Error in onPushResult callback:", cbErr);
+        }
+      }
+
       this.lastSyncedBase = this.store.getSnapshot();
-      this.retryCount = 0;
       this.isSyncing = false;
+
+      const unacknowledged = acks.filter((ack) => ack.status === "retry");
+      if (unacknowledged.length > 0) {
+        this.retryCount++;
+        const delay = Math.min(BASE_RETRY_DELAY * Math.pow(2, this.retryCount), MAX_RETRY_DELAY);
+        const logger = this.latestOptions.logger ?? console;
+        logger.warn(
+          `[Syncraft Labs] ${unacknowledged.length} outbox ${unacknowledged.length === 1 ? "entry was" : "entries were"} not acknowledged. Retrying in ${delay}ms.`,
+        );
+        this.scheduleNextSync(delay);
+        this.notify();
+        return;
+      }
+
+      this.retryCount = 0;
       this.latestOptions.onSyncSuccess?.();
       if (this.error instanceof SyncraftError && this.error.source === "sync") this.error = null;
       else if (this.error && !(this.error instanceof SyncraftError)) this.error = null;
