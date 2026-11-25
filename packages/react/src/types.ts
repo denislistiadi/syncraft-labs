@@ -131,6 +131,9 @@ export interface UseSyncReturn<T, R = T> {
   /** `true` when `navigator.onLine` is `false`. */
   isOffline: boolean;
 
+  /** Number of mutations waiting in the outbox. */
+  pendingCount: number;
+
   /** Last error from `set()`, `pusher`, or `refetch`. Cleared on success. */
   error: Error | null;
 

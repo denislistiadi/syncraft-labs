@@ -108,6 +108,9 @@ export interface UseSyncReturn<T, R = T> {
   /** `true` when `navigator.onLine` is `false`. */
   isOffline: Ref<boolean>;
 
+  /** Number of mutations waiting in the outbox. */
+  pendingCount: Ref<number>;
+
   /** Last error from set/pusher/refetch. Cleared on success. */
   error: ShallowRef<Error | null>;
 

@@ -58,8 +58,10 @@ interface ComposableResult<T> {
   isHydrating: Ref<boolean>;
   isSyncing: Ref<boolean>;
   isOffline: Ref<boolean>;
+  pendingCount: Ref<number>;
   error: ShallowRef<Error | null>;
   applyRemoteState: (remote: T) => Promise<void>;
+  purge: () => Promise<void>;
   destroyStore: () => void;
 }
 
@@ -424,6 +426,33 @@ describe("useSync (Vue)", () => {
       const { isEncryptedPayload } = await import("@syncraft-labs/core");
       expect(raw).toBeDefined();
       expect(isEncryptedPayload(raw)).toBe(true);
+    });
+  });
+
+  describe("Outbox status", () => {
+    it("exposes pendingCount and resets it after purge", async () => {
+      const key = uniqueKey();
+      const { result } = mountComposable<TestState>(key, {
+        initialState: INITIAL_STATE,
+      });
+
+      await waitFor(() => {
+        expect(result.isHydrating.value).toBe(false);
+      });
+      expect(result.pendingCount.value).toBe(0);
+
+      result.update((draft) => {
+        draft.count = 1;
+      });
+
+      await waitFor(() => {
+        expect(result.pendingCount.value).toBe(1);
+      });
+
+      await result.purge();
+
+      expect(result.pendingCount.value).toBe(0);
+      expect(result.data.value).toBeUndefined();
     });
   });
 });

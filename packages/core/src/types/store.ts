@@ -8,6 +8,13 @@ export interface SyncStore<T> {
   setServerState(state: T): Promise<void>;
   subscribe(listener: SyncListener<T>): Unsubscribe;
   getOutbox(limit?: number): Promise<readonly OutboxEntry<T>[]>;
+  /** Number of mutations waiting in the outbox. */
+  getPendingCount(): Promise<number>;
+  /**
+   * Subscribe to outbox changes (local writes, acknowledgements, purge, and
+   * cross-tab broadcasts).
+   */
+  subscribeOutbox(listener: () => void): Unsubscribe;
   clearOutbox(ids: readonly string[]): Promise<void>;
   compactOutbox(): Promise<readonly OutboxEntry<T>[]>;
   getArchivedOutbox(limit?: number): Promise<readonly ArchivedOutboxEntry<T>[]>;

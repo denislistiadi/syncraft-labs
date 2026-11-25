@@ -12,6 +12,7 @@ export interface ControllerSnapshot {
   readonly isHydrating: boolean;
   readonly isSyncing: boolean;
   readonly error: Error | null;
+  readonly pendingCount: number;
 }
 
 /**
@@ -24,6 +25,7 @@ export class ReactStoreController<T extends Record<string, unknown>> extends Bas
     isHydrating: true,
     isSyncing: false,
     error: null,
+    pendingCount: 0,
   };
 
   constructor(
@@ -41,6 +43,7 @@ export class ReactStoreController<T extends Record<string, unknown>> extends Bas
       isHydrating: this.isHydrating,
       isSyncing: this.isSyncing,
       error: this.error,
+      pendingCount: this.pendingCount,
     };
     this.notifyListeners();
   }
