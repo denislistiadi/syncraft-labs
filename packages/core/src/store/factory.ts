@@ -2,7 +2,8 @@ import { produceWithPatches, type Patch } from "../produce/index.js";
 import { compactOutbox as compactOutboxFn } from "../compact.js";
 import { isDevMode, deepFreeze, assertNoCycles, validateStateShape } from "../guards/index.js";
 import type { DraftUpdater, OutboxEntry, ArchivedOutboxEntry, SyncListener, SyncStore, SyncStoreConfig, Unsubscribe } from "../types/index.js";
-import { closeDB, countOutbox, deleteSyncDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage } from "../storage.js";
+import { closeDB, countOutbox, deleteSyncDB, openSyncDB, readOutbox, readState, writeState, readCollectionState, writeCollectionState, clearOutbox as clearOutboxStorage, archiveOutbox, readArchivedOutbox, clearArchivedOutbox as clearArchivedOutboxStorage, readSchemaVersion, writeSchemaVersion } from "../storage.js";
+import { SyncraftError } from "../errors.js";
 import { createMonotonicClock, generateId } from "../utils/id.js";
 import { enforceOutboxLimit } from "./outboxGuard.js";
 import * as persistence from "./persistence.js";
@@ -223,33 +224,83 @@ export function createSyncStore<T extends Record<string, unknown>>(config: SyncS
           ctx.storageMode === "collection"
             ? await readCollectionState<T>(ctx.db, ctx.cryptoKey)
             : await readState<T>(ctx.db, ctx.cryptoKey);
-        if (persisted !== undefined) {
-          if (isDevMode()) {
-            assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
-            validateStateShape(persisted, `hydrate() for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
-          }
-          ctx.memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
-        } else if (ctx.initialState !== undefined) {
-          if (isDevMode()) {
-            assertNoCycles(ctx.initialState, `initialState for store "${storageKey}"`);
-            validateStateShape(ctx.initialState, `initialState for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
-          }
-          ctx.memoryState = isDevMode() ? deepFreeze(ctx.initialState) : ctx.initialState;
+        const targetSchemaVersion = config.schemaVersion ?? 1;
+        const storedSchemaVersion = await readSchemaVersion(ctx.db);
+
+        const persistHydratedState = async (state: T): Promise<void> => {
           if (ctx.storageMode === "collection") {
             await withQuotaGuard(
-              () => writeCollectionState(ctx.db!, ctx.initialState, ctx.cryptoKey),
+              () => writeCollectionState(ctx.db!, state, ctx.cryptoKey),
               { storageKey, operation: "writeCollectionState" },
               ctx.onQuotaExceeded,
               ctx.logger
             );
           } else {
             await withQuotaGuard(
-              () => writeState(ctx.db!, ctx.initialState, ctx.cryptoKey),
+              () => writeState(ctx.db!, state, ctx.cryptoKey),
               { storageKey, operation: "writeState" },
               ctx.onQuotaExceeded,
               ctx.logger
             );
           }
+        };
+
+        if (persisted !== undefined) {
+          if (isDevMode()) {
+            assertNoCycles(persisted, `hydrate() for store "${storageKey}"`);
+            validateStateShape(persisted, `hydrate() for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
+          }
+
+          if (storedSchemaVersion !== undefined && storedSchemaVersion !== targetSchemaVersion) {
+            if (typeof config.migrate !== "function") {
+              throw new SyncraftError(
+                `[Syncraft Labs] Store "${storageKey}" was persisted with schema version ${storedSchemaVersion}, but this build expects version ${targetSchemaVersion}. Provide a migrate(persisted, fromVersion) function in the store config to upgrade the data.`,
+                { source: "hydration", retryable: false },
+              );
+            }
+
+            let migrated: T;
+            try {
+              migrated = config.migrate(persisted, storedSchemaVersion);
+            } catch (migrationErr) {
+              throw new SyncraftError(
+                `[Syncraft Labs] Migration for store "${storageKey}" from schema version ${storedSchemaVersion} to ${targetSchemaVersion} failed: ${migrationErr instanceof Error ? migrationErr.message : String(migrationErr)}`,
+                { source: "hydration", retryable: false, cause: migrationErr },
+              );
+            }
+
+            if (isDevMode()) {
+              assertNoCycles(migrated, `migrate() for store "${storageKey}"`);
+              validateStateShape(migrated, `migrate() for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
+            }
+
+            const staleOutbox = await readOutbox<T>(ctx.db);
+            if (staleOutbox.length > 0) {
+              await clearOutboxStorage(ctx.db, staleOutbox.map((entry) => entry.id));
+              notifyOutboxListeners();
+            }
+
+            ctx.memoryState = isDevMode() ? deepFreeze(migrated) : migrated;
+            await persistHydratedState(migrated);
+            await writeSchemaVersion(ctx.db, targetSchemaVersion);
+          } else {
+            ctx.memoryState = isDevMode() ? deepFreeze(persisted) : persisted;
+            if (storedSchemaVersion === undefined) {
+              await writeSchemaVersion(ctx.db, targetSchemaVersion);
+            }
+          }
+        } else if (ctx.initialState !== undefined) {
+          if (isDevMode()) {
+            assertNoCycles(ctx.initialState, `initialState for store "${storageKey}"`);
+            validateStateShape(ctx.initialState, `initialState for store "${storageKey}"`, [], new WeakSet(), ctx.logger);
+          }
+          ctx.memoryState = isDevMode() ? deepFreeze(ctx.initialState) : ctx.initialState;
+          await persistHydratedState(ctx.initialState);
+          if (storedSchemaVersion === undefined) {
+            await writeSchemaVersion(ctx.db, targetSchemaVersion);
+          }
+        } else if (storedSchemaVersion === undefined) {
+          await writeSchemaVersion(ctx.db, targetSchemaVersion);
         }
         ctx.isHydrated = true;
         if (ctx.memoryState !== undefined) notifyListeners(ctx.memoryState);
