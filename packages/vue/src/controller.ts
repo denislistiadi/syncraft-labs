@@ -73,6 +73,8 @@ export function getOrCreateController<T extends Record<string, unknown>>(
       onQuotaExceeded: options.onQuotaExceeded,
       storageMode: options.storageMode,
       idField: options.idField,
+      schemaVersion: options.schemaVersion,
+      migrate: options.migrate,
     } as unknown as SyncStoreConfig<T>);
     registry.set(key, store as unknown as SyncStore<never>);
   }

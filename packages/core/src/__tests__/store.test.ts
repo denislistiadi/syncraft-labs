@@ -12,7 +12,7 @@ import { describe, it, expect, vi, afterEach } from "vitest";
 import { openDB } from "idb";
 import { createSyncStore } from "../store.js";
 import type { SyncStore } from "../types.js";
-import { DB_PREFIX, DB_VERSION } from "../storage/db.js";
+import { DB_PREFIX, DB_VERSION, META_STORE } from "../storage/db.js";
 import * as persistence from "../store/persistence.js";
 
 // ─────────────────────────────────────────────────────────────
@@ -1602,6 +1602,196 @@ describe("purge", () => {
 
     expect(resolved).toBe(true);
     store.destroy();
+  });
+});
+
+describe("schema migration", () => {
+  async function readStoredVersion(storageKey: string): Promise<number | undefined> {
+    const db = await openDB(`${DB_PREFIX}${storageKey}`, DB_VERSION);
+    const record = (await db.get(META_STORE, "schema_version")) as
+      | { version?: number }
+      | undefined;
+    db.close();
+    return record?.version;
+  }
+
+  it("writes the schema version on first hydrate", async () => {
+    const key = uniqueKey();
+    const store = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 3,
+    });
+    await store.hydrate();
+
+    expect(await readStoredVersion(key)).toBe(3);
+    store.destroy();
+  });
+
+  it("skips migration when the stored version matches", async () => {
+    const key = uniqueKey();
+    const first = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 2,
+    });
+    await first.hydrate();
+    await first.set((draft) => {
+      draft.lastUpdated = 5;
+    });
+    first.destroy();
+
+    const migrate = vi.fn();
+    const second = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 2,
+      migrate,
+    });
+    await second.hydrate();
+
+    expect(migrate).not.toHaveBeenCalled();
+    expect(second.getSnapshot()?.lastUpdated).toBe(5);
+    expect(await second.getPendingCount()).toBe(1);
+    second.destroy();
+  });
+
+  it("runs migrate, clears the outbox, and persists the new version", async () => {
+    const key = uniqueKey();
+    const first = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 1,
+    });
+    await first.hydrate();
+    await first.set((draft) => {
+      draft.lastUpdated = 1;
+    });
+    first.destroy();
+
+    const migrate = vi.fn(
+      (persisted: unknown, fromVersion: number): TodoState => ({
+        ...(persisted as TodoState),
+        lastUpdated: fromVersion + 41,
+      }),
+    );
+    const second = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 2,
+      migrate,
+    });
+    await second.hydrate();
+
+    expect(migrate).toHaveBeenCalledWith(expect.objectContaining({ lastUpdated: 1 }), 1);
+    expect(second.getSnapshot()?.lastUpdated).toBe(42);
+    expect(await second.getPendingCount()).toBe(0);
+    expect(await readStoredVersion(key)).toBe(2);
+    second.destroy();
+
+    // The migrated state is persisted, so the next boot skips migration.
+    const migrateAgain = vi.fn();
+    const third = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 2,
+      migrate: migrateAgain,
+    });
+    await third.hydrate();
+    expect(migrateAgain).not.toHaveBeenCalled();
+    expect(third.getSnapshot()?.lastUpdated).toBe(42);
+    third.destroy();
+  });
+
+  it("throws an actionable error when the version changes without migrate", async () => {
+    const key = uniqueKey();
+    const first = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 1,
+    });
+    await first.hydrate();
+    first.destroy();
+
+    const second = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      schemaVersion: 2,
+    });
+
+    await expect(second.hydrate()).rejects.toThrow(/migrate\(persisted, fromVersion\)/);
+    second.destroy();
+  });
+
+  it("migrates collection-mode stores", async () => {
+    type Entity = { id: string; name: string };
+    type CollectionState = Record<string, Entity>;
+    const key = uniqueKey();
+
+    const first = createSyncStore<CollectionState>({
+      storageKey: key,
+      initialState: { a: { id: "a", name: "Old" } },
+      storageMode: "collection",
+      idField: "id",
+      schemaVersion: 1,
+    });
+    await first.hydrate();
+    first.destroy();
+
+    const second = createSyncStore<CollectionState>({
+      storageKey: key,
+      initialState: { a: { id: "a", name: "Old" } },
+      storageMode: "collection",
+      idField: "id",
+      schemaVersion: 2,
+      migrate: (persisted) => {
+        const state = persisted as CollectionState;
+        return {
+          a: { ...state.a!, name: "Renamed" },
+          b: { id: "b", name: "Added" },
+        };
+      },
+    });
+    await second.hydrate();
+
+    expect(second.getSnapshot()).toEqual({
+      a: { id: "a", name: "Renamed" },
+      b: { id: "b", name: "Added" },
+    });
+    second.destroy();
+  });
+
+  it("migrates encrypted stores through the decrypted state", async () => {
+    const key = uniqueKey();
+    const encryptionKey = "schema-migration-passphrase";
+
+    const first = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      encryptionKey,
+      schemaVersion: 1,
+    });
+    await first.hydrate();
+    await first.set((draft) => {
+      draft.lastUpdated = 7;
+    });
+    first.destroy();
+
+    const second = createSyncStore<TodoState>({
+      storageKey: key,
+      initialState: INITIAL_STATE,
+      encryptionKey,
+      schemaVersion: 2,
+      migrate: (persisted) => ({
+        ...(persisted as TodoState),
+        lastUpdated: 70,
+      }),
+    });
+    await second.hydrate();
+
+    expect(second.getSnapshot()?.lastUpdated).toBe(70);
+    expect(await second.getPendingCount()).toBe(0);
+    second.destroy();
   });
 });
 

@@ -93,6 +93,19 @@ export interface BaseSyncStoreConfig<T> {
    */
   readonly onRollback?: ((error: Error, previousState: T | undefined) => void) | undefined;
   /**
+   * Version of the persisted state shape. Bump it whenever a release changes
+   * the shape in a way that requires a migration.
+   * @default 1
+   */
+  readonly schemaVersion?: number | undefined;
+  /**
+   * Upgrade persisted state written with a different `schemaVersion`.
+   *
+   * The outbox is cleared after a successful migration because old patches
+   * target the previous state shape.
+   */
+  readonly migrate?: ((persisted: unknown, fromVersion: number) => T) | undefined;
+  /**
    * Injectable logger to replace hardcoded console logs.
    * @default console
    */

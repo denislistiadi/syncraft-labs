@@ -1,11 +1,12 @@
 import { deleteDB, openDB, type IDBPDatabase } from "idb";
 
 export const DB_PREFIX = "syncraft-labs_";
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const STATE_STORE = "state" as const;
 export const STATE_ENTITIES_STORE = "state_entities" as const;
 export const OUTBOX_STORE = "outbox" as const;
 export const OUTBOX_ARCHIVE_STORE = "outbox_archive" as const;
+export const META_STORE = "meta" as const;
 export const STATE_KEY = "current" as const;
 
 export type SyncDB = IDBPDatabase<unknown>;
@@ -22,6 +23,7 @@ export async function openSyncDB(storageKey: string): Promise<SyncDB> {
         archiveStore.createIndex("timestamp", "timestamp");
         archiveStore.createIndex("archivedAt", "archivedAt");
       }
+      if (!db.objectStoreNames.contains(META_STORE)) db.createObjectStore(META_STORE);
     },
   });
 }
