@@ -30,6 +30,10 @@ export type { UseNetworkStatusReturn } from "./use-network.js";
 export type {
   SyncraftErrorSource,
   SyncraftErrorOptions,
+  OutboxAck,
+  OutboxAckError,
+  OutboxAckStatus,
+  PushHandler,
   ConflictStrategy,
   ConflictInfo,
   ConflictResolver,

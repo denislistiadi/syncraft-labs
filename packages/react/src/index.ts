@@ -33,6 +33,10 @@ export type { UseSyncOptions, UseSyncReturn } from "./types.js";
 export type {
   SyncraftErrorSource,
   SyncraftErrorOptions,
+  OutboxAck,
+  OutboxAckError,
+  OutboxAckStatus,
+  PushHandler,
   ConflictStrategy,
   ConflictInfo,
   ConflictResolver,

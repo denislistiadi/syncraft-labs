@@ -4,7 +4,12 @@
  * Type definitions for the React `useSync` hook.
  */
 
-import type { OutboxEntry, DraftUpdater, SyncStoreConfig } from "@syncraft-labs/core";
+import type {
+  DraftUpdater,
+  OutboxAck,
+  PushHandler,
+  SyncStoreConfig,
+} from "@syncraft-labs/core";
 
 // ─────────────────────────────────────────────────────────────
 // Hook Options
@@ -34,15 +39,36 @@ export interface UseSyncOptions<T extends Record<string, unknown>, R = T>
   /**
    * Async function to push pending mutations to a remote source.
    * Called automatically by the background sync loop.
-   * Receives all pending outbox entries (patches + inverse patches).
+   * Receives pending outbox entries (patches + inverse patches).
+   *
+   * Return an acknowledgement per entry so entries the server did not commit
+   * stay queued. Returning `void` is still supported for backwards
+   * compatibility, but every pushed entry is then treated as applied.
    *
    * @example
-   * pusher: (entries) => fetch('/api/sync', {
-   *   method: 'POST',
-   *   body: JSON.stringify(entries),
-   * })
+   * pusher: async (entries) => {
+   *   const response = await fetch('/api/sync/push', {
+   *     method: 'POST',
+   *     body: JSON.stringify({ entries }),
+   *   });
+   *   const { results } = await response.json();
+   *   return results;
+   * }
    */
-  readonly pusher?: ((entries: readonly OutboxEntry<T>[]) => Promise<void>) | undefined;
+  readonly pusher?: PushHandler<T> | undefined;
+
+  /**
+   * Compaction policy applied to the outbox before pushing.
+   *
+   * @default "none"
+   */
+  readonly compaction?: "none" | "merge" | undefined;
+
+  /**
+   * Called with the normalized acknowledgements after every push. Use it to
+   * surface conflicts and rejections in the UI.
+   */
+  readonly onPushResult?: ((results: readonly OutboxAck[]) => void) | undefined;
 
   /**
    * Interval (ms) between background sync attempts.

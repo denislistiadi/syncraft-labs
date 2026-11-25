@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { BaseStoreController } from "../controller/base.js";
+import { BaseStoreController, type BaseControllerOptions } from "../controller/base.js";
 import { createSyncStore } from "../store/index.js";
 import type { SyncStore } from "../types/store.js";
+import type { OutboxAck } from "../types/outbox.js";
 import { SyncraftError } from "../errors.js";
 
 class TestStoreController<T extends Record<string, unknown>> extends BaseStoreController<T> {
@@ -21,9 +22,10 @@ describe("BaseStoreController integration", () => {
 
   let store: SyncStore<AppState>;
   let controller: TestStoreController<AppState>;
-  const key = "test-controller-key";
+  let key: string;
 
   beforeEach(async () => {
+    key = `test-controller-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     store = createSyncStore<AppState>({
       storageKey: key,
       initialState: { text: "Initial", count: 0 },
@@ -92,5 +94,113 @@ describe("BaseStoreController integration", () => {
     await expect(controller.applyRemoteState({ text: "Remote", count: 1 })).rejects.toThrow(SyncraftError);
     expect(controller.error).toBeInstanceOf(SyncraftError);
     expect((controller.error as SyncraftError).source).toBe("sync");
+  });
+
+  describe("push acknowledgements", () => {
+    const registerSync = (options: BaseControllerOptions<AppState>): (() => void) => {
+      const resolved = { syncInterval: 1_000_000, ...options };
+      controller = new TestStoreController(key, store, resolved);
+      return controller.registerConsumer(resolved);
+    };
+
+    const seedTwoEntries = async (): Promise<[string, string]> => {
+      await store.set((draft) => {
+        draft.count = 1;
+      });
+      await store.set((draft) => {
+        draft.text = "second";
+      });
+      const outbox = await store.getOutbox();
+      return [outbox[0]!.id, outbox[1]!.id];
+    };
+
+    it("clears only acknowledged entries and keeps retry entries", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const [firstId, secondId] = await seedTwoEntries();
+      const pusher = vi.fn(async (entries: readonly { id: string }[]): Promise<OutboxAck[]> => [
+        { id: entries[0]!.id, status: "applied" },
+        { id: entries[1]!.id, status: "retry" },
+      ]);
+      const release = registerSync({ pusher });
+
+      await controller.runSyncLoop();
+
+      const remaining = await store.getOutbox();
+      expect(remaining.map((entry) => entry.id)).toEqual([secondId]);
+      expect(firstId).not.toEqual(secondId);
+      warnSpy.mockRestore();
+      release();
+    });
+
+    it("treats pushed entries missing from the acknowledgement list as retry", async () => {
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const [firstId, secondId] = await seedTwoEntries();
+      const pusher = vi.fn(async (): Promise<OutboxAck[]> => [
+        { id: firstId, status: "applied" },
+      ]);
+      const release = registerSync({ pusher });
+
+      await controller.runSyncLoop();
+
+      const remaining = await store.getOutbox();
+      expect(remaining.map((entry) => entry.id)).toEqual([secondId]);
+      warnSpy.mockRestore();
+      release();
+    });
+
+    it("removes rejected entries and reports them through onPushResult", async () => {
+      await store.set((draft) => {
+        draft.count = 1;
+      });
+      const firstId = (await store.getOutbox())[0]!.id;
+      const error = { code: "validation_failed", message: "Invalid activity" };
+      const onPushResult = vi.fn();
+      const pusher = vi.fn(async (): Promise<OutboxAck[]> => [
+        { id: firstId, status: "rejected", error },
+      ]);
+      const release = registerSync({ pusher, onPushResult });
+
+      await controller.runSyncLoop();
+
+      expect(await store.getOutbox()).toHaveLength(0);
+      expect(onPushResult).toHaveBeenCalledWith([
+        expect.objectContaining({ id: firstId, status: "rejected", error }),
+      ]);
+      release();
+    });
+
+    it("maps a single acknowledgement to every compacted entry", async () => {
+      const [firstId, secondId] = await seedTwoEntries();
+      const onPushResult = vi.fn();
+      const pusher = vi.fn(async (entries: readonly { id: string }[]): Promise<OutboxAck[]> => [
+        { id: entries[0]!.id, status: "applied" },
+      ]);
+      const release = registerSync({ pusher, compaction: "merge", onPushResult });
+
+      await controller.runSyncLoop();
+
+      expect(pusher).toHaveBeenCalledTimes(1);
+      expect((pusher.mock.calls[0]![0] as readonly unknown[]).length).toBe(1);
+      expect(await store.getOutbox()).toHaveLength(0);
+      expect(onPushResult.mock.calls[0]![0].map((ack: OutboxAck) => ack.id)).toEqual([
+        firstId,
+        secondId,
+      ]);
+      release();
+    });
+
+    it("treats a void pusher response as applied for backwards compatibility", async () => {
+      await seedTwoEntries();
+      const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const pusher = vi.fn(async (): Promise<void> => {});
+      const release = registerSync({ pusher });
+
+      await controller.runSyncLoop();
+
+      expect(await store.getOutbox()).toHaveLength(0);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("no acknowledgements"));
+      warnSpy.mockRestore();
+      release();
+    });
   });
 });
